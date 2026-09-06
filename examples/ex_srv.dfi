@@ -1,0 +1,55 @@
+zmq_srv() {
+    if(this.ctx == undefined) {
+        this.ctx = zmq_ctx_new();
+        if(!this.ctx) {
+            console.error(zmq_errstr());
+            return exit(1);
+        }
+        this.skt = this.ctx.zmq_socket(ZMQ_PAIR);
+        if(!this.skt) {
+            console.error(zmq_errstr());
+            return exit(2);
+        }
+        if(this.skt.zmq_bind("tcp://*:5555") < 0) {
+            console.error(zmq_errstr());
+            return exit(3);
+        }
+    }
+    rs = this.skt.zmq_recv(100, ZMQ_DONTWAIT);
+    if(rs == "hello") {
+        console.println("server received: ", rs);
+        console.println("server sending world...");
+        this.skt.zmq_send("world");
+    }
+    return 0;
+}
+
+zmq_srv srv_inst();
+
+zmq_pub() {
+    if(!this.ctx) {
+        this.ctx = zmq_ctx_new();
+        if(!this.ctx) {
+            console.println(zmq_errstr());
+            return exit(1);
+        }
+        this.skt = this.ctx.zmq_socket(ZMQ_PUB);
+        if(!this.skt) {
+            console.println(zmq_errstr());
+            return exit(2);
+        }
+        if(this.skt.zmq_bind("tcp://*:5556") < 0) {
+            console.println(zmq_errstr());
+            return exit(3);
+        }
+    }
+    if(steady_clock() > this.t) {
+        this.t = steady_clock() + 0.1;
+        str = "msg" + itoa((u64)(randf() * 9000 + 1000));
+        console.println("pub server sending: \"", str, "\"");
+        this.skt.zmq_send(str);
+    }
+    return 0;
+}
+
+zmq_pub pblshr();

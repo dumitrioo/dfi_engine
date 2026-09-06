@@ -1,0 +1,73 @@
+fractal_cppfield(yb, ye) {
+    if(this.done != undefined) {
+        sleep(0.01);
+        return true;
+    }
+    bt = timestamp().fseconds();
+    yMin = -0.2; yMax =  0.1; xMin = -1.5; xMax = -1.1;
+    for(yPixel = yb; yPixel < ye; ++yPixel) {
+        y0 = (yPixel / 40.0) * (yMax - yMin) + yMin;
+        for (xPixel = -96; xPixel < 387; ++xPixel) {
+            x0 = (xPixel / 78.0) * (xMax - xMin) + xMin;
+            x = x0; y = y0;
+            indx = 0;
+            for(iter = 0; iter < 80; ++iter) {
+                xx = x * x - y * y + x0;
+                yy = 2.0 * x * y + y0;
+                x = xx; y = yy;
+                if(x * x + y * y > 4.0) {
+                    indx = iter / 8;
+                    break;
+                }
+            }
+            fractal_field.set_at(xPixel, yPixel, " .:;+=xX$&"[indx]);
+        }
+    }
+    et = timestamp().fseconds();
+    println("elapsed time: ", et - bt);
+    this.done = true;
+    return true;
+}
+
+fractal_cppfield pf0(-125, -100);
+fractal_cppfield pf1(-100, -87);
+fractal_cppfield pf2(-87, -75);
+fractal_cppfield pf3(-75, -63);
+fractal_cppfield pf4(-63, -50);
+fractal_cppfield pf5(-50, -37);
+fractal_cppfield pf6(-37, -25);
+fractal_cppfield pf7(-25, -12);
+fractal_cppfield pf8(-12, 0);
+fractal_cppfield pf9(0, 12);
+fractal_cppfield pf10(12, 25);
+fractal_cppfield pf11(25, 37);
+fractal_cppfield pf12(37, 50);
+fractal_cppfield pf13(50, 63);
+fractal_cppfield pf14(63, 75);
+fractal_cppfield pf15(75, 87);
+fractal_cppfield pf16(87, 100);
+fractal_cppfield pf17(100, 112);
+fractal_cppfield pf18(112, 125);
+fractal_cppfield pf19(125, 137);
+fractal_cppfield pf20(137, 150);
+fractal_cppfield pf21(150, 180);
+
+execution_finished(
+    a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+    a12, a13, a14, a15, a16, a17, a18, a19, a20, a21
+) {
+    if(
+        a0 && a1 && a2 && a3 && a4 && a5 && a6 && a7 && a8 && a9 && a10 && a11 &&
+        a12 && a13 && a14 && a15 && a16 && a17 && a18 && a19 && a20 && a21
+    ) {
+        println(fractal_field.dump());
+        exit();
+    } else {
+        sleep(0.01);
+    }
+}
+
+execution_finished efini(
+    pf0, pf1, pf2, pf3, pf4, pf5, pf6, pf7, pf8, pf9, pf10, pf11,
+    pf12, pf13, pf14, pf15, pf16, pf17, pf18, pf19, pf20, pf21
+);

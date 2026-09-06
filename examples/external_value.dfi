@@ -1,0 +1,75 @@
+setup_cell() {
+    if(!external_values_server_enabled()) {
+        if(!enable_external_values_server("0.0.0.0", 43987)) {
+            throw error_str(last_error());
+        }
+        set_extern_update_seconds(0.00001);
+        set_cycle_sleep_seconds(0.00001);
+        set_inactive_sleep_seconds(0.01);
+    }
+    return external_values_server_enabled();
+}
+setup_cell setup();
+
+function rnd_str(n) {
+    res = "";
+    res.reserve(n);
+    for (i = 0; i < n; ++i) {
+        res += "0123456789qwertyuiopasdfghjklzx"
+               "cvbnmQWERTYUIOPASDFGHJKLZXCVBNM"[rand() % 62];
+    }
+    return res;
+}
+
+some_value_issuer() {
+    if(steady_clock() > this.last_time + 0.1) {
+        this.last_time = steady_clock();
+        choice = rand() % 9;
+        if(choice == 0) this.res = rnd_str(rand() % 32 + 1);
+        if(choice == 1) this.res = rand() % 100 + 1;
+        if(choice == 2) this.res = vec4(200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5));
+        if(choice == 3) this.res = mat4(
+            200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
+            200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
+            200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
+            200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5)
+        );
+        if(choice == 4) this.res = [200.0 * (randf() - 0.5), rnd_str(12)];
+        if(choice == 5) { o = object(); o["key"] = 200.0 * (randf() - 0.5); this.res = o; }
+        if(choice == 6) this.res = sin;
+        if(choice == 7) this.res = timestamp();
+        if(choice == 8) this.res = matrix([[1, 2], [3, 4]]);
+        console.println("original value changed to: ", this.res);
+    }
+    return this.res;
+}
+
+// just a regular cell, no fancy stuff, no effort to expose it
+// all the cells are already exposed by the embedded local network server
+// inside the Engine Runtime
+// and this cell's value is accessed below over the network (TCP/IP)
+some_value_issuer just_a_regular_cell();
+
+// value obtained over the network by URL with name "value_from_net".
+// in real scenario, localhost will be changed to real host name or IP addr.
+// and the name of the value above is mentioned in path part of this URL
+//
+// in other words, locally-accessible cell "just_a_regular_cell" accessed
+// over the network for testing and demo purposes
+extern 'dfi://127.0.0.1:43987/just_a_regular_cell' value_from_net;
+
+// the following extern value is an example of network access to the other
+// external value resided on other host in the network which is also could
+// be an extern value and so on. this way you can create a chain of values
+// network alues. this may be used to create network values hubs.
+extern 'dfi://127.0.0.1:43987/value_from_net' value_from_net_copy;
+
+ext_value_use(vname, exv) {
+    if(exv != this.exv) {
+        this.exv = exv;
+        console.println("remote ", typeof(exv), " \"", vname, "\": ", this.exv);
+    }
+    return 0;
+}
+ext_value_use use1("value_from_net", value_from_net);
+ext_value_use use2("value_from_net_copy", value_from_net_copy);

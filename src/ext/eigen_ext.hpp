@@ -1,0 +1,608 @@
+#pragma once
+
+#include "../inc/commondefs.hpp"
+#include "../inc/eigen/Eigen/Core"
+#include "../inc/eigen/Eigen/Dense"
+#include "../inc/eigen/Eigen/Eigen"
+
+#include "../dfi_value.hpp"
+#include "../dfi_util.hpp"
+#include "../dfi_interfaces.hpp"
+
+namespace dfi {
+
+    namespace detail {
+
+        static std::optional<Eigen::MatrixXd> mb_construct_from(valbox const &vb) {
+            if(vb.is_mat4()) {
+                Eigen::MatrixXd res;
+                res.resize(4, 4);
+                for(int r{}; r < 4; ++r) {
+                    for(int c{}; c < 4; ++c) {
+                        res(r, c) = vb.as_mat4()[r][c];
+                    }
+                }
+                return res;
+            }
+            return {};
+        }
+
+    }
+
+    class eigen_ext: public extension_interface {
+    public:
+        eigen_ext() = default;
+        ~eigen_ext() {
+            unregister_runtime();
+        }
+        eigen_ext(eigen_ext const &) = delete;
+        eigen_ext &operator=(eigen_ext const &) = delete;
+        eigen_ext(eigen_ext &&) = delete;
+        eigen_ext &operator=(eigen_ext &&) = delete;
+
+        void register_runtime(runtime_interface *rt) override {
+            std::unique_lock l{rt_mtp_};
+            if(rt_ != nullptr) { return; }
+            rt_ = rt;
+            if(rt_ == nullptr) { return; }
+
+            rt->add_function("matrix", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 2)
+                Eigen::MatrixXd res;
+                if(args.size() == 1) {
+                    if(args[0].is_array()) {
+                        valbox::array_t const &a{args[0].as_array()};
+                        if(a.size() > 0) {
+                            if(a[0].is_array()) {
+                                size_t max_cols{0};
+                                for(size_t r{}; r < a.size(); ++r) {
+                                    valbox::array_t const &ra{a[r].as_array()};
+                                    if(max_cols < ra.size()) {
+                                        max_cols = ra.size();
+                                    }
+                                }
+                                if(max_cols > 0) {
+                                    res.resize(a.size(), max_cols);
+                                    for(size_t r{}; r < a.size(); ++r) {
+                                        valbox::array_t const &ra{a[r].as_array()};
+                                        for(size_t c{}; c < max_cols; ++c) {
+                                            if(c < ra.size()) {
+                                                res(r, c) = ra[c].cast_to_double();
+                                            } else {
+                                                res(r, c) = 0.0;
+                                            }
+                                            max_cols = ra.size();
+                                        }
+                                    }
+                                } else {
+                                    throw std::runtime_error{"invalid matrix initialization"};
+                                }
+                            } else {
+                                res.resize(1, a.size());
+                                size_t c{0};
+                                for(auto &&v: a) {
+                                    res(0, c++) = v.cast_to_double();
+                                }
+                            }
+                        } else {
+                            throw std::runtime_error{"invalid matrix initialization"};
+                        }
+                    } else if(args[0].is_mat4()) {
+                        res.resize(4, 4);
+                        valbox::mat4_t const &m{args[0].as_mat4()};
+                        for(int r{}; r < 4; ++r) {
+                            for(int c{}; c < 4; ++c) {
+                                res(r, c) = m[r][c];
+                            }
+                        }
+                    } else if(args[0].is_vec4()) {
+                        res.resize(4, 1);
+                        valbox::vec4_t const &v{args[0].as_vec4()};
+                        for(int c{}; c < 4; ++c) {
+                            res(0, c) = v[c];
+                        }
+                    } else {
+                        throw std::runtime_error{"invalid matrix initialization"};
+                    }
+                } else if(args.size() == 2) {
+                    if(args[0].is_numeric() && args[1].is_numeric()) {
+                        res.resize(args[0].cast_to_int(), args[1].cast_to_int());
+                    }
+                }/* else if(
+                    args.size() == 3 &&
+                    args[0].is_numeric() &&
+                    args[1].is_numeric() &&
+                    args[2].is_mat4()
+                ) {
+                    res.resize(args[0].cast_to_int(), args[1].cast_to_int());
+                    for(int r{}; r < 4 && r < args[0].cast_to_int(); ++r) {
+                        for(int c{}; c < 4 && c < args[1].cast_to_int(); ++c) {
+                            res(r, c) = args[2].as_mat4()[r][c];
+                        }
+                    }
+                } else if(
+                    args.size() == 3 &&
+                    args[0].is_numeric() &&
+                    args[1].is_numeric() &&
+                    args[2].is_array()
+                ) {
+                    res.resize(args[0].cast_to_int(), args[1].cast_to_int());
+                    for(int r{}; r < args[0].cast_to_int(); ++r) {
+                        for(int c{}; c < args[1].cast_to_int(); ++c) {
+                            int ai{r * args[1].cast_to_int() + c};
+                            if((int)args[2].as_array().size() > ai) {
+                                res(r, c) = args[2].as_array().at(ai).cast_to_double();
+                            }
+                        }
+                    }
+                }*/ else {
+                    throw std::runtime_error{"invalid matrix initialization"};
+                }
+                return dfi::valbox{std::move(res), "matrix"};
+            });
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_ASSIGN},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix") {
+                        if(r.class_name() == "matrix") {
+                            l.as_class<Eigen::MatrixXd>() = r.as_class<Eigen::MatrixXd>();
+                        } else {
+                            if(std::optional<Eigen::MatrixXd> omr{detail::mb_construct_from(r)}) {
+                                l.as_class<Eigen::MatrixXd>() = *omr;
+                            }
+                        }
+                    } else {
+                        l.assign(r);
+                    }
+                    return l;
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_MUL},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix" && r.class_name() == "matrix") {
+                        Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() * r.as_class<Eigen::MatrixXd>()};
+                        return dfi::valbox{std::move(mr), "matrix"};
+                    } else if(l.class_name() == "matrix") {
+                        if(r.is_numeric()) {
+                            Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() * r.cast_to_double()};
+                            return dfi::valbox{mr, "matrix"};
+                        } else if(auto ortsw{detail::mb_construct_from(r)}) {
+                            Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() * *ortsw};
+                            return dfi::valbox{mr, "matrix"};
+                        }
+                    } else if(r.class_name() == "matrix") {
+                        if(l.is_numeric()) {
+                            Eigen::MatrixXd mr{l.cast_to_double() * r.as_class<Eigen::MatrixXd>()};
+                            return dfi::valbox{mr, "matrix"};
+                        } else if(auto oltsw{detail::mb_construct_from(l)}) {
+                            Eigen::MatrixXd mr{*oltsw * r.as_class<Eigen::MatrixXd>()};
+                            return dfi::valbox{mr, "matrix"};
+                        }
+                    }
+                    throw std::runtime_error{"invalid operands"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_MULASSIGN},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix") {
+                        if(r.class_name() == "matrix") {
+                            l.as_class<Eigen::MatrixXd>() *= r.as_class<Eigen::MatrixXd>();
+                            return l;
+                        } else if(auto ortsw{detail::mb_construct_from(r)}) {
+                            l.as_class<Eigen::MatrixXd>() *= *ortsw;
+                            return l;
+                        } else if(r.is_numeric()) {
+                            l.as_class<Eigen::MatrixXd>() *= r.cast_to_double();
+                            return l;
+                        }
+                        throw std::runtime_error{"invalid right operand"};
+                    }
+                    throw std::runtime_error{"invalid left operand"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_DIV},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix" && r.is_numeric()) {
+                        Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() / r.cast_to_double()};
+                        return dfi::valbox{mr, "matrix"};
+                    }
+                    throw std::runtime_error{"invalid operands"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_DIVASSIGN},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix") {
+                        if(r.is_numeric()) {
+                            l.as_class<Eigen::MatrixXd>() /= r.cast_to_double();
+                            return l;
+                        }
+                        throw std::runtime_error{"invalid right operand"};
+                    }
+                    throw std::runtime_error{"invalid left operand"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_MINUS},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix" && r.class_name() == "matrix") {
+                        Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() - r.as_class<Eigen::MatrixXd>()};
+                        return dfi::valbox{mr, "matrix"};
+                    } else if(l.class_name() == "matrix") {
+                        auto rm{detail::mb_construct_from(r)};
+                        if(rm) {
+                            Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() - *rm};
+                            return dfi::valbox{mr, "matrix"};
+                        }
+                    } else if(r.class_name() == "matrix") {
+                        auto lm{detail::mb_construct_from(l)};
+                        if(lm) {
+                            Eigen::MatrixXd mr{*lm - l.as_class<Eigen::MatrixXd>()};
+                            return dfi::valbox{mr, "matrix"};
+                        }
+                    }
+                    throw std::runtime_error{"invalid operands"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_SUBASSIGN},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix") {
+                        if(r.class_name() == "matrix") {
+                            l.as_class<Eigen::MatrixXd>() -= r.as_class<Eigen::MatrixXd>();
+                            return l;
+                        } else {
+                            auto rm{detail::mb_construct_from(r)};
+                            if(rm) {
+                                l.as_class<Eigen::MatrixXd>() -= *rm;
+                                return l;
+                            }
+                        }
+                        throw std::runtime_error{"invalid right operand"};
+                    }
+                    throw std::runtime_error{"invalid left operand"};
+                }
+            );
+
+            rt->add_object_unary_operation("matrix", std::string{OPERATOR_MINUS},
+                [](valbox &v) -> valbox {
+                    if(v.class_name() == "matrix") {
+                        Eigen::MatrixXd mr{-v.as_class<Eigen::MatrixXd>()};
+                        return dfi::valbox{mr, "matrix"};
+                    }
+                    throw std::runtime_error{"invalid operands"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_PLUS},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix" && r.class_name() == "matrix") {
+                        Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() + r.as_class<Eigen::MatrixXd>()};
+                        return dfi::valbox{mr, "matrix"};
+                    } else if(l.class_name() == "matrix") {
+                        auto rm{detail::mb_construct_from(r)};
+                        if(rm) {
+                            Eigen::MatrixXd mr{l.as_class<Eigen::MatrixXd>() + *rm};
+                            return dfi::valbox{mr, "matrix"};
+                        }
+                    } else if(r.class_name() == "matrix") {
+                        auto lm{detail::mb_construct_from(l)};
+                        if(lm) {
+                            Eigen::MatrixXd mr{*lm + l.as_class<Eigen::MatrixXd>()};
+                            return dfi::valbox{mr, "matrix"};
+                        }
+                    }
+                    throw std::runtime_error{"invalid operands"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_ADDASSIGN},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix") {
+                        if(r.class_name() == "matrix") {
+                            l.as_class<Eigen::MatrixXd>() += r.as_class<Eigen::MatrixXd>();
+                            return l;
+                        } else {
+                            auto rm{detail::mb_construct_from(r)};
+                            if(rm) {
+                                l.as_class<Eigen::MatrixXd>() += *rm;
+                                return l;
+                            }
+                        }
+                        throw std::runtime_error{"invalid right operand"};
+                    }
+                    throw std::runtime_error{"invalid left operand"};
+                }
+            );
+
+            rt->add_object_unary_operation("matrix", std::string{OPERATOR_CAST_TO_BOOL},
+                [](valbox &v) -> valbox {
+                    if(v.class_name() == "matrix") {
+                        bool res{false};
+                        for(int r{}; r < v.as_class<Eigen::MatrixXd>().rows(); ++r) {
+                            for(int c{}; c < v.as_class<Eigen::MatrixXd>().cols(); ++c) {
+                                if(v.as_class<Eigen::MatrixXd>()(r, c) != 0.0) {
+                                    res = true;
+                                    break;
+                                }
+                            }
+                        }
+                        return res;
+                    }
+                    throw std::runtime_error{"invalid operand"};
+                }
+            );
+
+            rt->add_object_unary_operation("matrix", std::string{OPERATOR_PLUS},
+                [](valbox &v) -> valbox {
+                    if(v.class_name() == "matrix") {
+                        return dfi::valbox{v.as_class<Eigen::MatrixXd>(), "matrix"};
+                    }
+                    throw std::runtime_error{"invalid operand"};
+                }
+            );
+
+            rt->add_object_binary_operation("matrix", std::string{OPERATOR_EQUAL},
+                [](valbox &l, valbox &r) -> valbox {
+                    if(l.class_name() == "matrix" && r.class_name() == "matrix") {
+                        return l.as_class<Eigen::MatrixXd>() == r.as_class<Eigen::MatrixXd>();
+                    } else {
+                        if(l.class_name() == "matrix") {
+                            if(auto ortsw{detail::mb_construct_from(r)}) {
+                                return l.as_class<Eigen::MatrixXd>() == *ortsw;
+                            }
+                        } else if(r.class_name() == "matrix") {
+                            if(auto oltsw{detail::mb_construct_from(l)}) {
+                                return *oltsw == r.as_class<Eigen::MatrixXd>();
+                            }
+                        }
+                    }
+                    return false;
+                }
+            );
+
+            rt->add_object_serializer("matrix",
+                [](valbox const &v) -> std::optional<std::string> {
+                    if(v.is_class() && v.class_name() == "matrix") {
+                        serializer ser{};
+                        ser << "matrix" << v.as_class<Eigen::MatrixXd>().rows() << v.as_class<Eigen::MatrixXd>().cols();
+                        for(int r{}; r < v.as_class<Eigen::MatrixXd>().rows(); ++r) {
+                            for(int c{}; c < v.as_class<Eigen::MatrixXd>().cols(); ++c) {
+                                ser << v.as_class<Eigen::MatrixXd>()(r, c);
+                            }
+                        }
+                        return data_to_base64_str(ser.data_vec());
+                    }
+                    throw std::runtime_error{"invalid operand"};
+                }
+            );
+
+            rt->add_object_deserializer("matrix",
+                [](std::string const &class_name, std::string const &serial_form) -> valbox {
+                    if(class_name == "matrix") {
+                        std::vector<std::uint8_t> vd{base64_str_to_data(serial_form)};
+                        serial_reader sr{vd.data(), vd.size()};
+                        auto it{sr.begin()};
+                        if(it->as_string() == "matrix") {
+                            int numr{(int)(++it)->as_number()};
+                            int numc{(int)(++it)->as_number()};
+                            Eigen::MatrixXd res;
+                            res.resize(numr, numc);
+                            for(int r{}; r < numr; ++r) {
+                                for(int c{}; c < numc; ++c) {
+                                    res(r, c) = (++it)->as_fpnum<double>();
+                                }
+                            }
+                            return dfi::valbox{res, "matrix"};
+                        }
+                    }
+                    throw std::runtime_error{"invalid operand"};
+                }
+            );
+
+            rt->add_object_stringifier("matrix",
+                [](valbox const &v) -> valbox {
+                    if(v.class_name() == "matrix") {
+                        auto m{v.as_class<Eigen::MatrixXd>()};
+                        std::stringstream ss{};
+                        ss << "matrix[";
+                        for(int r{}; r < v.as_class<Eigen::MatrixXd>().rows(); ++r) {
+                            ss << "[";
+                            for(int c{}; c < v.as_class<Eigen::MatrixXd>().cols(); ++c) {
+                                ss << v.as_class<Eigen::MatrixXd>()(r, c);
+                                if(c + 1 < v.as_class<Eigen::MatrixXd>().cols()) ss << ",";
+                            }
+                            ss << "]";
+                            if(r + 1 < v.as_class<Eigen::MatrixXd>().rows()) ss << ",";
+                        }
+                        ss << "]";
+                        return ss.str();
+                    }
+                    throw std::runtime_error{"invalid operand"};
+                }
+            );
+
+            rt->add_function("zero_matrix", DFIFUN(args) {
+                Eigen::MatrixXd res;
+                if(args.size() > 0) {
+                    if(args.size() == 1) {
+                        res = Eigen::MatrixXd::Zero(args[0].cast_to_int(), args[0].cast_to_int());
+                    } else if(args.size() == 2 ) {
+                        res = Eigen::MatrixXd::Zero(args[0].cast_to_int(), args[1].cast_to_int());
+                    } else {
+                        throw std::runtime_error{"invalid matrix initialization arguments"};
+                    }
+                }
+                return dfi::valbox{std::move(res), "matrix"};
+            });
+
+            rt->add_function("identity_matrix", DFIFUN(args) {
+                Eigen::MatrixXd res;
+                if(args.size() > 0) {
+                    if(args.size() == 1) {
+                        res = Eigen::MatrixXd::Identity(args[0].cast_to_int(), args[0].cast_to_int());
+                    } else if(args.size() == 2 ) {
+                        res = Eigen::MatrixXd::Identity(args[0].cast_to_int(), args[1].cast_to_int());
+                    } else {
+                        throw std::runtime_error{"invalid matrix initialization arguments"};
+                    }
+                }
+                return dfi::valbox{std::move(res), "matrix"};
+            });
+
+            rt->add_method("matrix", "at", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 3)
+                if(args.size() == 2) {
+                    return dfi::valbox{
+                        &DFITHIS(args, Eigen::MatrixXd)(args[1].cast_to_int(), 0),
+                        valbox::type::DOUBLE
+                    };
+                } else if(args.size() == 3) {
+                    return dfi::valbox{
+                        &DFITHIS(args, Eigen::MatrixXd)(args[1].cast_to_int(), args[2].cast_to_int()),
+                        valbox::type::DOUBLE
+                    };
+                }
+                return dfi::valbox{};
+            });
+
+            rt->add_method("matrix", "resize", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 3)
+                if(args.size() == 2) {
+                    DFITHIS(args, Eigen::MatrixXd).resize(args[1].cast_to_int(), 1);
+                    return args[0];
+                } else if(args.size() == 3) {
+                    DFITHIS(args, Eigen::MatrixXd).resize(args[1].cast_to_int(), args[2].cast_to_int());
+                    return args[0];
+                }
+                return dfi::valbox{};
+            });
+
+            rt->add_method("matrix", "inversed", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                Eigen::MatrixXd res{DFITHIS(args, Eigen::MatrixXd)};
+                if(res.rows() != res.cols()) {
+                    throw std::runtime_error{"invalid argument: rows and columns should be same size"};
+                }
+                if(res.rows() == 0) {
+                    throw std::runtime_error{"invalid argument: empty"};
+                }
+                res = res.inverse();
+                return dfi::valbox{res, "matrix"};
+            });
+
+            rt->add_method("matrix", "inverse", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                Eigen::MatrixXd &m{DFITHIS(args, Eigen::MatrixXd)};
+                if(m.rows() != m.cols()) {
+                    throw std::runtime_error{"invalid argument: rows and columns should be same size"};
+                }
+                if(m.rows() == 0) {
+                    throw std::runtime_error{"invalid argument: empty"};
+                }
+                m = m.inverse();
+                return args[0];
+            });
+
+            rt->add_method("matrix", "transposed", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                Eigen::MatrixXd res{DFITHIS(args, Eigen::MatrixXd).transpose()};
+                if(res.rows() != res.cols()) {
+                    throw std::runtime_error{"invalid argument: rows and columns should be same size"};
+                }
+                if(res.rows() == 0) {
+                    throw std::runtime_error{"invalid argument: empty"};
+                }
+                return dfi::valbox{res, "matrix"};
+            });
+
+            rt->add_method("matrix", "transpose", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                Eigen::MatrixXd &m{DFITHIS(args, Eigen::MatrixXd)};
+                if(m.rows() != m.cols()) {
+                    throw std::runtime_error{"invalid argument: rows and columns should be same size"};
+                }
+                if(m.rows() == 0) {
+                    throw std::runtime_error{"invalid argument: empty"};
+                }
+                m.transposeInPlace();
+                return args[0];
+            });
+
+            rt->add_method("matrix", "rows", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                return DFITHIS(args, Eigen::MatrixXd).rows();
+            });
+
+            rt->add_method("matrix", "cols", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                return DFITHIS(args, Eigen::MatrixXd).cols();
+            });
+
+            rt->add_method("matrix", "max_coeff", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                return DFITHIS(args, Eigen::MatrixXd).maxCoeff();
+            });
+
+
+            rt->add_function("solveRiccatiArimotoPotter", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 4)
+
+                const Eigen::MatrixXd &A{DFICLASSARG(args, 0, Eigen::MatrixXd)};
+                const Eigen::MatrixXd &B{DFICLASSARG(args, 1, Eigen::MatrixXd)};
+                const Eigen::MatrixXd &Q{DFICLASSARG(args, 2, Eigen::MatrixXd)};
+                const Eigen::MatrixXd &R{DFICLASSARG(args, 3, Eigen::MatrixXd)};
+
+                Eigen::MatrixXd P;
+
+                const auto dim_x = A.rows();
+                const auto dim_u = B.cols();
+
+                // set Hamilton matrix
+                Eigen::MatrixXd Ham = Eigen::MatrixXd::Zero(2 * dim_x, 2 * dim_x);
+                Ham << A, -B * R.inverse() * B.transpose(), -Q, -A.transpose();
+
+                // calc eigenvalues and eigenvectors
+                Eigen::EigenSolver<Eigen::MatrixXd> Eigs(Ham);
+
+                // check eigen values
+                // std::cout << "eigen values：\n" << Eigs.eigenvalues() << std::endl;
+                // std::cout << "eigen vectors：\n" << Eigs.eigenvectors() << std::endl;
+
+                // extract stable eigenvectors into 'eigvec'
+                Eigen::MatrixXcd eigvec = Eigen::MatrixXcd::Zero(2 * dim_x, dim_x);
+                int j = 0;
+                for (int i = 0; i < 2 * dim_x; ++i) {
+                    if (Eigs.eigenvalues()[i].real() < 0.) {
+                        eigvec.col(j) = Eigs.eigenvectors().block(0, i, 2 * dim_x, 1);
+                        ++j;
+                    }
+                }
+
+                // calc P with stable eigen vector matrix
+                Eigen::MatrixXcd Vs_1, Vs_2;
+                Vs_1 = eigvec.block(0, 0, dim_x, dim_x);
+                Vs_2 = eigvec.block(dim_x, 0, dim_x, dim_x);
+                P = (Vs_2 * Vs_1.inverse()).real();
+
+                return dfi::valbox{P, "matrix"};
+            });
+        }
+
+        void unregister_runtime() override {
+            std::unique_lock l{rt_mtp_};
+            if(rt_ == nullptr) {
+                return;
+            }
+            rt_ = nullptr;
+        }
+
+    private:
+        shared_mutex rt_mtp_{};
+        runtime_interface *rt_{nullptr};
+    };
+
+}

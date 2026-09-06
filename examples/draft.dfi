@@ -1,0 +1,1096 @@
+'host_provided_data' host_provided_data;
+
+dbg_printer(val, period) {
+    if(steady_clock() > this.t) {
+        this.t = steady_clock() + period;
+        val.println();
+    }
+}
+
+function between(v, l, h) return (v >= l && v <= h) || (v >= h && v <= l);
+
+function array_avg(arr) {
+    res = arr;
+    if(arr.is_array() && arr.size() > 0) {
+        s = arr[0];
+        for(i = 1; i < arr.size(); ++i) { s += arr[i]; }
+        res = s / arr.size();
+    }
+    return res;
+}
+
+function rnd_str(n) {
+    cb = "0123456789qwertyuiopasdfghjklzx"
+         "cvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+         "~!@#$%^&+-/*()_=?`'\";:";
+    cbs = cb.size();
+    res = "";
+    for (i = 0; i < n; ++i) {
+        res += cb[rand() % cbs];
+    }
+    return res;
+}
+
+function undef_test() {
+    println("undef_test()");
+    return 0;
+}
+
+function sinus(x)
+    return sin(x);
+
+// adapted algo from Quake III Arena
+function Q_rsqrt(x) {
+    fx = (f64)x;
+    i = 0x5fe6a09e667f3bcd - (fx.as_array_buffer().get_i64_at(0) >> 1);
+    y = i.as_array_buffer().get_f64_at(0);
+    x2 = fx * 0.5;
+    y *= 1.5 - x2 * y * y;
+    y *= 1.5 - x2 * y * y;
+    y *= 1.5 - x2 * y * y;
+    y *= 1.5 - x2 * y * y;
+    return y;
+}
+
+function square_root(x) {
+    return 1.0 / Q_rsqrt(x);
+}
+
+function clamp(v, mi, ma) return v < mi ? mi : v > ma ? ma : v;
+
+function integral(func, beg, end, dx) {
+    s = 0.0;
+    for(x = (f64)beg; x <= (f64)end; x += (f64)dx)
+        s += func(x) * dx;
+    return s;
+}
+
+function_test() {
+    sin.integral(0, 1, 1e-4).println();
+    M_PI.sin().println();
+    return 0;
+}
+
+function k_predict(ks, u) {
+    ks.x = ks.A * ks.x + ks.B * u;
+    ks.P = ks.A * ks.P * ks.A + ks.Q;
+}
+
+function k_update(ks, z) {
+    S = ks.H * ks.H * ks.P + ks.R;     // innovation covariance
+    K = (ks.P * ks.H) / S;             // Kalman gain
+    y = z - ks.H * ks.x;               // innovation
+    ks.x = ks.x + K * y;
+    ks.P = (1.0 - K * ks.H) * ks.P;
+}
+
+function apply_func(a, fn) {
+    if(fn.typeof() != "func") { throw "not a function"; }
+    if(a.is_array()) {
+        for(i = 0; i < a.size(); ++i) {
+            fn(a[i]);
+        }
+    } else {
+        fn(a);
+    }
+}
+
+function palindrome(s) {
+    return
+        s.size() < 2 ||
+        s[0] == s[s.size() - 1] && palindrome(s.substr(1, s.size() - 2));
+}
+
+function fibonacci(n) {
+    a = (f128)0;
+    b = (f128)1;
+    for(i = 0; i < n; ++i) {
+        c = a + b;
+        a = b;
+        b = c;
+    }
+    return a;
+}
+
+function fibonaccir(n)
+    if n <= 1
+        return (f128)n;
+    else
+        return fibonaccir((f128)n - (f128)1) + fibonaccir((f128)n - (f128)2);
+
+function arr_vals_0_5(a) {
+    a[0].println();
+    a[5].println();
+}
+
+function obj_vals_c_f(o) {
+    o["c"].println();
+    o["f"].println();
+}
+
+function reverse(s) {
+    return s.size() < 2 ? s : s.slice(1).reverse() + s[0];
+}
+
+function bitrev(n) {
+    return atoi(itoa(n, 2).reverse(), 2);
+}
+
+function cpu_info() {
+    res = object();
+    if(PLATFORM == "linux") {
+        cpu_strings = file("/proc/cpuinfo").read(1000000).split("\n");
+        for(i = 0; i < cpu_strings.size(); ++i) {
+            p = cpu_strings[i].split(":");
+            if(p.size() == 2) {
+                k = p[0].trim();
+                if(res.key_exists(k)) { break; }
+                v = p[1].trim();
+                if(!["apicid", "core id", "initial apicid", "processor", "physical id"].contains(k)) {
+                    if(["vmx flags", "bugs", "flags"].contains(k)) {
+                        res[k] = v.trim().split(" ");
+                    } else if(["cache_alignment", "clflush size", "cpu cores", "cpu family", "cpuid level", "model", "siblings", "stepping"].contains(k)) {
+                        res[k] = v.trim().atoi();
+                    } else if(["bogomips", "cpu MHz"].contains(k)) {
+                        res[k] = v.trim().atof();
+                    } else if(["microcode"].contains(k)) {
+                        res[k] = v.trim().substr(2).atoi(16);
+                    } else {
+                        res[k] = v.trim();
+                    }
+                }
+            }
+        }
+    }
+    return res;
+}
+
+
+
+function get_rand_from_range(lo, hi) return (f64)(randf() * (hi - lo) + lo);
+
+function rand_body(m_rng, d_rng) {
+    res = object();
+    res.mass = get_rand_from_range(m_rng[0], m_rng[1]);
+    res.center = vec4(
+        get_rand_from_range(d_rng[0][0], d_rng[1][0]),
+        get_rand_from_range(d_rng[0][1], d_rng[1][1]),
+        get_rand_from_range(d_rng[0][2], d_rng[1][2])
+    );
+    return res;
+}
+
+function construct_body(m, x, y, z) {
+    res = object();
+    res.mass = m; res.center = vec4(x, y, z); return res;
+}
+
+function baricenter(b1, b2) {
+    if(b1.mass == 0) {
+        return b2;
+    } else if(b2.mass == 0) {
+        return b1;
+    }
+    b = object();
+    b.mass = b1.mass + b2.mass;
+    b.center = (b2.center - b1.center) * (b2.mass / b.mass);
+    return b;
+}
+
+my_drafts(host_data) {
+    if(!this.init) {
+        this.init = true;
+        set_cycle_sleep_seconds(0.01);
+        set_inactive_sleep_seconds(0.1);
+        console.fixed();
+        console.enable_colors(true);
+        console.setprecision(9);
+    }
+
+    ++uuu;
+    uuu.println();
+
+    {
+        mindist = -10000;
+        maxdist = 10000;
+        dist_range = [vec4(mindist, mindist, mindist), vec4(maxdist, maxdist, maxdist)];
+        mass_range = [1, 10];
+
+        masses = array();
+        array_size = 10000;
+        masses.reserve(array_size + 100);
+        println("creating masses array...");
+        btime = steady_clock();
+        for(i = 0; i < array_size; ++i) {
+            masses.push_back(rand_body(mass_range, dist_range));
+        }
+        etime = steady_clock();
+        println("masses array created in ", etime - btime, " sec.");
+
+        println("calculating baricenter...");
+        bc = construct_body(0, 0, 0, 0);
+        btime = steady_clock();
+        for(p: masses) {
+            bc = baricenter(bc, p);
+        }
+        etime = steady_clock();
+        println("baricenter calculated: ", bc, " in ", etime - btime, " sec.");
+    }
+
+
+    u = object("{o:1,a:1,s:1,x:1,z:1,c:1,}");
+    u.println();
+    for(c: u) { c.print(); c[1] = 5; }
+    println();
+    u.println();
+
+    arrra = [1,2,3,4];
+    arrra.println();
+    for(c: arrra) { c.print(); c = 5; }
+    println();
+    arrra.println();
+
+    strin = "123qweasdzxc";
+    strin.println();
+    sidx = 0;
+    sep = "";
+    for(c: strin) {
+        print(sep, "c[", sidx, "] = '", c, "'");
+        if(c == 'e') c = 'A';
+        ++sidx;
+        sep = ", ";
+    }
+    println();
+    strin.println();
+
+
+    test_lla = LLA("5°45′20.88″N, 7°33′36.015″W, 25m");
+    println("test_lla: ", test_lla);
+
+    orgLLA = LLA(5.7558, -7.6173, 150.0);
+    // println("orgLLA Lat: ", orgLLA.latitude(), " Lon: ", orgLLA.longitude(), " Alt: ", orgLLA.altitude());
+    println("orgLLA: ", orgLLA.to_string_iso_6709());
+
+    // 1. LLA -> ECEF
+    orgECEF = LLAtoECEF(orgLLA);
+    // println("orgECEF X:", orgECEF.x(), " Y:", orgECEF.y(), " Z:", orgECEF.z());
+    println("orgECEF: ", orgECEF);
+
+    println("------------------------");
+
+    // 2. ECEF -> LLA
+    calculatedLLA = ECEFtoLLA(orgECEF);
+    println("calculatedLLA Lat: ", calculatedLLA.latitude(), " Lon: ", calculatedLLA.longitude(), " Alt: ", calculatedLLA.altitude());
+    // println("calculatedLLA: ", calculatedLLA);
+
+    println("------------------------");
+
+    targetLLA = LLA(orgLLA.latitude(), orgLLA.longitude() + rad2deg(0.001), orgLLA.altitude() + 100.0);
+    println("targetLLA: ", targetLLA);
+    targetECEF = LLAtoECEF(targetLLA);
+    // println("targetECEF X:", targetECEF.x(), " Y:", targetECEF.y(), " Z:", targetECEF.z());
+    println("targetECEF: ", targetECEF);
+    targetENU = ECEFtoENU(targetECEF, orgLLA);
+
+    // println("targetENU East:", targetENU.east(), " North:", targetENU.north(), " Up:", targetENU.up());
+    println("targetENU: ", targetENU);
+
+
+
+    bigstr = "ouououiffdguouououhergeiououourerhjytgouououhewfealwqliefouououarg";
+    substr = "ououou";
+    for(oij = bigstr.find_substr(substr, 0); oij >= 0; oij = bigstr.find_substr(substr, oij + 1)) {
+        oij.println();
+    }
+
+    {
+        i = 0;
+        do {
+            i++;
+            if (i == 3) {
+                continue; // Skip the rest of the loop when i is 3
+            }
+            println("Value of i: ", i); // This will not print when i is 3
+        } while (i < 5);
+    }
+
+    v4a = array();
+    v4a.push_back(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
+    array_avg(v4a).println();
+
+    wewerwer = rnd_str(64);
+    wewerwer.println();
+    wewerwer.sort();
+    wewerwer.println();
+
+    b = "Hello, World!";
+    println(b.py_slice(-5, -2));
+
+    sqrt(273).println();
+    square_root(273).println();
+
+    fibonacci(7).println();
+    fibonaccir(7).println();
+
+    d = 3 / 2.0;
+    d.println();
+    d = this.p;
+    println(d);
+    d = undefined;
+    try {
+        d.println();
+    } catch(e) {
+        e.println(", exception caught");
+    }
+
+    this.trur = true;
+    this.trur.println();
+    this.trur = undefined;
+    println(this.trur);
+
+    k = object();
+    k.t = 100;
+    k.t++;
+    k.println();
+
+    this.wert = 10;
+    ++this.wert;
+    this.wert.println();
+
+    this.o = object();
+    this.o.j = 98;
+    this.o.println();
+    astr = "udutrdutrdturdutrd";
+    astr.println();
+    astr[0] = '5';
+    astr.println();
+    ko = astr[0];
+    ko.println();
+
+    cpu_info().serialize5(2).println();
+
+    ctr = 0;
+    if(persistence_enabled()) {
+        ctr = persistence.get("ctr");
+    }
+    ctr_top = ctr + 10;
+    for(; ctr < ctr_top; ++ctr) {
+        ctr.println();
+    }
+    if(persistence_enabled()) {
+        persistence.put("ctr", ctr);
+    }
+
+    println((f64)"AUTOSAR"[1]);
+
+    timestamps = [];
+    timestamps.reserve(10);
+    for(i = 0; i < 100; ++i) {
+        timestamps.push_back(steady_clock());
+    }
+    timestamps.apply_func(println);
+    println("-------------");
+    timestamps.sort_r().apply_func(println);
+
+    awepo = [];
+    for(i = 0; i < 10; ++i) {
+        awepo.push_front(i);
+    }
+    awepo.apply_func(println);
+
+    wewerwer = [4,26,3,6,1,8,6,3,5,98,43,76,24,82];
+    wewerwer.println();
+    wewerwer.sort();
+    wewerwer.println();
+
+    obj = object();
+    obj["d"] = "d";
+    obj["c"] = 0xc;
+    obj_vals_c_f(obj);
+    arr_vals_0_5(obj);
+
+    s = "123123123";
+    s[0]++;
+    s.println();
+
+    "12345".reverse().println();
+
+    "asdasdasdasdkdsadsadsadsa".palindrome().println();
+
+    uruy[5] = 789;
+    uruy.println();
+    uruy[0] = 789;
+    uruy.println();
+    uruy.size().println();
+    uruy.resize(2);
+    uruy.println();
+
+    k["r"] = "1";
+    t["d"] = "d";
+    o = k + t;
+    o.println();
+
+    pi = M_PI;
+    pi.println();
+    M_PI.placement().println();
+    pi.placement().println();
+
+    this.instvar = 2;
+    this.instvar.placement().println();
+
+    kkk = 0;
+    while kkk++ < 5 println("kkk = ", kkk);
+    version_string().println();
+
+    for(;;) if kkk++ > 10 break; else println("kkk 2 = ", kkk);
+
+    obj = object(1, 2);
+    k = [[1,2,3], [1,2,3], [obj]];
+    k.apply_func(assert);
+    assert(k.typeof() == "array").println();
+
+    this.k = timestamp();
+
+    for(v = matrix([[10], [0], [0], [0]]); v; v.at(0) -= 1) {
+        v.println();
+    }
+
+    m = identity_matrix(4);
+    println(m);
+    m *= 5;
+    println(m);
+    m.at(0) = 10;
+    println(m);
+
+    v = matrix([[1], [2], [3], [4]]);
+    println(v);
+    mr = m * v;
+    println(m);
+    println(v);
+    println(mr);
+
+    v = matrix([
+        [1, 2, 3, 4, 1, 2, 3, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    ]);
+    v.println();
+
+    mr.at(2) = 2124;
+    println(mr);
+
+    "--------------------".println();
+    t = matrix([
+        [ 1, 2, 3, 4],
+        [ 5, 6, 7, 8],
+        [ 9,10,11,12],
+        [13,14,15,16]
+    ]);
+    t.println();
+    t.transposed().println();
+    t.println();
+    t.inversed().println();
+    t.println();
+
+    u = t - m;
+    println(u);
+    u.inverse();
+    println(u);
+    u.inverse();
+    println(u);
+
+    if(t) {
+        println("t!");
+    }
+
+    arr = 3 + [12, undefined, '2', "122", 9090.9090, [],];
+    arr.println();
+
+    // index_mem_size = (u64)(1024 * 1024);
+    // index_num_entries = index_mem_size / 8;
+    index_num_entries = (f128)(u64)0x1f'ff'ff'ff'ff;
+    index_mem_size = index_num_entries * 8;
+    page_size = (f128)16384;
+    paged_size = page_size * index_num_entries;
+    println("index_num_entries: ", index_num_entries);
+    println("paged_size: ", paged_size);
+    println("index_mem_size: ", index_mem_size);
+    println("total_mem_size: ", paged_size + index_mem_size);
+
+    // (8 * (256 * 1024 * 1024 * 1024 * 1024 / 4096)).println();
+
+    kf.predict = k_predict;
+    kf.update = k_update;
+    kf.x = 0.0;  // state estimate
+    kf.P = 1.0;  // estimate covariance
+    kf.A = 1.0;  // state transition (1D)
+    kf.B = 0.0;  // control (1D)
+    kf.H = 1.0;  // measurement map (1D)
+    kf.Q = 1e-4; // process noise variance
+    kf.R = 0.1;  // measurement noise variance
+
+    measurements = [0.39, 0.50, 0.48, 0.29, 0.25, 0.32];
+    print("k\tmeas\test\tP\n");
+    for(k = 0; k < measurements.size(); ++k) {
+        kf.predict(0);
+        // kf["predict"](0);
+        kf.update(measurements[k]);
+        print(k, "\t", measurements[k], "\t", kf.x, "\t", kf.P, "\n");
+    }
+
+    host_data.serialize5(4).println();
+
+    timestamp().to_string().println();
+
+    println(false, " && ", false, " = ", false && false);
+    println(false, " && ", true, " = ", false && true);
+    println(true, " && ", false, " = ", true && false);
+    println(true, " && ", true, " = ", true && true);
+    println();
+    println(false, " || ", false, " = ", false || false);
+    println(false, " || ", true, " = ", false || true);
+    println(true, " || ", false, " = ", true || false);
+    println(true, " || ", true, " = ", true || true);
+
+    ++k;
+    k.println();
+
+    a[0].name = "string";
+    println(a + string(3));
+
+    console.enable_colors(true);
+    console.fixed();
+    console.setprecision(16);
+
+    /////////////////////////////////////////////////////////////////////
+
+    (1.0 / Q_rsqrt(900)).println();
+    sqrt(900).println();
+
+    /////////////////////////////////////////////////////////////////////
+
+    println("1 <=> 2: ", 1 <=> 2 == LESS ? "LESS" : 1 <=> 2 == GREATER ? "GREATER" : "EQUAL");
+
+    /////////////////////////////////////////////////////////////////////
+
+    k = M_E;
+    k.println();
+    x(vec4(43434,43434,343434,4443434)).println();
+
+    /////////////////////////////////////////////////////////////////////
+
+    s = "123123123123";
+    s[0] = '0';
+    println(s);
+
+    /////////////////////////////////////////////////////////////////////
+
+    println(integral(sin, 0.0, M_PI, 0.001));
+    println(integral(sinus, -M_PI, M_PI, 0.001));
+
+    {
+        v = vec4(1,2,3,4);
+        v.println();
+        a = array();
+        o = object();
+        a.assign(v);
+        a.println();
+        o.assign(v);
+        o.println();
+
+        s = string();
+        s.assign(o);
+        s.println();
+
+        v1 = vec4();
+        v1.assign(o);
+        v1.println();
+    }
+
+    {
+        m = mat4(11,12,13,14, 21,22,23,24, 31,32,33,34, 41,42,43,44);
+        m.println();
+        a = array();
+        o = object();
+        a.assign(m);
+        a.println();
+        o.assign(m);
+        o.println();
+
+        m1 = mat4();
+        m1.assign(o);
+        m1.println();
+    }
+
+    /////////////////////////////////////////////////////////////////////
+
+    println("string" + [48,49,50] + 1 + vec4());
+
+    /////////////////////////////////////////////////////////////////////
+
+    if !(this.ctr % 5)
+        this.res = randf() > 0.5;
+    ++this.ctr;
+
+    /////////////////////////////////////////////////////////////////////
+
+    sdsd = 3 * undefined;
+    sdsd.println();
+    (1 << 33).println();
+
+    k = 3 + undefined;
+    k = undefined - 3;
+    k.println();
+
+    /////////////////////////////////////////////////////////////////////
+
+    undef_test();
+    f = undef_test;
+    f();
+    undefine(f);
+    try
+        f();
+    catch(e)
+        e.println(" (caught)");
+    undef_test();
+    f = undef_test;
+    f();
+
+    /////////////////////////////////////////////////////////////////////
+
+    this.k = array();
+    this.k[0] = array();
+    this.k[1] = array();
+    this.k[2] = array();
+    this.k[3] = array();
+    this.k[4] = array();
+    this.k[4].resize(100);
+    this.k.typeof().println();
+    this.k.sizeof().println();
+    this.k.println();
+
+    /////////////////////////////////////////////////////////////////////
+
+    k = undefine;
+    s = "123";
+    println("s = ", s);
+    k(s);
+    println("s = ", s);
+    k(k);
+    println("k = ", k);
+    s = "123";
+    try
+        k(s);
+    catch(e)
+        e.println(" (caught)");
+    println("s = ", s);
+    undefine(s);
+    println("s = ", s);
+
+    /////////////////////////////////////////////////////////////////////
+
+    s = string();
+    tot_num = 100;
+    s.reserve(tot_num * 17);
+    b = steady_clock();
+    for(i = 0; i < tot_num; ++i) {
+        s += "0123456789abcdef";
+    }
+    e = steady_clock();
+    s.println();
+    (e - b).println();
+
+    /////////////////////////////////////////////////////////////////////
+
+    for(i = 0; i < 256; ++i) {
+        print(i, " (", itoa(i, 16), "): ", isspace(i) ? "space" : "");
+    }
+    println();
+
+    sum = 0;
+    for(i = 1; i < 10000; ++i) {
+        s = itoa(i);
+        sum += s.size();
+        if(sum >= 1095) {
+            println(i, " (", sum, ")");
+            break;
+        }
+    }
+
+    return exit(9);
+}
+my_drafts drf(host_provided_data);
+
+
+/*
+wind_speed_avg_fltr(curr_speed) {
+    if(this.vals == undefined) { this.vals = []; this.last_time = 0; this.avg_speed = 0.0; }
+    if(steady_clock() - this.last_time > 0.2) {
+        this.last_time = steady_clock();
+        this.vals.push_back(curr_speed);
+        if(this.vals.size() > 10) { this.vals.pop_front(); }
+        this.avg_speed = this.vals.array_avg();
+    }
+    return this.avg_speed;
+}
+
+obstacle_distance_change_speed(dist) {
+    t = steady_clock();
+    if(this.prev_dist == undefined) {
+        this.ds = 0.0;
+    } else {
+        this.ds = (dist - this.prev_dist) / (t - this.prev_time);
+    }
+    this.prev_dist = dist;
+    this.prev_time = t;
+    return this.ds;
+}
+
+critical_failure(pckg_ok, temp, bat) {
+    if(!pckg_ok || temp > 90 || bat < 5) { this.res = true; }
+    if(pckg_ok && temp < 50 && bat > 15) { this.res = false; }
+    return this.res == undefined ? false : this.res;
+}
+
+return_to_base_logic(bat, g_breach, gps, rain) {
+    if(bat < 20 || g_breach || gps < 30 || rain == 2) { this.res = true; }
+    return this.res == undefined ? false : this.res;
+}
+
+hold_logic(op_ovr, obstcl_dist) {
+    if(op_ovr || obstcl_dist < 2.0) { this.res = true; }
+    return this.res == undefined ? false : this.res;
+}
+
+cautious_cruise_logic(wnd, rain, dst_dist) {
+    return wnd > 10 || rain == 1 || dst_dist < 500;
+}
+
+normal_cruise_logic(bat, obstcl_dist, cautious, hold, ret_base, fail, para_deploy) {
+    return !(para_deploy || cautious || hold || ret_base || fail) && bat > 50 && obstcl_dist > 50;
+}
+
+parashute_deployment(failure) {
+    if(this.res == undefined) { this.res = false; }
+    if(failure) { this.res = true; }
+    return this.res;
+}
+
+speed_limit_logic(
+    parashute_deploy,
+    ret_to_base,
+    hover,
+    cautious,
+    normal,
+    wind,
+    obst_dist_chng_speed
+) {
+    res = 0;
+    if(parashute_deploy || hover) {
+        res = 0;
+    } else if(cautious) {
+        res = 10 - wind;
+        res = res < 3 ? 3 : res;
+    } else if(ret_to_base) {
+        res = 5;
+    } else if(normal) {
+        res = 15;
+    }
+    if(obst_dist_chng_speed < -50) {
+        res = 0.5;
+    }
+    return res;
+}
+
+//---------------------------------------------------------------
+// inputs
+'battery_level'                battery_level;
+'wind_speed'                   wind_speed;
+'obstacle_distance'            obstacle_distance;
+'rain_status'                  rain_status;
+'gps_strength'                 gps_strength;
+'package_integrity'            package_integrity;
+'distance_to_destination'      distance_to_destination;
+'motor_temperature'            motor_temperature;
+'geofence_breach'              geofence_breach;
+'operator_override'            operator_override;
+
+// workers
+obstacle_distance_change_speed obst_dist_chng_speed(obstacle_distance);
+wind_speed_avg_fltr            wind_avg(wind_speed); // wind speed filter
+critical_failure               fail(package_integrity, motor_temperature, battery_level);
+parashute_deployment           deploy_para(fail);
+return_to_base_logic           return_to_base(battery_level, geofence_breach, gps_strength, rain_status);
+hold_logic                     hold(operator_override, obstacle_distance);
+cautious_cruise_logic          cautious_cruise(wind_avg, rain_status, distance_to_destination);
+normal_cruise_logic            normal_cruise(battery_level, obstacle_distance, cautious_cruise,
+                                             hold, return_to_base, fail, deploy_para);
+
+// output worker
+speed_limit_logic              speed_limiter(deploy_para, return_to_base, hold, cautious_cruise,
+                                             normal_cruise, wind_avg, obst_dist_chng_speed) 'speed_limit';
+*/
+
+
+/*
+
+// входы с датчиков ---------------------------------------------------
+'manual_management_house' manual_management_house;
+
+'ambient_light_level_outdoor' ambient_light_level_outdoor;
+'temperature_outdoor' temperature_outdoor;
+'humidity_outdoor' humidity_outdoor;
+'rain_outdoor' rain_outdoor;
+'air_fog_outdoor' air_fog_outdoor;
+'air_smoke_outdoor' air_smoke_outdoor;
+'air_organic_outdoor' air_organic_outdoor;
+'air_co2_outdoor' air_co2_outdoor;
+'air_dust_outdoor' air_dust_outdoor;
+
+// ----------------------------------------------------------------------
+
+'front_door_closed_house' front_door_closed_house;
+'front_door_locked_house' front_door_locked_house;
+'nfc_front_door_unlock_house' front_door_nfc_unlock_house;
+
+// ----------------------------------------------------------------------
+
+'desireable_temperature_house' desireable_temperature_house;
+
+// ----------------------------------------------------------------------
+
+'ir_sensor_room1' ir_sensor_room1;
+'mmwave_radar_room1' mmwave_radar_room1;
+'ambient_light_level_room1' ambient_light_level_room1;
+'light_color_room1' light_color_room1;
+'video_cam_data_room1' video_cam_data_room1;
+'manual_light_control_switch_room1' manual_light_control_switch_room1;
+'manual_light_level_room1' manual_light_level_room1;
+'temperature_room1' temperature_room1;
+'humidity_room1' humidity_room1;
+'door_opened_room1' door_opened_room1;
+'win1_opened_room1' win1_opened_room1;
+'win2_opened_room1' win2_opened_room1;
+'air_conditioner_working_room1' air_conditioner_working_room1; // открыты окна - выключить кондиционер
+'air_gas_room1' air_gas_room1;
+'air_smoke_room1' air_smoke_room1; // датчик дыма и температуры -> пожарная сигнализация?
+'air_organic_room1' air_organic_room1;
+'air_co2_room1' air_co2_room1;
+'air_dust_room1' air_dust_room1; // включить приточную вентиляцию или открыть моторизованное окно если уровень загрязнения воздуха высокий.
+'load_cell_room1' load_cell_room1; // если человек в кровати и если сейчас ночной режим, то включить ночник, опустить жалюзи.
+'water_leak_room1' water_leak_room1; // перекрыть подачу воды в дом, отправить сообщение на эл. почту
+'desireable_temperature_room1' desireable_temperature_room1;
+
+
+'ir_sensor_room2' ir_sensor_room2;
+'mmwave_radar_room2' mmwave_radar_room2;
+'ambient_light_level_room2' ambient_light_level_room2;
+'light_color_room2' light_color_room2;
+'video_cam_data_room2' video_cam_data_room2;
+'manual_light_control_switch_room2' manual_light_control_switch_room2;
+'manual_light_level_room2' manual_light_level_room2;
+'temperature_room2' temperature_room2;
+'humidity_room2' humidity_room2;
+'door_opened_room2' door_opened_room2;
+'win1_opened_room2' win1_opened_room2;
+'win2_opened_room2' win2_opened_room2;
+'air_conditioner_working_room2' air_conditioner_working_room2;
+'air_gas_room2' air_gas_room2;
+'air_smoke_room2' air_smoke_room2;
+'air_organic_room2' air_organic_room2;
+'air_co2_room2' air_co2_room2;
+'air_dust_room2' air_dust_room2;
+'load_cell_room2' load_cell_room2;
+'water_leak_room2' water_leak_room2;
+'desireable_temperature_room2' desireable_temperature_room2;
+
+
+
+'ir_sensor_room3' ir_sensor_room3;
+'mmwave_radar_room3' mmwave_radar_room3;
+'ambient_light_level_room3' ambient_light_level_room3;
+'light_color_room3' light_color_room3;
+'video_cam_data_room3' video_cam_data_room3;
+'manual_light_control_switch_room3' manual_light_control_switch_room3;
+'manual_light_level_room3' manual_light_level_room3;
+'temperature_room3' temperature_room3;
+'humidity_room3' humidity_room3;
+'door_opened_room3' door_opened_room3;
+'win1_opened_room3' win1_opened_room3;
+'win2_opened_room3' win2_opened_room3;
+'air_conditioner_working_room3' air_conditioner_working_room3;
+'air_gas_room3' air_gas_room3;
+'air_smoke_room3' air_smoke_room3;
+'air_organic_room3' air_organic_room3;
+'air_co2_room3' air_co2_room3;
+'air_dust_room3' air_dust_room3;
+'load_cell_room3' load_cell_room3;
+'water_leak_room3' water_leak_room3;
+'desireable_temperature_room3' desireable_temperature_room3;
+
+
+// дескрипторы (код, логика узлов) -----------------------------------
+is_outer_air_fresh(smoke, organic, co2, dust) {
+    return smoke < 35 && organic < 10 && co2 < 15 && dust < 30;
+}
+
+can_use_intake_for_ventilation_logic(outer_air_is_fresh, outer_temperature) {
+    return outer_air_is_fresh && outer_temperature < 40 && outer_temperature > -5;
+}
+
+can_use_window_for_ventilation_logic(outer_air_is_fresh, outer_temperature) {
+    return outer_air_is_fresh && outer_temperature > 0;
+}
+
+should_cool_room_air(room_temp, desireable_temperature_house) {
+    return room_temp > desireable_temperature_house + 3;
+}
+
+should_heat_room_air(room_temp, desireable_temperature_house) {
+    return room_temp < desireable_temperature_house - 3;
+}
+
+can_use_window_for_heating_logic(outer_air_is_fresh, desireable_temperature_house, outer_temp) {
+    return outer_air_is_fresh && outer_temp > desireable_temperature_house;
+}
+
+can_use_window_for_cooling_logic(outer_air_is_fresh, desireable_temperature_house, outer_temp) {
+    return outer_air_is_fresh && outer_temp < desireable_temperature_house;
+}
+
+room_ventilation_required(room_gas_level, room_smoke_level, room_organic_level, room_co2_level, room_dust_level) {
+    return room_gas_level > 3 || room_smoke_level > 3 || room_organic_level > 5 || room_co2_level > 2 || room_dust_level > 20;
+}
+
+can_open_window(outer_air_is_fresh, desireable_temperature_house, outer_temp) {
+    return outer_air_is_fresh && outer_temp.between(-5, 30);
+}
+
+should_close_room_window(
+    outer_air_is_fresh,
+    should_heat_room_air, can_use_window_for_heating,
+    should_cool_room_air, can_use_window_for_cooling,
+    room_ventilation_required, outer_temp, room_temp,
+    window_is_opened
+) {
+    if(!window_is_opened) {
+        return false;
+    }
+    if(!room_ventilation_required) {
+        return true;
+    }
+    return
+        !outer_air_is_fresh ||
+        (should_heat_room_air && !can_use_window_for_heating) ||
+        (should_cool_room_air && !can_use_window_for_cooling);
+
+}
+
+should_open_room_window(can_open_room_window) {
+}
+
+should_initiate_room_window_ventilation(
+    can_open_window,
+    room_ventilation_required,
+
+) {
+    return can_open_window && room_ventilation_required;
+}
+
+
+// инстансы рабочих узлов -----------------------------------------
+is_outer_air_fresh outer_air_is_fresh(
+    air_smoke_outdoor, air_organic_outdoor, air_co2_outdoor, air_dust_outdoor
+);
+can_use_intake_for_ventilation_logic can_use_intake_for_ventilation(
+    outer_air_is_fresh, temperature_outdoor
+);
+can_use_window_for_ventilation_logic can_use_window_for_ventilation(
+    outer_air_is_fresh, temperature_outdoor
+);
+
+should_cool_room_air should_cool_room1_air(
+    temperature_room1, desireable_temperature_house
+);
+should_cool_room_air should_cool_room2_air(
+    temperature_room2, desireable_temperature_house
+);
+should_cool_room_air should_cool_room3_air(
+    temperature_room3, desireable_temperature_house
+);
+should_heat_room_air should_heat_room1_air(
+    temperature_room1, desireable_temperature_house
+);
+should_heat_room_air should_heat_room2_air(
+    temperature_room2, desireable_temperature_house
+);
+should_heat_room_air should_heat_room3_air(
+    temperature_room3, desireable_temperature_house
+);
+
+can_use_window_for_heating_logic can_use_window_for_heating(
+    outer_air_is_fresh, desireable_temperature_house, temperature_outdoor
+);
+can_use_window_for_cooling_logic can_use_window_for_cooling(
+    outer_air_is_fresh, desireable_temperature_house, temperature_outdoor
+);
+
+room_ventilation_required room1_ventilation_required(
+    air_gas_room1, air_smoke_room1, air_organic_room1, air_co2_room1, air_dust_room1
+);
+room_ventilation_required room2_ventilation_required(
+    air_gas_room2, air_smoke_room2, air_organic_room2, air_co2_room2, air_dust_room2
+);
+room_ventilation_required room3_ventilation_required(
+    air_gas_room3, air_smoke_room3, air_organic_room3, air_co2_room3, air_dust_room3
+);
+
+can_open_window can_window_be_opened(
+    outer_air_is_fresh, desireable_temperature_house, temperature_outdoor
+);
+
+should_initiate_room_window_ventilation should_initiate_room1_window1_ventilation(
+    can_window_be_opened, room1_ventilation_required
+);
+should_initiate_room_window_ventilation should_initiate_room2_window1_ventilation(
+    can_window_be_opened, room2_ventilation_required
+);
+should_initiate_room_window_ventilation should_initiate_room3_window1_ventilation(
+    can_window_be_opened, room3_ventilation_required
+);
+
+dbg_printer dbg_prn_1(can_window_be_opened, 0.1);
+
+*/
+
+
+exmpl_exec_time_limiter(dt) {
+    if(this.t == undefined) {
+        this.t = steady_clock() + dt;
+    }
+    if(steady_clock() > this.t) {
+//        exit();
+    }
+    return 0;
+}
+
+exmpl_exec_time_limiter one_second_limit(1.0);
+
+
+pwm_sine_level_node(freq) { return sin(steady_clock() * freq); }
+pwm_node(duty, lvl) { return (i32) (((steady_clock() % duty) / duty) <= abs(lvl) ? sign(lvl) * 1 : 0); }
+
+pwm_sine_level_node pwm_lvl(30.);
+pwm_node pwm(.01, pwm_lvl);
+
+// dbg_printer dbg_prn(pwm, .001);

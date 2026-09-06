@@ -1,0 +1,59 @@
+// demo for binary data access using "array_buffer" extension
+// this program reads and analyzes MBR from "/dev/sda" by default
+// to scan another device, you should change device name manually
+
+function HCS(hcs) {
+    print(itoa(hcs.u8_at(0)), "/");
+    e2 = hcs.u8_at(1);
+    e3 = hcs.u8_at(2);
+    print(itoa(((u16(e2) << 2) & 0b1100000000) | e3), "/");
+    println(itoa(e2 & 0b111111));
+}
+
+function parttblentry(e) {
+    println("    status: 0x", itoa(e.u8_at(0), 16, 2));
+    print("    start head/cylinder/sector: ");
+    HCS(e.sub_buffer(1, 3));
+    println("    Partition type: 0x", e.u8_at(4).itoa(16, 2));
+    print("    end head/cylinder/sector: ");
+    HCS(e.sub_buffer(5, 3));
+    println("    LBA of first absolute sector in the partition: ", itoa(tole(e.u32_at(8))));
+    println("    Number of sectors in partition: ", itoa(tole(e.u32_at(0xc))));
+}
+
+mbr_parser() {
+    // replace with your drive or file name
+    devname = "/dev/sda";
+
+    // probably, the root access is needed for direct read from the hardware device
+    arrbuf = array_buffer(file(devname).read(512));
+
+    if(arrbuf.size() != 512) {
+        console.error("invalid data size for MBR: ", arrbuf.size());
+        return exit(1);
+    }
+
+    println("The whole MBR data:");
+    println(hexdump(arrbuf.to_string()));
+    println();
+
+    println("Boot signature: 0x", itoa(ntoh(arrbuf.u16_at(510)), 16, 4));
+    println();
+
+    println("Aassuming classical generic MBR,");
+    println("Bootstrap code area");
+    println(hexdump(arrbuf.sub_buffer(0, 446).to_string()));
+
+    println("Partition entry №1");
+    parttblentry(arrbuf.sub_buffer(446, 16));
+    println("Partition entry №2");
+    parttblentry(arrbuf.sub_buffer(462, 16));
+    println("Partition entry №3");
+    parttblentry(arrbuf.sub_buffer(478, 16));
+    println("Partition entry №4");
+    parttblentry(arrbuf.sub_buffer(494, 16));
+
+    return exit(0);
+}
+
+mbr_parser mbrprsr();

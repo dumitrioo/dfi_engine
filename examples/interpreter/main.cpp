@@ -1,0 +1,203 @@
+#include <clocale>
+#include <vector>
+#include <thread>
+#include <filesystem>
+#include <iostream>
+
+#include <dfi_runtime.hpp>
+
+#ifdef PLATFORM_WINDOWS
+#pragma comment( lib,"ws2_32.lib" )
+#ifdef DFI_TCPSERVER_USE_SSL
+#pragma comment(lib, "libeay32.lib")
+#pragma comment(lib, "ssleay32.lib")
+#endif
+#endif
+
+#ifdef USE_CUSTOM_MEMORY_ALLOCATION
+
+static dfi::binned_allocator<16, 4096> glbl_alloc{};
+
+void *operator new(std::size_t sz) {
+    if(sz == 0) { ++sz; }
+
+    if(void *ptr = glbl_alloc.allocate(sz)) {
+        return ptr;
+    }
+
+    throw std::bad_alloc{};
+}
+
+void *operator new[](std::size_t sz) {
+    if(sz == 0) { ++sz; }
+    if(void *ptr = glbl_alloc.allocate(sz)) {
+        return ptr;
+    }
+    throw std::bad_alloc{};
+}
+
+void operator delete(void *ptr) noexcept {
+    glbl_alloc.deallocate(ptr);
+}
+
+void operator delete(void *ptr, std::size_t size) noexcept {
+    glbl_alloc.deallocate(ptr, size);
+}
+
+void operator delete[](void *ptr) noexcept {
+    glbl_alloc.deallocate(ptr);
+}
+
+void operator delete[](void *ptr, std::size_t size) noexcept {
+    glbl_alloc.deallocate(ptr, size);
+}
+
+#endif
+
+
+// Just a regular C++ class to be added as an <<object type>> to the scripting runtime
+class example_object {
+public:
+    example_object() = default;
+    example_object(int v): v_{v} {}
+    void set_val(int v) { v_ = v; }
+    int get_val() const { return v_; }
+
+private:
+    int v_{};
+};
+
+int main(int argc, char **argv) {
+    std::vector<std::string> const args{argv, argv + argc};
+    std::setlocale(LC_ALL, "en_US.UTF-8");
+
+    if(args.size() < 2) {
+        return 0;
+    }
+
+#if defined(SIGPIPE)
+    std::signal(SIGPIPE, SIG_IGN);
+#endif
+
+#ifdef PLATFORM_WINDOWS
+    WSADATA wsadata;
+    int wsa_result = WSAStartup(MAKEWORD(2, 2), &wsadata);
+    if (wsa_result != 0) {
+        std::cerr << "WSAStartup() error " << wsa_result << std::endl;
+        return 1;
+    }
+#endif
+
+    // The runtime
+    dfi::runtime rt{};
+
+    // -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
+    // The host part of scripting language possibilities extending example.
+    // For usage, see script "examples/extending_example.dfi".
+    // -----------------------------------------------------------------------------------
+    // Example of adding function to the runtime
+    rt.add_function("hello_from_cpp",
+        DFIFUN(args) {
+            std::cout << "C++ extension function hello_from_cpp() called with arguments:" << std::endl;
+            for(auto &&a: args) {
+                std::cout << "\t" << a << std::endl;
+            }
+            return args.size();
+        }
+    );
+
+    // -----------------------------------------------------------------------------------
+    // Example of adding named value to the runtime
+    rt.add_var("The_Answer_to_the_Ultimate_Question_of_Life_the_Universe_and_Everything", 42);
+
+    // -----------------------------------------------------------------------------------
+    // Example of adding object type to the runtime
+    rt.add_function("example_object",
+        DFIFUN(args) {
+            if(args.size() > 0) {
+                return dfi::valbox{example_object{args[0].cast_to_s32()}, "example_object"};
+            }
+            return dfi::valbox{example_object{}, "example_object"};
+        }
+    );
+    rt.add_method("example_object", "set_val", DFIFUN(args) {
+        // check number of arguments, when needed, including
+        // implicit object reference as the first arg
+        DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
+        if(!args[1].is_numeric()) {
+            throw std::runtime_error{"the value must be of numeric type"};
+        }
+        DFITHIS(args, example_object).set_val(args[1].cast_to_s32());
+        return 0;
+    });
+    rt.add_method("example_object", "get_val", DFIFUN(args) {
+        DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+        return DFITHIS(args, example_object).get_val();
+    });
+    // -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
+
+#ifndef DFI_DEBUGGING
+    try {
+#endif
+        for(std::size_t i{1}; i < args.size(); ++i) {
+            if(std::filesystem::is_regular_file(args[i])) {
+                rt.load_file(args[i]);
+            } else if(std::filesystem::is_directory(args[i])) {
+                for(auto const &dir_entry: std::filesystem::recursive_directory_iterator{args[i]}) {
+                    if(dir_entry.is_regular_file()) {
+                        rt.load_file(dir_entry.path().string());
+                    }
+                }
+            } else {
+                throw std::runtime_error{args[i] + " - no such file or directory"};
+            }
+        }
+        rt.loading_complete();
+
+        if(rt.worker_cells_count() == 0) {
+            throw std::runtime_error{"nothing to do - no working elements"};
+        }
+
+#if 0
+        rt.start_net_server(dfi::network_address_family::inet4, "0.0.0.0", 43987, 0);
+#endif
+
+#if 0
+        // prepared input
+        auto host_provided_data{rt.resolve_input("host_provided_data")};
+#endif
+
+#ifdef DFI_SINGLE_THREADED
+        while(!rt.termination_requested()) {
+#if 0
+            host_provided_data = dfi::timespec_wrapper{}.now().fseconds();
+#endif
+            rt.run_cycle();
+        }
+#else
+
+        rt.run_mt(std::thread::hardware_concurrency());
+        while(!rt.wait(0.1)) {
+#if 0
+            host_provided_data = dfi::timespec_wrapper{}.now().fseconds();
+#endif
+        }
+
+        if(rt.failure_occured()) {
+            throw std::runtime_error{rt.failure_description()};
+        }
+
+#endif
+
+#ifndef DFI_DEBUGGING
+    } catch(std::exception const &e) {
+        std::cerr << "error: " << e.what() << std::endl;
+    }
+#endif
+
+    return rt.exit_status();
+}

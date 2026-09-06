@@ -1,0 +1,49 @@
+'a' a_in;
+'b' b_in;
+'c' c_in;
+
+random_from_range(lo, hi) {
+    return randf() * abs(hi - lo) + (lo < hi ? lo : hi);
+}
+
+random_from_range a_gen(-1000.0, 1000.0);
+random_from_range b_gen(-1000.0, 1000.0);
+random_from_range c_gen(-1000.0, 1000.0);
+
+
+first_defined(a, b) return a != undefined ? a : b;
+first_defined a(a_in, a_gen);
+first_defined b(b_in, b_gen);
+first_defined c(c_in, c_gen);
+
+discriminant(a, b, c) {
+    return b.pow(2) - 4.0 * a * c;
+}
+
+calc_x1(a, b, d) {
+    return d >= 0 ? (-b + sqrt(d)) / (2.0 * a) : undefined;
+}
+
+calc_x2(a, b, d) {
+    return d > 0 ? (-b - sqrt(d)) / (2.0 * a) : undefined;
+}
+num_roots(d) {
+    return d > 0 ? 2 : d == 0 ? 1 : 0;
+}
+
+discriminant      d(a, b, c);
+calc_x1           x1(a, b, d)   'x1';
+calc_x2           x2(a, b, d)   'x2';
+num_roots         nr(d)         'n_roots';
+
+dbgprint(a, b, c, d, x1, x2, nr, sep) {
+    print("a = ", a, "\nb = ", b, "\nc = ", c, "\nd = ", d, "\nnum roots = ", nr);
+    if(nr == 2) {
+        print("\nx1 = ", x1, "\nx2 = ", x2);
+    } else if(nr == 1) {
+        print("\nx1 = ", x1);
+    }
+    println("\n", sep);
+}
+
+dbgprint dprn(a, b, c, d, x1, x2, nr, "----------------------");

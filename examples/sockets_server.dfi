@@ -1,0 +1,105 @@
+net_server() {
+    // initialization
+    if(this.lsk == undefined) {
+        this.poller = socket_poller();
+        this.lsk = socket();
+        if(
+            this.lsk.create() &&
+            this.lsk.make_nonblocking() &&
+            this.lsk.make_nodelay() &&
+            this.lsk.bind("0.0.0.0", 48934) &&
+            this.lsk.listen() &&
+            this.poller.add_event(this.lsk, POLL_EVENT_IN)
+        ) {
+            println("server started");
+        } else {
+            es = error_str(last_error());
+            if(es.size() > 0) { es[0] = tolower(es[0]); }
+            throw "error starting server - " + es;
+        }
+        this.contexts = object();
+        this.contexts.sockets = dictionary();
+        this.contexts.sessions = dictionary();
+        this.contexts.ses_to_sock = dictionary();
+        this.contexts.sock_to_ses = dictionary();
+        this.contexts.data_input = queue();
+    }
+
+    // working sequence
+    wres = this.poller.wait(10, 0.25);
+    for(i = 0; i < wres.size(); ++i) {
+        if(wres[i].events & POLL_EVENT_IN) {
+            if(wres[i].data.fd == this.lsk.handle()) {
+                newsk = this.lsk.accept();
+                if(
+                    newsk != undefined &&
+                    newsk.make_nonblocking() &&
+                    newsk.make_nodelay() &&
+                    newsk.set_keepalive(true) &&
+                    newsk.set_linger(true, 0)
+                ) {
+                    println("new conn ", newsk.handle());
+                    this.poller.add_event(newsk, POLL_EVENT_IN | POLL_EVENT_ET);
+                    this.contexts.sockets.at(newsk.handle()) = newsk;
+                } else {
+                    println("error setup new connection ", error_str(last_error()));
+                }
+            } else {
+                println("new event on socket ", wres[i].data.fd);
+                if(this.contexts.sockets.key_exists(wres[i].data.fd)) {
+                    skt = this.contexts.sockets.at(wres[i].data.fd);
+                    if(skt != undefined) {
+                        try {
+                            indata = skt.receive(100000);
+                            if(indata.size() == 0) {
+                                println("read zero bytes - closing connection ", wres[i].data.fd);
+                                this.poller.del_event(wres[i].data.fd);
+                                this.contexts.sockets.erase(wres[i].data.fd);
+                            } else {
+                                in.skfd = wres[i].data.fd;
+                                in.data = indata;
+                                in.println();
+                                this.contexts.data_input.push_back(in);
+                            }
+                        } catch(e) {
+                            println("error: ", e);
+                            this.poller.del_event(wres[i].data.fd);
+                            this.contexts.sockets.erase(wres[i].data.fd);
+                        }
+                    }
+                }
+            }
+        } else {
+            if(wres[i].data.fd == this.lsk.handle()) {
+                throw "server failure - termination";
+            } else {
+                println("connection ", wres[i].data.fd, " closed");
+                this.poller.del_event(wres[i].data.fd);
+                this.contexts.sockets.erase(wres[i].data.fd);
+            }
+        }
+    }
+    return this.contexts;
+}
+
+net_server srv();
+
+data_serve(contexts) {
+    if contexts == undefined return 0;
+
+    data = contexts.data_input.pop_front();
+    if(data != undefined) {
+        println("data: ", data);
+        // TODO: data processing as needed...
+    }
+    return 0;
+}
+
+data_serve ds1(srv);
+data_serve ds2(srv);
+data_serve ds3(srv);
+data_serve ds4(srv);
+data_serve ds5(srv);
+data_serve ds6(srv);
+data_serve ds7(srv);
+data_serve ds8(srv);

@@ -1,0 +1,234 @@
+setup_dsc() {
+    if(!this.initialized) {
+        set_cycle_sleep_seconds(0.01);
+        set_inactive_sleep_seconds(0.1);
+        set_extern_update_seconds(0.01);
+
+        console.fixed();
+        console.enable_colors(true);
+        console.setprecision(9);
+
+        if(!enable_external_values_server("0.0.0.0", 43987)) {
+            throw error_str(last_error());
+        }
+
+        this.initialized = true;
+    }
+}
+
+setup_dsc setup_node();
+
+
+/*
+1. Данные одного лифта (Cabin Agent)
+
+Каждый лифт — это независимый вычислительный узел (или подграф).
+Его данные делятся на Входы (Сенсоры), Внутреннее состояние и Выходы (Актуаторы и Статус).
+
+    Входные данные (от железа / сети):
+
+         current_floor (int) — текущий этаж (от датчиков шахты).
+         cabin_calls (bitmask / array) — кнопки, нажатые внутри кабины (куда хотят пассажиры).
+         door_sensor (bool) — датчик препятствия в дверях.
+         weight_kg (int) — загрузка кабины (для перегруза).
+
+    Внутреннее состояние (сохраняется в this):
+
+         this.direction (enum: UP, DOWN, IDLE) — текущий вектор движения.
+         this.target_floor (int / undefined) — куда едет прямо сейчас. (Вот тут идеально работает ваш undefined! Если цель нет — undefined + 1 == 1 не сломает логику, а проверки if(target != undefined) отсекут вычисления).
+         this.door_timer (float) — таймер открытия/закрытия дверей.
+         this.assigned_calls (array) — вызовы с этажей, назначенные диспетчером этому лифту.
+
+    Выходные данные (Управление + Статус):
+
+         motor_command (enum: MOVE_UP, MOVE_DOWN, STOP) — команда на привод.
+         door_command (enum: OPEN, CLOSE) — команда на двери.
+         cabin_status (object) — пакет, который лифт транслирует в сеть (на UDP Pub/Sub) для диспетчера.
+*/
+
+
+'current_floor' current_floor;
+'door_sensor' door_sensor;
+'weight_kg' weight_kg;
+'open_button' open_button;
+'close_button' close_button;
+'emergency_button' emergency_button;
+'hall_buttons' hall_calls;
+'local_buttons' local_buttons;
+'direction_assignment' direction_assignment; //    -1 / 0 / 1 / undefined
+
+
+function next_floor(curr_pos, local_calls, hall_calls, step) {
+    if(step == 1 || step == -1) {
+        found = false;
+        for(i = curr_pos; i >= 0 && i < local_calls.size() && i < hall_calls.size(); i += step) {
+            if(local_calls[i] || hall_calls[i]) {
+                return i;
+            }
+        }
+    }
+    return undefined;
+}
+
+
+direction_dsc(dir_assignment, curr_floor, local_calls, hall_calls) {
+    if(this.dir == undefined || this.dir == 0) {
+        this.dir = dir_assignment;
+        if(this.dir != undefined) {
+            this.dir = this.dir > 0 ? 1 : this.dir < 0 ? -1 : 0;
+            if(this.dir == -1 || this.dir == 1) {
+                nd = next_floor(curr_floor, local_calls, hall_calls, this.dir);
+                if(nd == undefined) {
+                    this.dir = undefined;
+                }
+            } else {
+                this.dir = undefined;
+            }
+        }
+    }
+    return this.dir;
+}
+direction_dsc curr_dir(direction_assignment, current_floor, local_buttons, hall_calls);
+
+
+
+serve_calls_dsc(curr_dir, dir_assignment, curr_floor, local_calls, hall_calls) {
+    if(this.serve == undefined) {
+        this.serve = false;
+    }
+}
+serve_calls_dsc serve_calls(curr_dir, direction_assignment, current_floor, local_buttons, hall_calls);
+
+
+
+target_floor_dsc(curr_floor, local_calls, hall_calls, curr_dir) {
+    if(curr_dir == undefined || curr_dir == 0) {
+        return undefined;
+    }
+    step = curr_dir > 0 ? 1 : curr_dir < 0 ? -1 : 0;
+    return next_floor(curr_floor, local_calls, hall_calls, step);
+}
+target_floor_dsc target_floor(current_floor, local_buttons, hall_calls, curr_dir);
+
+
+
+arrived_tgt_floor_dsc(current_floor, target_floor, dir) {
+    return dir != undefined && (dir == -1 || dir == 1) && current_floor != undefined && target_floor == current_floor;
+}
+arrived_tgt_floor_dsc tgt_floor_arrival(current_floor, target_floor, dir);
+
+
+
+need_serve_door(target_floor, curr_dir) {
+    if(curr_dir != undefined && target_floor != undefined) {
+        //
+    }
+}
+
+
+
+
+
+
+
+
+
+elevator_dsc(curr_floor, hall_buttons, action_assignment, max_weight) {
+    if(!this.initialized) {
+        this.direction = undefined; // (enum: UP, DOWN, IDLE) — текущий вектор движения.
+        this.target_floor = undefined; // (int / undefined) — куда едет прямо сейчас. (Вот тут идеально работает ваш undefined! Если цель нет — undefined + 1 == 1 не сломает логику, а проверки if(target != undefined) отсекут вычисления).
+        this.door_timer = 7; // (float) — таймер открытия/закрытия дверей.
+        this.initialized = true;
+    }
+    if(this.direction == undefined && action_assignment) {
+        local_calls = cabin(id).buttons_map();
+    }
+    curr_floor = cabin(id).curr_floor();
+    max_weight = cabin(id).max_weight();
+}
+
+
+/*
+2. Данные Банка Лифтов (Dispatcher / Group Controller)
+
+Диспетчер не знает, как лифт открывает двери. Он знает только математику распределения.
+
+    Входные данные (от каждого лифта по сети):
+
+         cabin_statuses (array of objects) — массив статусов от всех лифтов. Пример: [status1, status2, status3].
+         hall_calls_up (bitmask) — массив этажей, где нажата кнопка "Вверх".
+         hall_calls_down (bitmask) — массив этажей, где нажата кнопка "Вниз".
+
+    Внутреннее состояние:
+
+         this.assignments (map/dictionary) — кто за что отвечает. { "floor_3_UP": cabin_1, "floor_5_DOWN": cabin_2 }.
+
+    Выходные данные:
+
+         assigned_calls (broadcasted to cabins) — массив вызовов, который рассылается каждому лифту по extern.
+*/
+
+
+// // Дескриптор: Диспетчер-Аукционер
+// dispatcher_dsc(s1, s2, s3, up_calls, down_calls) {
+//     // Собираем массив объектов (ваши массивы могут хранить объекты)
+//     statuses = [s1, s2, s3];
+
+//     // Ищем лифт с минимальной ценой (cost) для конкретного вызова
+//     best_cabin = 0;
+//     min_cost = 99999;
+
+//     for(i = 0; i < statuses.size(); ++i) {
+//         if(statuses[i].cost < min_cost) {
+//             min_cost = statuses[i].cost;
+//             best_cabin = i;
+//         }
+//     }
+
+//     // Возвращаем назначение
+//     return best_cabin;
+// }
+
+// dispatcher_dsc dispatcher();
+
+
+
+
+
+
+
+// Дескриптор: Диспетчер
+dispatcher(serviced_call, new_hall_calls) {
+    // Инициализация при первом такте (благодаря undefined это работает без if)
+    if (this.up_calls == undefined) this.up_calls = [false, false, false, false, false];
+
+    // 1. ЧИСТКА: Если лифт прислал сообщение, что вызов обработан - чистим
+    if (serviced_call != undefined) {
+        if (serviced_call.dir == "UP") {
+            this.up_calls[serviced_call.floor] = false;
+        }
+        // для DOWN аналогично
+    }
+
+    // 2. ЗАПИСЬ: Принимаем новые вызовы с этажей (если кто-то нажал кнопку)
+    if (new_hall_calls != undefined) {
+        this.up_calls = new_hall_calls; // Перезаписываем битмаску
+    }
+
+    // 3. ЛОГИКА: Считаем, кому что назначить (cost function)
+    // ... возвращаем массив назначений ...
+    return this.up_calls;
+}
+
+// Узел лифта (только генерирует serviced_call, не трогает чужое состояние)
+elevator_logic(floor, direction, door_state) {
+    if (door_state == "OPEN" && this.last_floor != floor) {
+        this.last_floor = floor;
+        // Лифт не чистит массив диспетчера. Он просто сообщает факт!
+        msg = object();
+        msg.floor = floor;
+        msg.dir = direction;
+        return msg; // Это улетит в Диспетчер
+    }
+    return undefined; // Если ничего не почистили, возвращаем undefined
+}
