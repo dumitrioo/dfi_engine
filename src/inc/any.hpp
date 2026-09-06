@@ -25,7 +25,7 @@ namespace dfi {
         }
     };
 
-    inline void throw_bad_any_cast() {
+    [[noreturn]] inline void throw_bad_any_cast() {
 #if __cpp_exceptions
         throw bad_any_cast{};
 #else

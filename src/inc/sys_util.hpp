@@ -73,7 +73,7 @@ namespace dfi {
     DEFINE_RUNTIME_ERROR_CLASS_MSG(errno_eio, "EIO");
     DEFINE_RUNTIME_ERROR_CLASS_MSG(errno_ewouldblock, "EWOULDBLOCK");
 
-    static void throw_errno(int e, std::string const &description = std::string{}) {
+    [[noreturn]] static void throw_errno(int e, std::string const &description = std::string{}) {
         switch(e) {
             case EPERM: throw errno_eperm();
             case ENOENT: throw errno_enoent();
