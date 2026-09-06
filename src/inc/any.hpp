@@ -47,8 +47,7 @@ namespace dfi {
             explicit any_holder(T const &value): value_{value} {
             }
 
-            explicit any_holder(T &&value) noexcept: value_{std::move(value)} {
-            }
+            explicit any_holder(T &&value) noexcept: value_{std::move(value)} {}
 
             std::unique_ptr<holder_base> clone() const override {
                 return std::make_unique<any_holder>(value_);
@@ -80,19 +79,13 @@ namespace dfi {
         {
         }
 
-        any(any &&other) noexcept {
-            swap(other);
-        }
+        any(any &&other) noexcept: holder_{std::move(other.holder_)} {}
 
         template<class T>
-        any(T const &value):
-            holder_{std::make_unique<any_holder<std::remove_cvref_t<T>>>(value)} {
-        }
+        any(T const &value): holder_{std::make_unique<any_holder<std::remove_cvref_t<T>>>(value)} {}
 
         template<class T>
-        any(T &&value):
-            holder_{std::make_unique<any_holder<std::remove_cvref_t<T>>>(std::forward<T>(value))} {
-        }
+        any(std::remove_cvref_t<T> &&value): holder_{std::make_unique<any_holder<T>>(std::forward<T>(value))} {}
 
         any &operator=(any const &other) {
             if(this != &other) {
@@ -116,23 +109,17 @@ namespace dfi {
 
         ~any() = default;
 
-        void swap(any &other) noexcept {
-            std::swap(holder_, other.holder_);
-        }
+        void swap(any &other) noexcept { std::swap(holder_, other.holder_); }
 
-        void reset() {
-            holder_.reset();
-        }
+        void reset() { holder_.reset(); }
 
-        void clear() {
-            holder_.reset();
-        }
+        void clear() { holder_.reset(); }
 
-        bool has_value() const {
+        bool has_value() const noexcept {
             return holder_ != nullptr;
         }
 
-        bool empty() const {
+        bool empty() const noexcept {
             return holder_ == nullptr;
         }
 
