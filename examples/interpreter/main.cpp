@@ -7,7 +7,7 @@
 #include <dfi_runtime.hpp>
 
 #ifdef PLATFORM_WINDOWS
-#pragma comment( lib,"ws2_32.lib" )
+#pragma comment(lib, "ws2_32.lib")
 #ifdef DFI_TCPSERVER_USE_SSL
 #pragma comment(lib, "libeay32.lib")
 #pragma comment(lib, "ssleay32.lib")
