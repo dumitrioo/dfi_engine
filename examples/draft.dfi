@@ -197,6 +197,7 @@ function baricenter(b1, b2) {
     return b;
 }
 
+
 my_drafts(host_data) {
     if(!this.init) {
         this.init = true;
@@ -387,7 +388,7 @@ my_drafts(host_data) {
     println((f64)"AUTOSAR"[1]);
 
     timestamps = [];
-    timestamps.reserve(10);
+    timestamps.reserve(100);
     for(i = 0; i < 100; ++i) {
         timestamps.push_back(steady_clock());
     }
@@ -719,7 +720,7 @@ my_drafts(host_data) {
 
     sum = 0;
     for(i = 1; i < 10000; ++i) {
-        s = itoa(i);
+        s = i.itoa();
         sum += s.size();
         if(sum >= 1095) {
             println(i, " (", sum, ")");
@@ -729,6 +730,7 @@ my_drafts(host_data) {
 
     return exit(9);
 }
+
 my_drafts drf(host_provided_data);
 
 
@@ -1074,23 +1076,3 @@ dbg_printer dbg_prn_1(can_window_be_opened, 0.1);
 */
 
 
-exmpl_exec_time_limiter(dt) {
-    if(this.t == undefined) {
-        this.t = steady_clock() + dt;
-    }
-    if(steady_clock() > this.t) {
-//        exit();
-    }
-    return 0;
-}
-
-exmpl_exec_time_limiter one_second_limit(1.0);
-
-
-pwm_sine_level_node(freq) { return sin(steady_clock() * freq); }
-pwm_node(duty, lvl) { return (i32) (((steady_clock() % duty) / duty) <= abs(lvl) ? sign(lvl) * 1 : 0); }
-
-pwm_sine_level_node pwm_lvl(30.);
-pwm_node pwm(.01, pwm_lvl);
-
-// dbg_printer dbg_prn(pwm, .001);

@@ -2959,8 +2959,7 @@ namespace dfi {
             }
             return !(lr < rr);
         }
-
-#if (__cplusplus >= 202000L)
+#if 0 // (__cplusplus >= 202000L)
         friend int operator<=>(valbox const &l, valbox const &r) {
             auto lr{l.deref()};
             auto rr{r.deref()};

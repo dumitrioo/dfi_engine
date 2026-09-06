@@ -1276,7 +1276,7 @@ namespace dfi {
                                 throw runtime_error{this_->line(), this_->col(), "unsupported operation"};
                             }
                         } else {
-#if (__cplusplus >= 202000L)
+#if 0 // (__cplusplus >= 202000L)
                             res = l <=> r;
 #else
                             res = valbox::operator_spaceship(l,  r);

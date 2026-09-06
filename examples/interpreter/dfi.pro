@@ -10,9 +10,9 @@ TEMPLATE = app
 # DEFINES += DFI_JSON_DEBUGGING
 
 # DEFINES += STR_UTIL_ENABLE_CUSTOM_UNICODE_OPERATIONS
-# DEFINES += USE_CUSTOM_MEMORY_ALLOCATION
+DEFINES += USE_CUSTOM_MEMORY_ALLOCATION
 
-# DEFINES += DFI_USE_CUSTOM_ANY
+DEFINES += DFI_USE_CUSTOM_ANY
 
 # DEFINES += DFI_USE_CUSTOM_SHARED_MUTEX
 # DEFINES += RW_MUTEX_PRIORITIES
@@ -116,8 +116,8 @@ HEADERS += \
     ../../src/dfi_util.hpp \
     ../../src/dfi_value.hpp
 
-QMAKE_CXXFLAGS += -std=c++17 -march=native -Wno-unused-parameter -Wno-unused-function -Wl,-rpath,.
-# QMAKE_CXXFLAGS += -ftree-vectorize -mavx2 -ftree-vectorizer-verbose=5
+QMAKE_CXXFLAGS += -std=c++20 -march=native -Wno-unused-parameter -Wno-unused-function -Wl,-rpath,.
+QMAKE_CXXFLAGS += -ftree-vectorize -mavx2 -ftree-vectorizer-verbose=5
 QMAKE_CXXFLAGS_RELEASE -= -O2
 QMAKE_CXXFLAGS_RELEASE += -O3
 QMAKE_CFLAGS_RELEASE -= -O2
@@ -150,6 +150,7 @@ DISTFILES += \
     ../one_second_limit.dfi \
     ../perf_limit.dfi \
     ../pid_regulator.dfi \
+    ../pwm.dfi \
     ../quad_eq.dfi \
     ../sockets_server.dfi \
     ../tap_lights.dfi \
