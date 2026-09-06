@@ -95,7 +95,6 @@ namespace dfi {
                        str_util::utoa<std::string>(version_patch_);
             });
 
-            // ordering
             add_var("LESS", -1);
             add_var("EQUAL", 0);
             add_var("GREATER", 1);
@@ -1880,7 +1879,7 @@ namespace dfi {
             return static_cast<long double>(ext_cells_refresh_interval_nanos_) * 1e-9L;
         }
 
-        // TODO: implement this and the standalone distributed service
+        // TODO: implement this and the standalone distributed service (future work)
         void net_hub_connect(std::string const &/*host_addr*/, std::uint16_t /*port*/, std::string const &/*unique_net_name*/) override {
         }
 
@@ -2056,7 +2055,6 @@ namespace dfi {
         std::uint64_t sleep_between_cycles_nanoseconds_{0};
         std::uint64_t sleep_inactive_thread_nanoseconds_{1'000'000ULL};
 
-        // execution_context exctx_{};
         shared_mutex threads_mtp_{};
         std::list<std::thread> threads_{};
         std::int64_t wait_granularity_nsec_{100LL};
@@ -2164,9 +2162,9 @@ namespace dfi {
 
         shared_mutex loaded_extensions_mtp_{};
         std::list<std::pair<std::shared_ptr<so>, extension_interface *>> loaded_extensions_{};
-        static std::size_t constexpr version_major_{1};
-        static std::size_t constexpr version_minor_{5};
-        static std::size_t constexpr version_patch_{189};
+        static std::size_t constexpr version_major_{2};
+        static std::size_t constexpr version_minor_{0};
+        static std::size_t constexpr version_patch_{48};
 
         mutable shared_mutex cq_mtp_{};
         std::unique_ptr<command_queue> cq_{};
