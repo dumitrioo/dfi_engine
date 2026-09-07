@@ -17,7 +17,7 @@ namespace dfi {
     class cell_base {
     public:
         virtual ~cell_base() {}
-        virtual void exec(execution_context *) {}
+        virtual void exec() {}
         virtual void set_value(valbox const &val) { std::unique_lock l{val_mtp_}; val_ = val; }
         virtual valbox value() const { std::shared_lock l{val_mtp_}; return val_; }
         virtual valbox value_clone() const { std::shared_lock l{val_mtp_}; return val_.clone(); }
@@ -237,6 +237,10 @@ namespace dfi {
 
         void set_body(statement_ptr val) {
             body_ptr_ = val;
+        }
+
+        void exec() override {
+            body_ptr_->exec(&exctx_);
         }
 
     private:

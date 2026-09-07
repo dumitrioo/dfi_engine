@@ -1375,7 +1375,7 @@ namespace dfi {
                 if(have_undefineds && !undefined_inputs_enabled()) {
                     continue;
                 }
-                curr_cell->body()->exec(exctx);
+                curr_cell->exec();
 
                 exctx->del_stack_frame();
 
@@ -1603,7 +1603,7 @@ namespace dfi {
                                 if(have_undefineds && !undefined_inputs_enabled()) {
                                     continue;
                                 }
-                                curr_cell->body()->exec(exctx_ptr);
+                                curr_cell->exec();
 
                                 exctx_ptr->del_stack_frame();
 
@@ -2087,7 +2087,7 @@ namespace dfi {
             [this](std::vector<valbox> &fargs) -> valbox {
                 execution_context *exctx{reinterpret_cast<execution_context *>(fargs[0].as_ptr())};
 
-                typename str_map_t<function_definition>::const_iterator it{user_functions_.find(fargs[1].as_string())};
+                auto it{user_functions_.find(fargs[1].as_string())};
 
                 if(it == user_functions_.end()) {
                     throw std::runtime_error{"function not found"};

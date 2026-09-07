@@ -33,7 +33,7 @@ namespace dfi {
 #endif
     }
 
-    class any {
+    class any final {
         class holder_base {
         public:
             virtual std::unique_ptr<holder_base> clone() const = 0;
