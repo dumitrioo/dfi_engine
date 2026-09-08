@@ -1300,6 +1300,7 @@ namespace dfi::str_util {
         return res;
     }
 
+    // Dumb yet faster than std::string::find() algorithm (in waste majority of cases)
     class substr_finder_dumb {
     public:
         template<typename STR_T>
@@ -1335,6 +1336,7 @@ namespace dfi::str_util {
         }
     };
 
+    // Rabin-Karp algorithm
     class substr_finder_rk {
     public:
         template<typename STR_T>
@@ -1379,6 +1381,7 @@ namespace dfi::str_util {
         }
     };
 
+    // Knuth–Morris–Pratt algorithm
     class substr_finder_kmp {
     public:
         template<typename STR_T>
