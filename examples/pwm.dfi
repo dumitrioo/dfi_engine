@@ -1,17 +1,15 @@
 dbg_printer(val, period) {
-    clk = steady_clock();
-    if(clk > this.t) {
-        this.t = clk + period;
+    if(steady_clock() > this.t) {
+        this.t = steady_clock() + period;
         val.print();
     }
 }
 
 pwm_node(frq, t) {
     clk = steady_clock();
-    lvl = sin(clk * frq);
-    yield (i64)((clk % t) / t <= lvl.abs() ? lvl.sign() : 0);
+    lvl = sin(clk * 2. * M_PI * frq);
+    return (i64)((clk % t) / t <= lvl.abs() ? lvl.sign() : 0);
 }
 
-
-pwm_node pwm(2. * M_PI * 600, .0001);
-dbg_printer dbg_prn(pwm, .00001);
+pwm_node pwm(500, .0001);
+dbg_printer dbg_prn(pwm, .0001);

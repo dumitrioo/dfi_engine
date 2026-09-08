@@ -5,6 +5,15 @@
 // in line (Leonard) buys a can, drinks it, and joins the back of the line as
 // a double, and so on. This process continues ad infinitum.
 
+sqgen() {
+    if(this.gen == undefined) {
+        this.gen = sequence_generator();
+        return this.gen;
+    }
+}
+
+sqgen sqg();
+
 function serialize_tbbt_array(a) {
     res = "";
     as = a.size();
@@ -59,6 +68,7 @@ tbbt2cola(sg) {
     console.print(outstr);
     return 0;
 }
+
 tbbt2cola duplicating_beverage_0(sqg);
 tbbt2cola duplicating_beverage_1(sqg);
 tbbt2cola duplicating_beverage_2(sqg);
@@ -75,11 +85,3 @@ tbbt2cola duplicating_beverage_c(sqg);
 tbbt2cola duplicating_beverage_d(sqg);
 tbbt2cola duplicating_beverage_e(sqg);
 tbbt2cola duplicating_beverage_f(sqg);
-
-sqgen() {
-    if(this.gen == undefined) {
-        this.gen = sequence_generator();
-    }
-    return this.gen;
-}
-sqgen sqg();
