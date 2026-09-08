@@ -62,6 +62,7 @@
 #include <filesystem>
 #endif
 #if (__cplusplus >= 202002L)
+#include <memory_resource>
 #include <semaphore>
 #include <ranges>
 #include <numbers>
@@ -253,6 +254,9 @@ TYPE const &NAME() const { \
 }
 
 namespace dfi {
+
+    using string = std::basic_string<char, std::char_traits<char>, std::pmr::polymorphic_allocator<char>>;
+    using wstring = std::basic_string<wchar_t, std::char_traits<wchar_t>, std::pmr::polymorphic_allocator<wchar_t>>;
 
     using int64_t = std::int64_t;
     using uint64_t = std::uint64_t;
