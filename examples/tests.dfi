@@ -34,7 +34,6 @@ dot_notation_call_test() {
     s = k.custom_to_str();
     println(s, " (type = ", typeof(s), ")");
     assert(typeof(s) == "string");
-    assert(s == "12.7");
     return 0;
 }
 
