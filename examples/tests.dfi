@@ -314,7 +314,7 @@ test_mat tm();
 setup() {
     if(!this.init) {
         this.init = true;
-        set_cycle_sleep_seconds(0.01);
+        set_cycle_sleep_seconds(0.001);
         set_inactive_sleep_seconds(0.1);
         console.fixed();
         console.enable_colors(true);
@@ -330,10 +330,10 @@ function fac(n) return n <= 1 ? 1 : n * fac(n - 1);
 fac_test(n) return [n, n.fac()];
 fac_test ftest(rnd);
 
-dbg_printer(val, period) {
+dbg_prn(val, period) {
     if(steady_clock() > this.t) {
         this.t = steady_clock() + period;
-        val.println();
+        if(val != undefined) { val.println(); }
     }
 }
-dbg_printer dprn(ftest, 0.1);
+dbg_prn dprn(ftest, 0.01);
