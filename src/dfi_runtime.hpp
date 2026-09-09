@@ -1619,7 +1619,7 @@ namespace dfi {
                                 exctx_ptr->clear_all_jumps_request();
                             }
 
-                            if(sleep_between_cycles_nanoseconds > 0 && cell_executed) {
+                            if(cell_executed && sleep_between_cycles_nanoseconds > 0) {
                                 std::this_thread::sleep_for(std::chrono::nanoseconds{sleep_between_cycles_nanoseconds});
                             }
 
