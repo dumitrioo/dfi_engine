@@ -231,7 +231,7 @@ my_drafts(host_data) {
         dist_range = [vec4(mindist, mindist, mindist), vec4(maxdist, maxdist, maxdist)];
         mass_range = [1, 10];
 
-        masses = array();
+        masses = [];
         array_size = 10000;
         masses.reserve(array_size + 100);
         println("creating masses array...");
@@ -329,7 +329,7 @@ my_drafts(host_data) {
         } while (i < 5);
     }
 
-    v4a = array();
+    v4a = [];
     v4a.push_back(vec4(1,1,0));
     v4a.push_back(vec4(1,1,0));
     v4a.push_back(vec4(1,1,0));
@@ -664,12 +664,12 @@ my_drafts(host_data) {
 
     /////////////////////////////////////////////////////////////////////
 
-    this.k = array();
-    this.k[0] = array();
-    this.k[1] = array();
-    this.k[2] = array();
-    this.k[3] = array();
-    this.k[4] = array();
+    this.k = [];
+    this.k[0] = [];
+    this.k[1] = [];
+    this.k[2] = [];
+    this.k[3] = [];
+    this.k[4] = [];
     this.k[4].resize(100);
     this.k.typeof().println();
     this.k.sizeof().println();
