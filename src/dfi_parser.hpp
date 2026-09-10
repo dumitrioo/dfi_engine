@@ -1587,20 +1587,31 @@ namespace dfi {
                 res["literal"] = "object";
                 res["content"].become_object();
                 increment_pos();
+                std::unordered_set<std::string> keys{};
                 while(get_token(0).type_is_not(token::type::RCURLY)) {
+                    auto keyl{get_token(0).line()};
+                    auto keyc{get_token(0).col()};
                     json k{get_expr()};
                     if(!k.is_object() || (k["subtype"].as_string() != "identifier" && k["literal"].as_string() != "str")) {
-                        throw compilation_error{get_token(0).line(), get_token(0).col(), "name string or identifier expected in object initialization"};
+                        throw compilation_error{keyl, keyc, "name string or identifier expected in object initialization"};
+                    }
+                    std::string sk{k["content"].as_string()};
+                    if(keys.find(sk) != keys.end()) {
+                        throw compilation_error{keyl, keyc, std::string{"\""} + sk + "\": duplicated key in object initialization"};
+                    } else {
+                        keys.insert(sk);
                     }
                     if(get_token(0).type_is_not(token::type::COLON)) {
                         throw compilation_error{get_token(0).line(), get_token(0).col(), "\":\" expected in object initialization"};
                     }
                     increment_pos();
+                    auto vall{get_token(0).line()};
+                    auto valc{get_token(0).col()};
                     json v{get_expr()};
                     if(!v.is_object()) {
-                        throw compilation_error{get_token(0).line(), get_token(0).col(), "invalid expression in object initialization"};
+                        throw compilation_error{vall, valc, "invalid expression in object initialization"};
                     }
-                    res["content"][k["content"].as_string()] = v;
+                    res["content"][sk] = v;
                     if(get_token(0).type_is(token::type::COMMA)) {
                         increment_pos();
                     }
