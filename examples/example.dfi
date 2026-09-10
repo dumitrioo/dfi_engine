@@ -26,7 +26,7 @@ example13 ex13();
 
 
 example12() {
-    s = object("{\"1\":2,\"2\":[9,9,9,9],\"333\":4,\"5\":9}");
+    s = object({"1":2,"2":[9,9,9,9],"333":4,"5":9});
     console.println(s);
 
     console.println(typeof(s));

@@ -55,10 +55,7 @@ tbbt2cola(sg) {
         if(a[last].name == pf.name) {
             a[last].num += 2;
         } else {
-            t = object();
-            t.num = 2;
-            t.name = pf.name;
-            a.push_back(t);
+            a.push_back({num:2, name:pf.name});
         }
     }
     outstr += "The character to take a drink is \"" + a[0].name + "\"\n";

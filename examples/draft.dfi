@@ -137,7 +137,7 @@ function bitrev(n) {
 }
 
 function cpu_info() {
-    res = object();
+    res = {};
     if(PLATFORM == "linux") {
         cpu_strings = file("/proc/cpuinfo").read(1000000).split("\n");
         for(i = 0; i < cpu_strings.size(); ++i) {
@@ -170,7 +170,7 @@ function cpu_info() {
 function get_rand_from_range(lo, hi) return (f64)(randf() * (hi - lo) + lo);
 
 function rand_body(m_rng, d_rng) {
-    res = object();
+    res = {};
     res.mass = get_rand_from_range(m_rng[0], m_rng[1]);
     res.center = vec4(
         get_rand_from_range(d_rng[0][0], d_rng[1][0]),
@@ -204,10 +204,8 @@ my_drafts(host_data) {
         console.setprecision(9);
     }
 
-
-    obj = { "potential": this.init, "glutamate": 1.0, "electrical": 1.0 };
+    obj = { potential: this.init, glutamate: 1.0, electrical: 1.0 };
     obj.println();
-    // exit();
 
     timestamps = [];
     timestamps.reserve(500);
@@ -376,8 +374,7 @@ my_drafts(host_data) {
     ++this.wert;
     this.wert.println();
 
-    this.o = object();
-    this.o.j = 98;
+    this.o = {j: 98};
     this.o.println();
     astr = "udutrdutrdturdutrd";
     astr.println();
@@ -446,7 +443,7 @@ my_drafts(host_data) {
 
     for(;;) if kkk++ > 10 break; else println("kkk 2 = ", kkk);
 
-    obj = object(1, 2);
+    obj = {"1": 2};
     k = [[1,2,3], [1,2,3], [obj]];
     k.apply_func(assert);
     assert(k.typeof() == "array").println();
@@ -600,14 +597,14 @@ my_drafts(host_data) {
     {
         v = vec4(1,2,3,4);
         v.println();
-        a = array();
-        o = object();
+        a = [];
+        o = {};
         a.assign(v);
         a.println();
         o.assign(v);
         o.println();
 
-        s = string();
+        s = "";
         s.assign(o);
         s.println();
 
@@ -619,8 +616,8 @@ my_drafts(host_data) {
     {
         m = mat4(11,12,13,14, 21,22,23,24, 31,32,33,34, 41,42,43,44);
         m.println();
-        a = array();
-        o = object();
+        a = [];
+        o = {};
         a.assign(m);
         a.println();
         o.assign(m);

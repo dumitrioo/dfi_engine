@@ -17,12 +17,13 @@ net_server() {
             if(es.size() > 0) { es[0] = tolower(es[0]); }
             throw "error starting server - " + es;
         }
-        this.contexts = object();
-        this.contexts.sockets = dictionary();
-        this.contexts.sessions = dictionary();
-        this.contexts.ses_to_sock = dictionary();
-        this.contexts.sock_to_ses = dictionary();
-        this.contexts.data_input = queue();
+        this.contexts = {
+            sockets: dictionary(),
+            sessions: dictionary(),
+            ses_to_sock: dictionary(),
+            sock_to_ses: dictionary(),
+            data_input: queue(),
+        };
     }
 
     // working sequence

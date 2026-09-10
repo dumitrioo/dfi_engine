@@ -111,7 +111,7 @@ function fibonacci(n, memo) {
 }
 
 fib_test() {
-    memo = object();
+    memo = {};
     println("fibonacci(12) = ", fibonacci(12, memo));
     return 0;
 }
@@ -165,7 +165,7 @@ untab(argv) {
 finddupes() {
     dirname = "/path/to/your/dir";
     if(dir_exists(dirname)) {
-        dupes = object();
+        dupes = {};
         dir_list = list_directory(dirname, true);
         for(i = 0; i < dir_list.size(); ++i) {
             curr_fname = dir_list[i];

@@ -16,8 +16,7 @@ u_serv() {
             console.error("unix domain socket server: error starting unix domain socket server - " + es);
             throw "unix domain socket server: error starting unix domain socket server - " + es;
         }
-        this.contexts = object();
-        this.contexts.sockets = dictionary();
+        this.contexts = {sockets: dictionary()}
     }
 
     wres = this.poller.wait(10, 0.25);

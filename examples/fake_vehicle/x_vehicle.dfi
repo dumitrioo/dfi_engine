@@ -104,7 +104,7 @@ cruise_controller(
 
     dt_s = (f64)(steady_clock() - this.t);
 
-    res = object();
+    res = {};
     res.throttle_cmd = 0.0;
     res.brake_cmd = 0.0;
     res.active = false;

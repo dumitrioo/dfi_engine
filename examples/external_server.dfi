@@ -32,7 +32,7 @@ some_value_issuer() {
             200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5)
         );
         if(choice == 4) this.res = [200.0 * (randf() - 0.5), rnd_str(12)];
-        if(choice == 5) { o = object(); o["key"] = 200.0 * (randf() - 0.5); this.res = o; }
+        if(choice == 5) { this.res = {key: 200.0 * (randf() - 0.5)}; }
         if(choice == 6) this.res = sin;
         if(choice == 7) this.res = timestamp();
         if(choice == 8) this.res = matrix(2, 2, [1,2,3,4]);

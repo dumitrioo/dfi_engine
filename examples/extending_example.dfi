@@ -10,7 +10,7 @@ extension_test() {
         console.print("\"hello_from_cpp()\" function is the real native code part called from");
         console.print("within this script with the arguments provided by the script");
         console.print("--------");
-        hello_from_cpp("1", 2, object("{k:4}"));
+        hello_from_cpp("1", 2, {k:4});
         console.print("--------");
         console.print();
 
