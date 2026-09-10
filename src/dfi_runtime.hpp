@@ -2175,8 +2175,8 @@ namespace dfi {
         shared_mutex loaded_extensions_mtp_{};
         std::list<std::pair<std::shared_ptr<so>, extension_interface *>> loaded_extensions_{};
         static std::size_t constexpr version_major_{2};
-        static std::size_t constexpr version_minor_{0};
-        static std::size_t constexpr version_patch_{61};
+        static std::size_t constexpr version_minor_{1};
+        static std::size_t constexpr version_patch_{3};
 
         mutable shared_mutex cq_mtp_{};
         std::unique_ptr<command_queue> cq_{};
