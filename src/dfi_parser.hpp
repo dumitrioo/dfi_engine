@@ -79,9 +79,9 @@ namespace dfi {
             if(res.is_object()) { return res; }
             res = get_continue_statement();
             if(res.is_object()) { return res; }
-            res = get_expression_statement();
-            if(res.is_object()) { return res; }
             res = get_compound_statement();
+            if(res.is_object()) { return res; }
+            res = get_expression_statement();
             if(res.is_object()) { return res; }
             throw compilation_error{
                 get_token(0).line(),
@@ -1568,9 +1568,16 @@ namespace dfi {
                 increment_pos();
                 return res;
             } else if(
-                tk.type_is(token::type::LCURLY) &&
-                (get_token(1).type_is(token::type::IDENTIFIER) || get_token(1).type_is(token::type::STRING_LITERAL)) &&
-                get_token(2).type_is(token::type::COLON)
+                (
+                    tk.type_is(token::type::LCURLY) &&
+                    (get_token(1).type_is(token::type::IDENTIFIER) || get_token(1).type_is(token::type::STRING_LITERAL)) &&
+                    get_token(2).type_is(token::type::COLON)
+                )
+                ||
+                (
+                    tk.type_is(token::type::LCURLY) &&
+                    get_token(1).type_is(token::type::RCURLY)
+                )
              ) {
                 json res{};
                 res["loc"]["line"] = tk.line();
