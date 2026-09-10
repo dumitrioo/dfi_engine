@@ -15,7 +15,7 @@
 
 namespace dfi {
 
-    class valbox {
+    class valbox final {
     public:
         enum class mem_placement {
             unbounded = 0,

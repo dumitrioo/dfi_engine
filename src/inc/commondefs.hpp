@@ -75,6 +75,7 @@
 #if (__cplusplus >= 202302L)
 #include <print>
 #include <stacktrace>
+#include <flat_map>
 #endif
 #include <cstdio>
 #include <cmath>

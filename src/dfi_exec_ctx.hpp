@@ -394,7 +394,7 @@ namespace dfi {
             }
 
         private:
-            std::map<std::string, valbox> m_{};
+            str_map_t<valbox> m_{};
         };
 
         runtime_interface *rt_ptr_{nullptr};

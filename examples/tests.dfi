@@ -337,3 +337,38 @@ dbg_prn(val, period) {
     }
 }
 dbg_prn dprn(ftest, 0.01);
+
+
+
+
+
+
+
+
+
+
+neuron_process(in_1, in_2, in_3) {
+    // Суммируем химические составляющие (если поля нет, undefined превратится в 0)
+    let total_glutamate = (f64)in_1.glutamate + (f64)in_2.glutamate + (f64)in_3.glutamate;
+    let total_gaba = (f64)in_1.gaba + (f64)in_2.gaba + (f64)in_3.gaba;
+
+    // Усредняем электрический потенциал (например, для Gap Junctions)
+    let avg_potential = ((f64)in_1.potential + (f64)in_2.potential + (f64)in_3.potential) / 3.0;
+
+    // Считаем свой новый потенциал с учетом торможения (GABA) и возбуждения (Glutamate)
+    this.potential = this.potential + (total_glutamate * 1.5) - (total_gaba * 2.0) + (avg_potential * 0.1);
+
+    // Выдаем ВЕСЬ свой собственный объект состояния для следующих узлов
+    if (this.potential > this.threshold) {
+        this.potential = 40.0; // Spike
+        return { "potential": this.potential, "glutamate": 1.0, "electrical": 1.0 };
+    } else {
+        return { "potential": this.potential, "glutamate": 0.0, "electrical": 0.0 };
+    }
+}
+
+
+
+
+
+

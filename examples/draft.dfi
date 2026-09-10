@@ -181,8 +181,7 @@ function rand_body(m_rng, d_rng) {
 }
 
 function construct_body(m, x, y, z) {
-    res = object();
-    res.mass = m; res.center = vec4(x, y, z); return res;
+    return {mass: m, center: vec4(x, y, z)};
 }
 
 function baricenter(b1, b2) {
@@ -191,10 +190,7 @@ function baricenter(b1, b2) {
     } else if(b2.mass == 0) {
         return b1;
     }
-    b = object();
-    b.mass = b1.mass + b2.mass;
-    b.center = (b2.center - b1.center) * (b2.mass / b.mass);
-    return b;
+    return {mass: b1.mass + b2.mass, center: (b2.center - b1.center) * (b2.mass / (b1.mass + b2.mass))};
 }
 
 
@@ -207,6 +203,26 @@ my_drafts(host_data) {
         console.enable_colors(true);
         console.setprecision(9);
     }
+
+
+    obj = { "potential": this.init, "glutamate": 1.0, "electrical": 1.0 };
+    obj.println();
+    // exit();
+
+    timestamps = [];
+    timestamps.reserve(500);
+    for(i = 0; i < 500; ++i) {
+        timestamps.push_back(steady_clock());
+    }
+    timestamps.apply_func(println);
+    println("-------------");
+    timestamps.sort_r().apply_func(println);
+
+    awepo = [];
+    for(i = 0; i < 10; ++i) {
+        awepo.push_front(i);
+    }
+    awepo.apply_func(println);
 
     ++uuu;
     uuu.println();
@@ -239,7 +255,7 @@ my_drafts(host_data) {
     }
 
 
-    u = object("{o:1,a:1,s:1,x:1,z:1,c:1,}");
+    u = {o:1,a:1,s:1,x:1,z:1,c:1,};
     u.println();
     for(c: u) { c.print(); c[1] = 5; }
     println();
@@ -352,8 +368,7 @@ my_drafts(host_data) {
     this.trur = undefined;
     println(this.trur);
 
-    k = object();
-    k.t = 100;
+    k = {t:100};
     k.t++;
     k.println();
 
@@ -387,29 +402,12 @@ my_drafts(host_data) {
 
     println((f64)"AUTOSAR"[1]);
 
-    timestamps = [];
-    timestamps.reserve(100);
-    for(i = 0; i < 100; ++i) {
-        timestamps.push_back(steady_clock());
-    }
-    timestamps.apply_func(println);
-    println("-------------");
-    timestamps.sort_r().apply_func(println);
-
-    awepo = [];
-    for(i = 0; i < 10; ++i) {
-        awepo.push_front(i);
-    }
-    awepo.apply_func(println);
-
     wewerwer = [4,26,3,6,1,8,6,3,5,98,43,76,24,82];
     wewerwer.println();
     wewerwer.sort();
     wewerwer.println();
 
-    obj = object();
-    obj["d"] = "d";
-    obj["c"] = 0xc;
+    obj = {d: "d", c: 0xc};
     obj_vals_c_f(obj);
     arr_vals_0_5(obj);
 

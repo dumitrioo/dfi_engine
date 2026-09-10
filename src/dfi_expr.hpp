@@ -54,6 +54,11 @@ namespace dfi {
         {
             val_.set_literal_placement();
         }
+        immediate_val_expression(valbox &&val):
+            val_{std::move(val)}
+        {
+            val_.set_literal_placement();
+        }
         valbox eval(execution_context *, eval_caller_type, valbox *) override { return val_; }
         bool primary() const override { return true; }
 
@@ -73,12 +78,25 @@ namespace dfi {
             return fun_ref_;
         }
 
+        bool primary() const override {
+            return is_primary_.load(std::memory_order_relaxed);
+        }
+
         valbox eval(execution_context *ctx, eval_caller_type, valbox *) override {
+            if(primary()) {
+                return primary_val_;
+            }
             valbox res{};
             if(fun_ref_) {
                 res = ctx->find_func(name_);
                 if(!res.is_func()) {
                     res = ctx->find_val_by_sym_name(name_, line(), col());
+                }
+                if(res.is_func()) {
+                    if(!is_primary_) {
+                        primary_val_ = res;
+                        is_primary_ = true;
+                    }
                 }
             } else {
                 bool excepted{false};
@@ -110,6 +128,8 @@ namespace dfi {
 
     private:
         std::string name_{};
+        valbox primary_val_{};
+        std::atomic_bool is_primary_{false};
         bool fun_ref_{false};
     };
 

@@ -71,8 +71,6 @@ namespace dfi {
             if(res.is_object()) { return res; }
             res = get_for_statement();
             if(res.is_object()) { return res; }
-            res = get_compound_statement();
-            if(res.is_object()) { return res; }
             res = get_return_statement();
             if(res.is_object()) { return res; }
             res = get_yield_statement();
@@ -82,6 +80,8 @@ namespace dfi {
             res = get_continue_statement();
             if(res.is_object()) { return res; }
             res = get_expression_statement();
+            if(res.is_object()) { return res; }
+            res = get_compound_statement();
             if(res.is_object()) { return res; }
             throw compilation_error{
                 get_token(0).line(),
@@ -1564,6 +1564,42 @@ namespace dfi {
                 }
                 if(get_token(0).type_is_not(token::type::RBRACKET)) {
                     throw compilation_error{get_token(0).line(), get_token(0).col(), "expected right bracket"};
+                }
+                increment_pos();
+                return res;
+            } else if(
+                tk.type_is(token::type::LCURLY) &&
+                (get_token(1).type_is(token::type::IDENTIFIER) || get_token(1).type_is(token::type::STRING_LITERAL)) &&
+                get_token(2).type_is(token::type::COLON)
+             ) {
+                json res{};
+                res["loc"]["line"] = tk.line();
+                res["loc"]["col"] = tk.col();
+                res["type"] = "expression";
+                res["subtype"] = "literal";
+                res["literal"] = "object";
+                res["content"].become_object();
+                increment_pos();
+                while(get_token(0).type_is_not(token::type::RCURLY)) {
+                    json k{get_expr()};
+                    if(!k.is_object() || (k["subtype"].as_string() != "identifier" && k["literal"].as_string() != "str")) {
+                        throw compilation_error{get_token(0).line(), get_token(0).col(), "name string or identifier expected in object initialization"};
+                    }
+                    if(get_token(0).type_is_not(token::type::COLON)) {
+                        throw compilation_error{get_token(0).line(), get_token(0).col(), "\":\" expected in object initialization"};
+                    }
+                    increment_pos();
+                    json v{get_expr()};
+                    if(!v.is_object()) {
+                        throw compilation_error{get_token(0).line(), get_token(0).col(), "invalid expression in object initialization"};
+                    }
+                    res["content"][k["content"].as_string()] = v;
+                    if(get_token(0).type_is(token::type::COMMA)) {
+                        increment_pos();
+                    }
+                }
+                if(get_token(0).type_is_not(token::type::RCURLY)) {
+                    throw compilation_error{get_token(0).line(), get_token(0).col(), "expected right curly bracket"};
                 }
                 increment_pos();
                 return res;

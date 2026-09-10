@@ -637,17 +637,21 @@ namespace dfi {
                         stack_res = std::move(stack.back());
                         stack.pop_back();
                     } else if((*stack.back().ast)["literal"].as_string() == "array") {
-                        // if(poison_) {
-                        //     stack.back().res = std::make_shared<func_call_expression_poison>(
-                        //         std::make_shared<sym_expression>("array"),
-                        //         func_call_args(cnt)
-                        //     );
-                        // } else {
-                            stack.back().res = std::make_shared<func_call_expression>(
-                                std::make_shared<sym_expression>("array"),
-                                func_call_args(cnt)
-                            );
-                        // }
+                        stack.back().res = std::make_shared<func_call_expression>(
+                            std::make_shared<sym_expression>("array"),
+                            func_call_args(cnt)
+                        );
+                        stack.back().res->set_loc(
+                            (*stack.back().ast)["loc"]["line"].try_as_number(),
+                            (*stack.back().ast)["loc"]["col"].try_as_number()
+                        );
+                        stack_res = std::move(stack.back());
+                        stack.pop_back();
+                    } else if((*stack.back().ast)["literal"].as_string() == "object") {
+                        stack.back().res = std::make_shared<func_call_expression>(
+                            std::make_shared<sym_expression>("object_kvpairs"),
+                            obj_kv_args(cnt)
+                        );
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
                             (*stack.back().ast)["loc"]["col"].try_as_number()
@@ -704,17 +708,10 @@ namespace dfi {
                         stack.emplace_back(&cnt["func"]);
                         continue;
                     } else if(stack.back().phase == 1) {
-                        // if(poison_) {
-                        //     stack.back().res = std::make_shared<func_call_expression_poison>(
-                        //         stack_res.res,
-                        //         func_call_args(cnt["args"])
-                        //     );
-                        // } else {
-                            stack.back().res = std::make_shared<func_call_expression>(
-                                stack_res.res,
-                                func_call_args(cnt["args"])
-                            );
-                        // }
+                        stack.back().res = std::make_shared<func_call_expression>(
+                            stack_res.res,
+                            func_call_args(cnt["args"])
+                        );
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
                             (*stack.back().ast)["loc"]["col"].try_as_number()
@@ -731,6 +728,21 @@ namespace dfi {
             std::vector<expr_ptr> res{};
             for(std::size_t i = 0; i < ast.size(); ++i) {
                 res.push_back(chop_expression(ast[i]));
+            }
+            return res;
+        }
+
+        std::vector<expr_ptr> obj_kv_args(json const &ast) {
+            std::vector<expr_ptr> res{};
+            for(std::size_t i = 0; i < ast.size(); ++i) {
+                std::string k{ast.key(i)};
+                std::shared_ptr<immediate_val_expression> vbk{get_cached_imm("str", k)};
+                if(!vbk) {
+                    vbk = std::make_shared<immediate_val_expression>(valbox{k});
+                    cache_imm("str", k, vbk);
+                }
+                res.push_back(vbk);
+                res.push_back(chop_expression(ast[k]));
             }
             return res;
         }

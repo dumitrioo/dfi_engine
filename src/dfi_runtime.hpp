@@ -417,6 +417,18 @@ namespace dfi {
                 }
                 return res;
             });
+            add_function("object_kvpairs", DFIFUN(args) {
+                valbox res{};
+                if(args.size() % 2 != 0) {
+                    throw std::runtime_error{"invalid number of arguments"};
+                }
+                res.become_object();
+                for(std::size_t i = 0; i < args.size(); ++i) {
+                    std::string k{args[i++].cast_to_string()};
+                    res.as_object()[k] = args[i];
+                }
+                return res;
+            });
             add_function("to_array", DFIFUN(args) {
                 valbox res{};
                 if(args.size() == 1 && (args[0].is_array())) {
