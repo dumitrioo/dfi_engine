@@ -148,7 +148,7 @@ namespace dfi {
                str == L"undefined" ||
                str == L"for" ||
                str == L"while" ||
-               str == L"yield" ||
+               str == L"emit" ||
                str == L"return" ||
                str == L"break" ||
                str == L"continue" ||
@@ -167,7 +167,7 @@ namespace dfi {
                str != L"else" &&
                str != L"for" &&
                str != L"while" &&
-               str != L"yield" &&
+               str != L"emit" &&
                str != L"return" &&
                str != L"break" &&
                str != L"continue" &&

@@ -73,7 +73,7 @@ namespace dfi {
             if(res.is_object()) { return res; }
             res = get_return_statement();
             if(res.is_object()) { return res; }
-            res = get_yield_statement();
+            res = get_emit_statement();
             if(res.is_object()) { return res; }
             res = get_break_statement();
             if(res.is_object()) { return res; }
@@ -759,14 +759,14 @@ namespace dfi {
             return res;
         }
 
-        json get_yield_statement() {
+        json get_emit_statement() {
             json res{};
-            if(get_token(0).is_id() && get_token(0).lexem() == L"yield") {
+            if(get_token(0).is_id() && get_token(0).lexem() == L"emit") {
                 res["loc"]["line"] = get_token(0).line();
                 res["loc"]["col"] = get_token(0).col();
                 increment_pos();
                 res["type"] = "statement";
-                res["subtype"] = "yield";
+                res["subtype"] = "emit";
                 res["content"] = get_expr();
                 check_eof();
                 if(get_token(0).type_is_not(token::type::SEMICOLON)) {

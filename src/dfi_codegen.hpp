@@ -296,8 +296,8 @@ namespace dfi {
                         chop_expression(ast["content"])
                     );
                     res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());
-                } else if(ast["subtype"].as_string() == "yield") {
-                    res = std::make_shared<statement_yield>(
+                } else if(ast["subtype"].as_string() == "emit") {
+                    res = std::make_shared<statement_emit>(
                         chop_expression(ast["content"])
                     );
                     res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());

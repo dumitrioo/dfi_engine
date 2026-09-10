@@ -73,16 +73,16 @@ namespace dfi {
             return return_result_;
         }
 
-        void set_yield_delegate(std::function<void(valbox const &)> const &yf) {
-            yield_delegate_ = yf;
+        void set_emit_delegate(std::function<void(valbox const &)> const &yf) {
+            emit_delegate_ = yf;
         }
 
-        void yield(valbox const &yv) {
+        void emit(valbox const &yv) {
             return_result_ = yv;
-            if(!yield_delegate_) {
+            if(!emit_delegate_) {
                 return;
             }
-            yield_delegate_(yv);
+            emit_delegate_(yv);
         }
 
         void request_continue() {
@@ -402,7 +402,7 @@ namespace dfi {
         std::vector<stack_frame> stack_{};
         std::vector<size_t> stack_barriers_{};
         int64_t stack_ptr_{-1};
-        std::function<void(valbox const &)> yield_delegate_{nullptr};
+        std::function<void(valbox const &)> emit_delegate_{nullptr};
         valbox return_result_{};
         std::uint64_t return_requested_{0};
         std::uint64_t continue_requested_{0};

@@ -648,18 +648,18 @@ namespace dfi {
         expr_ptr ret_expr_{};
     };
 
-    class statement_yield: public statement {
+    class statement_emit: public statement {
     public:
-        statement_yield(expr_ptr y_expr): y_expr_{y_expr} {}
+        statement_emit(expr_ptr y_expr): y_expr_{y_expr} {}
 
         void exec(execution_context *ctx) override {
             if(ctx->some_jump_requested()) {
                 return;
             }
             if(ctx->is_inside_function()) {
-                throw runtime_error{line(), col(), "cannot yield within the function context"};
+                throw runtime_error{line(), col(), "cannot emit within the function context"};
             }
-            ctx->yield(y_expr_->eval(ctx, eval_caller_type::no_matter, nullptr));
+            ctx->emit(y_expr_->eval(ctx, eval_caller_type::no_matter, nullptr));
         }
 
     private:

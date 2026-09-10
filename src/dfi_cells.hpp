@@ -148,7 +148,7 @@ namespace dfi {
         };
 
         worker_cell_instance() {
-            exctx_.set_yield_delegate([this](valbox const &yv) {
+            exctx_.set_emit_delegate([this](valbox const &yv) {
                 set_value(yv);
             });
         }
