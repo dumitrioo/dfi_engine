@@ -204,7 +204,7 @@ my_drafts(host_data) {
         console.setprecision(9);
     }
 
-    obj = { potential: this.init, glutamate: 1.0, electrical: 1.0 };
+    obj = { potential: this.init, glutamate: 1.0, electrical: 1.0, };
     obj.println();
 
     timestamps = [];

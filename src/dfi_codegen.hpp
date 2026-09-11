@@ -323,7 +323,7 @@ namespace dfi {
             if(static_cast<statement_compound *>(res.get())->num_substatements() == 0) {
                 return std::make_shared<statement_empty>();
             } else if(static_cast<statement_compound *>(res.get())->num_substatements() == 1) {
-                return static_cast<statement_compound *>(res.get())->get_tatement_at(0);
+                return static_cast<statement_compound *>(res.get())->get_statement_at(0);
             }
             return res;
         }

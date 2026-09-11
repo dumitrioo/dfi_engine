@@ -255,7 +255,7 @@ namespace dfi {
             return stats_.size();
         }
 
-        statement_ptr get_tatement_at(size_t indx) const {
+        statement_ptr get_statement_at(size_t indx) const {
             if(indx >= stats_.size()) {
                 throw range_error{line(), col(), "statement index out of range"};
             }
@@ -264,13 +264,27 @@ namespace dfi {
 
     private:
         void process(execution_context *ctx) {
-            for(auto &&s: stats_) {
-                s->exec(ctx);
+            // std::size_t stats_size{stats_.size()};
+            // std::size_t index{ctx->get_resume_index()};
+            // for(; index < stats_size; ++index) {
+            //     stats_[index]->exec(ctx);
+            //     if(ctx->some_jump_requested()) {
+            //         ctx->set_resume_index(0);
+            //         return;
+            //     }
+            // }
+            // ctx->set_resume_index(index >= stats_size ? 0 : index);
+            std::size_t stats_size{stats_.size()};
+            std::size_t index{0};
+            for(; index < stats_size; ++index) {
+                stats_[index]->exec(ctx);
                 if(ctx->some_jump_requested()) {
                     return;
                 }
             }
         }
+
+    private:
         std::vector<statement_ptr> stats_{};
         bool own_frame_{true};
     };

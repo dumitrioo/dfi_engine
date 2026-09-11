@@ -57,6 +57,23 @@ namespace dfi {
             return_result_ = res;
         }
 
+        void request_delay(long double timeout) {
+            delay_expiration_ = steady_time_sec() + timeout;
+            delay_requested_ = 1;
+        }
+
+        void clear_delay_request() {
+            delay_requested_ = 0;
+        }
+
+        bool delay_requested() const {
+            return delay_requested_ != 0;
+        }
+
+        bool delay_expired() const {
+            return steady_time_sec() > delay_expiration_;
+        }
+
         void request_return() {
             return_requested_ = 1;
         }
@@ -359,6 +376,22 @@ namespace dfi {
             return res;
         }
 
+        std::size_t get_resume_index() {
+            if(resume_stack_ptr_ + 1 >= resume_stack_.size()) {
+                resume_stack_.resize(resume_stack_ptr_ + 2);
+            }
+            return resume_stack_[++resume_stack_ptr_];
+        }
+
+        void set_resume_index(std::size_t val) {
+            resume_stack_[resume_stack_ptr_] = val;
+            --resume_stack_ptr_;
+        }
+
+        void reset_resume_stack_ptr() {
+            resume_stack_ptr_ = -1;
+        }
+
     private:
         class stack_frame {
         public:
@@ -404,12 +437,16 @@ namespace dfi {
         int64_t stack_ptr_{-1};
         std::function<void(valbox const &)> emit_delegate_{nullptr};
         valbox return_result_{};
+        long double delay_expiration_{0};
+        std::uint64_t delay_requested_{0};
         std::uint64_t return_requested_{0};
         std::uint64_t continue_requested_{0};
         std::uint64_t break_requested_{0};
         str_map_t<valbox> *self_fields_{nullptr};
         std::uint64_t create_if_not_exists_{0};
         runtime_error rte_{0, 0, ""};
+        std::vector<std::size_t> resume_stack_{};
+        int64_t resume_stack_ptr_{-1};
     };
 
 }
