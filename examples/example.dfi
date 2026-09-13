@@ -232,7 +232,7 @@ example5() {
             ray_draw_circle(this.linestrip[i].x(), this.linestrip[i].y(), rand() % 30, clr);
         }
         ray_end_drawing();
-        sleep(0.01);
+        delay(0.01);
     }
     return this.tid;
 }

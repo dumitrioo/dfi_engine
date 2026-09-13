@@ -15,9 +15,9 @@ setup_cell setup();
 rand_bool() {
     if(this.res == undefined || steady_clock() > this.t) {
         this.res = randf() >= 0.5;
-        this.t = steady_clock() + 0.3;
+        this.t = steady_clock() + 0.01;
+        return this.res;
     }
-    return this.res;
 }
 
 rand_bool s0();

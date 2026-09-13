@@ -22,9 +22,9 @@
 rand_bool() {
     if(this.res == undefined || steady_clock() > this.t) {
         this.res = randf() >= 0.5;
-        this.t = steady_clock() + 0.3;
+        this.t = steady_clock() + 0.01;
+        return this.res;
     }
-    return this.res;
 }
 
 rand_bool r_s0();
@@ -162,7 +162,7 @@ syncobj synob();
 ray_window(synob) {
     if(!this.win_created) {
         ray_init_window(700, 600, "ALU 74181");
-        ray_set_target_fps(30);
+        ray_set_target_fps(60);
         ray_begin_drawing();
         ray_clear_background(Color(0, 0, 0, 255));
         this.win_created = true;

@@ -218,7 +218,7 @@ cpu_test() {
         }
     }
     console.print("cpu: ", this.cpuperf.cpu_load() * 100, "%, self: ", this.cpuperf.self_cpu_consumption() * 100, "%");
-    sleep(0.05);
+    delay(0.05);
     return 0;
 }
 
