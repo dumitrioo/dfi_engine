@@ -195,6 +195,8 @@ function baricenter(b1, b2) {
 
 
 my_drafts(host_data) {
+    emit 3;
+
     if(!this.init) {
         this.init = true;
         set_cycle_sleep_seconds(0.01);
@@ -723,10 +725,52 @@ my_drafts(host_data) {
         }
     }
 
+    delay(3);
+
     return exit(9);
 }
 
 my_drafts drf(host_provided_data);
+
+
+delay_test(val, period) {
+    while(true) {
+        println("while true");
+        delay(period * 2);
+        do {
+            for(i = 0; i < 10; ++i) {
+                println("i: ", i);
+                delay(period);
+                if(randf() > 0.5) {
+                    try {
+                        for(c: val) {
+                            delay(period);
+                            c.println();
+                        }
+                        for(p: {k:3, s:'p'}) {
+                            delay(period);
+                            p.println();
+                        }
+                        i = 3 / 0;
+                    } catch(errr) {
+                        println("uu: ", errr);
+                        delay(period);
+                        println("uu: ", errr);
+                    }
+                } else {
+                    delay(period * 2);
+                    println({ddd:val});
+                }
+            }
+        } while(false);
+        println("while true break");
+        break;
+    }
+}
+
+delay_test dt1(["s1",4,2,6,], 0.25);
+delay_test dt2(345, 0.01);
+
 
 
 /*

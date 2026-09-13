@@ -301,6 +301,11 @@ namespace dfi {
                         chop_expression(ast["content"])
                     );
                     res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());
+                } else if(ast["subtype"].as_string() == "delay") {
+                    res = std::make_shared<statement_delay>(
+                        chop_expression(ast["content"])
+                    );
+                    res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());
                 } else if(ast["subtype"].as_string() == "break") {
                     res = std::make_shared<statement_break>();
                     res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());

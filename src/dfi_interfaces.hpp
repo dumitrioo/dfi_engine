@@ -108,7 +108,7 @@ namespace dfi {
         virtual void terminate() = 0;
         virtual void unterminate() = 0;
         virtual bool termination_requested() const = 0;
-        virtual void set_sequential_cells_execution(bool) = 0;
+        // virtual void set_sequential_cells_execution(bool) = 0;
         virtual void set_except_on_out_of_range_or_field(bool) = 0;
         virtual void set_undefined_inputs_enabled(bool) = 0;
         virtual bool undefined_inputs_enabled() const = 0;

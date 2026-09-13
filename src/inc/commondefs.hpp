@@ -302,10 +302,12 @@ namespace dfi {
         shut_on_destroy &operator=(shut_on_destroy const &) = delete;
         shut_on_destroy(shut_on_destroy &&) = default;
         shut_on_destroy &operator=(shut_on_destroy &&) = default;
-        ~shut_on_destroy() { dref_(); }
+        ~shut_on_destroy() { if(!cancel_) { dref_(); } }
+        void cancel() { cancel_ = true; }
 
     private:
         FUNCTOR dref_;
+        bool cancel_{false};
     };
 
     template<typename T, typename... UU>

@@ -75,6 +75,8 @@ namespace dfi {
             if(res.is_object()) { return res; }
             res = get_emit_statement();
             if(res.is_object()) { return res; }
+            res = get_delay_statement();
+            if(res.is_object()) { return res; }
             res = get_break_statement();
             if(res.is_object()) { return res; }
             res = get_continue_statement();
@@ -767,6 +769,28 @@ namespace dfi {
                 increment_pos();
                 res["type"] = "statement";
                 res["subtype"] = "emit";
+                res["content"] = get_expr();
+                check_eof();
+                if(get_token(0).type_is_not(token::type::SEMICOLON)) {
+                    throw compilation_error{
+                        get_token(0).line(),
+                        get_token(0).col(),
+                        "\";\" expected"
+                    };
+                }
+                increment_pos();
+            }
+            return res;
+        }
+
+        json get_delay_statement() {
+            json res{};
+            if(get_token(0).is_id() && get_token(0).lexem() == L"delay") {
+                res["loc"]["line"] = get_token(0).line();
+                res["loc"]["col"] = get_token(0).col();
+                increment_pos();
+                res["type"] = "statement";
+                res["subtype"] = "delay";
                 res["content"] = get_expr();
                 check_eof();
                 if(get_token(0).type_is_not(token::type::SEMICOLON)) {

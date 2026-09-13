@@ -68,7 +68,7 @@ namespace dfi {
                         printed = true;
                     }
                 }
-                if(!printed) out << v;
+                if(!printed) out << v.deref();
             }
             std::unique_lock l{out_mtp_};
             std::cout << out.str();
@@ -93,12 +93,12 @@ namespace dfi {
                     obj_services const *osvc{rt_->get_object_services(v.class_name())};
                     if(osvc != nullptr) {
                         auto srgngr{osvc->stringify};
-                        auto s{srgngr(v)};
+                        auto s{srgngr(v.deref())};
                         out << s;
                         printed = true;
                     }
                 }
-                if(!printed) out << v;
+                if(!printed) out << v.deref();
             }
             std::unique_lock l{out_mtp_};
             std::cout << out.str() << std::endl;
@@ -129,10 +129,10 @@ namespace dfi {
             if(setprec_) { out << std::setprecision(prec_); }
             if(fk_ != flt_kind::def) {
                 switch(fk_) {
-                case flt_kind::fix: out << std::fixed; break;
-                case flt_kind::sci: out << std::scientific; break;
-                case flt_kind::hex: out << std::hex; break;
-                default: out << std::defaultfloat; break;
+                    case flt_kind::fix: out << std::fixed; break;
+                    case flt_kind::sci: out << std::scientific; break;
+                    case flt_kind::hex: out << std::hex; break;
+                    default: out << std::defaultfloat; break;
                 }
             }
             out << str_util::from_utf8(timespec_wrapper::now().as_iso_8601_str()) << " " << type << ": ";
@@ -142,12 +142,12 @@ namespace dfi {
                     obj_services const *osvc{rt_->get_object_services(v.class_name())};
                     if(osvc != nullptr) {
                         auto srgngr{osvc->stringify};
-                        auto s{srgngr(v)};
+                        auto s{srgngr(v.deref())};
                         out << s;
                         printed = true;
                     }
                 }
-                if(!printed) out << v;
+                if(!printed) out << v.deref();
             }
             std::unique_lock l{out_mtp_};
             if(flush_out) {
@@ -177,12 +177,12 @@ namespace dfi {
                     obj_services const *osvc{rt_->get_object_services(v.class_name())};
                     if(osvc != nullptr) {
                         auto srgngr{osvc->stringify};
-                        auto s{srgngr(v)};
+                        auto s{srgngr(v.deref())};
                         out << s;
                         printed = true;
                     }
                 }
-                if(!printed) out << v;
+                if(!printed) out << v.deref();
             }
             std::unique_lock l{out_mtp_};
             if(flush_out) {

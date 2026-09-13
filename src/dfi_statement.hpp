@@ -24,13 +24,16 @@ namespace dfi {
         std::int64_t col_{0};
     };
 
+
     using statement_ptr = std::shared_ptr<statement>;
+
 
     class statement_empty: public statement {
     public:
         void exec(execution_context *) override {}
         bool empty_statement() const override { return true; }
     };
+
 
     class statement_throw: public statement {
     public:
@@ -43,6 +46,7 @@ namespace dfi {
     private:
         expr_ptr throwed_{};
     };
+
 
     class statement_try_catch: public statement {
     public:
@@ -61,39 +65,134 @@ namespace dfi {
 
         void exec(execution_context *ctx) override {
             if(ctx->some_jump_requested()) { return; }
-            ctx->new_stack_frame();
-            dfi::shut_on_destroy leave_try_frame{[&]() { ctx->del_stack_frame(); }};
-            std::string err_msg{""};
+            dfi::shut_on_destroy leave_try_frame{[&]() {
+                if(!ctx->delay_requested()) {
+                    ctx->del_stack_frame();
+                }
+            }};
+            std::string err_msg{};
             valbox err_obj{};
             bool excepted_obj{false};
             bool excepted{false};
-            try {
-                try_stat_->exec(ctx);
-            } catch(valbox const &e) {
-                err_obj = std::move(e);
-                excepted_obj = true;
-                excepted = true;
-            } catch(std::exception const &e) {
-                err_msg = e.what();
-                excepted = true;
-            } catch(...) {
-                excepted = true;
-            }
-            if(excepted) {
-                if(catch_expr_->is_symbolic()) {
-                    ctx->new_stack_frame();
-                    dfi::shut_on_destroy leave_catch_frame{[&]() { ctx->del_stack_frame(); }};
-                    bool old{ctx->set_create_if_not_exists(true)};
-                    valbox ce{catch_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
-                    ctx->set_create_if_not_exists(old);
-                    if(excepted_obj) {
-                        ce.assign(std::move(err_obj));
-                    } else {
-                        ce.assign(err_msg);
+
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                if(!ctx->delay_requested()) {
+                    ctx->clear_resume_stack_values();
+                    ctx->set_resume_index(0);
+                }
+            }};
+            if(resume_index == 0) {
+                ctx->new_stack_frame();
+                try {
+                    try_stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        ctx->set_resume_index(1);
+                        return;
                     }
+                } catch(valbox const &e) {
+                    err_obj = std::move(e);
+                    excepted_obj = true;
+                    excepted = true;
+                } catch(std::exception const &e) {
+                    err_msg = e.what();
+                    excepted = true;
+                } catch(...) {
+                    excepted = true;
+                }
+                if(excepted) {
+                    if(catch_expr_->is_symbolic()) {
+                        ctx->new_stack_frame();
+                        dfi::shut_on_destroy leave_catch_frame{[&]() {
+                            if(!ctx->delay_requested()) {
+                                ctx->del_stack_frame();
+                            }
+                        }};
+                        bool old{ctx->set_create_if_not_exists(true)};
+                        valbox ce{catch_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                        ctx->set_create_if_not_exists(old);
+                        if(excepted_obj) {
+                            ce.assign(std::move(err_obj));
+                        } else {
+                            ce.assign(err_msg);
+                        }
+                        catch_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_index(2);
+                            return;
+                        }
+                    } else {
+                        catch_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_index(3);
+                            return;
+                        }
+                    }
+                }
+            } else {
+                if(resume_index == 1) {
+                    try {
+                        try_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_index(1);
+                            return;
+                        }
+                    } catch(valbox const &e) {
+                        err_obj = std::move(e);
+                        excepted_obj = true;
+                        excepted = true;
+                    } catch(std::exception const &e) {
+                        err_msg = e.what();
+                        excepted = true;
+                    } catch(...) {
+                        excepted = true;
+                    }
+                    if(excepted) {
+                        if(catch_expr_->is_symbolic()) {
+                            ctx->new_stack_frame();
+                            dfi::shut_on_destroy leave_catch_frame{[&]() {
+                                if(!ctx->delay_requested()) {
+                                    ctx->del_stack_frame();
+                                }
+                            }};
+                            bool old{ctx->set_create_if_not_exists(true)};
+                            valbox ce{catch_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                            ctx->set_create_if_not_exists(old);
+                            if(excepted_obj) {
+                                ce.assign(std::move(err_obj));
+                            } else {
+                                ce.assign(err_msg);
+                            }
+                            catch_stat_->exec(ctx);
+                            if(ctx->delay_requested()) {
+                                ctx->set_resume_index(2);
+                                return;
+                            }
+                        } else {
+                            catch_stat_->exec(ctx);
+                            if(ctx->delay_requested()) {
+                                ctx->set_resume_index(3);
+                                return;
+                            }
+                        }
+                    }
+                } else if(resume_index == 2) {
+                    dfi::shut_on_destroy leave_catch_frame{[&]() {
+                        if(!ctx->delay_requested()) {
+                            ctx->del_stack_frame();
+                        }
+                    }};
                     catch_stat_->exec(ctx);
-                } else {
+                    if(ctx->delay_requested()) {
+                        ctx->set_resume_index(2);
+                        return;
+                    }
+                } else if(resume_index == 3) {
                     catch_stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        ctx->set_resume_index(3);
+                        return;
+                    }
                 }
             }
         }
@@ -103,6 +202,7 @@ namespace dfi {
         expr_ptr catch_expr_{};
         statement_ptr catch_stat_{};
     };
+
 
     class statement_if_else: public statement {
     public:
@@ -125,28 +225,63 @@ namespace dfi {
             if(ctx->some_jump_requested()) { return; }
             ctx->new_stack_frame();
             dfi::shut_on_destroy leave_frame{[&]() {
-                ctx->del_stack_frame();
+                if(!ctx->delay_requested()) {
+                    ctx->del_stack_frame();
+                }
             }};
-            bool bcond{false};
-            valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
-            if(cond.is_class()) {
-                str_map_t<std::function<valbox(valbox &)>> const *unops{
-                    &(ctx->rt_interface()->get_object_services(cond.class_name())->unops)
-                };
-                if(unops != nullptr) {
-                    auto it{unops->find("(bool)")};
-                    if(it != unops->end()) {
-                        bcond = it->second(cond).cast_to_bool();
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                if(ctx->delay_requested()) {
+                    ctx->clear_resume_stack_values();
+                    ctx->set_resume_index(0);
+                }
+            }};
+            if(resume_index > 0) {
+                if(resume_index == 1) {
+                    if_stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        resume_index_restore.cancel();
+                        ctx->set_resume_index(1);
+                    }
+                } else {
+                    if(else_stat_) {
+                        else_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            resume_index_restore.cancel();
+                            ctx->set_resume_index(2);
+                        }
                     }
                 }
             } else {
-                bcond = cond.cast_to_bool();
-            }
-            if(bcond) {
-                if_stat_->exec(ctx);
-            } else {
-                if(else_stat_) {
-                    else_stat_->exec(ctx);
+                bool bcond{false};
+                valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                if(cond.is_class()) {
+                    str_map_t<std::function<valbox(valbox &)>> const *unops{
+                        &(ctx->rt_interface()->get_object_services(cond.class_name())->unops)
+                    };
+                    if(unops != nullptr) {
+                        auto it{unops->find("(bool)")};
+                        if(it != unops->end()) {
+                            bcond = it->second(cond).cast_to_bool();
+                        }
+                    }
+                } else {
+                    bcond = cond.cast_to_bool();
+                }
+                if(bcond) {
+                    if_stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        resume_index_restore.cancel();
+                        ctx->set_resume_index(1);
+                    }
+                } else {
+                    if(else_stat_) {
+                        else_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            resume_index_restore.cancel();
+                            ctx->set_resume_index(2);
+                        }
+                    }
                 }
             }
         }
@@ -179,31 +314,62 @@ namespace dfi {
             if(ctx->some_jump_requested()) { return; }
             ctx->new_stack_frame();
             dfi::shut_on_destroy leave_frame{[&]() {
-                ctx->del_stack_frame();
+                if(!ctx->delay_requested()) ctx->del_stack_frame();
             }};
-            bool bcond{false};
-            valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
-            if(cond.is_undefined()) {
-                throw runtime_error{cond_expr_->line(), cond_expr_->col(), "condition expression is undefined"};
-            }
-            if(cond.is_class()) {
-                str_map_t<std::function<valbox(valbox &)>> const *unops{
-                    &(ctx->rt_interface()->get_object_services(cond.class_name())->unops)
-                };
-                if(unops != nullptr) {
-                    auto it{unops->find("(bool)")};
-                    if(it != unops->end()) {
-                        bcond = it->second(cond).cast_to_bool();
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                ctx->clear_resume_stack_values();
+                ctx->set_resume_index(0);
+            }};
+            if(resume_index > 0) {
+                if(resume_index == 1) {
+                    if_stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        resume_index_restore.cancel();
+                        ctx->set_resume_index(1);
+                    }
+                } else {
+                    if(else_stat_) {
+                        else_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            resume_index_restore.cancel();
+                            ctx->set_resume_index(2);
+                        }
                     }
                 }
             } else {
-                bcond = cond.cast_to_bool();
-            }
-            if(bcond) {
-                if_stat_->exec(ctx);
-            } else {
-                if(else_stat_) {
-                    else_stat_->exec(ctx);
+                bool bcond{false};
+                valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                if(cond.is_undefined()) {
+                    throw runtime_error{cond_expr_->line(), cond_expr_->col(), "condition expression is undefined"};
+                }
+                if(cond.is_class()) {
+                    str_map_t<std::function<valbox(valbox &)>> const *unops{
+                        &(ctx->rt_interface()->get_object_services(cond.class_name())->unops)
+                    };
+                    if(unops != nullptr) {
+                        auto it{unops->find("(bool)")};
+                        if(it != unops->end()) {
+                            bcond = it->second(cond).cast_to_bool();
+                        }
+                    }
+                } else {
+                    bcond = cond.cast_to_bool();
+                }
+                if(bcond) {
+                    if_stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        resume_index_restore.cancel();
+                        ctx->set_resume_index(1);
+                    }
+                } else {
+                    if(else_stat_) {
+                        else_stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            resume_index_restore.cancel();
+                            ctx->set_resume_index(2);
+                        }
+                    }
                 }
             }
         }
@@ -228,6 +394,7 @@ namespace dfi {
         expr_ptr expr_{};
     };
 
+
     class statement_compound: public statement {
     public:
         statement_compound() = default;
@@ -236,12 +403,35 @@ namespace dfi {
             if(ctx->some_jump_requested() || stats_.empty()) {
                 return;
             }
-            if(own_frame_) {
-                ctx->new_stack_frame();
-                dfi::shut_on_destroy leave_frame{[&]() { ctx->del_stack_frame(); }};
-                process(ctx);
+            dfi::shut_on_destroy leave_frame{[&]() {
+                if(own_frame_ && !ctx->delay_requested()) {
+                    ctx->del_stack_frame();
+                }
+            }};
+            std::size_t pos{0};
+            std::size_t resume_index{ctx->get_resume_index()};
+            if(resume_index == 0) {
+                if(own_frame_) { ctx->new_stack_frame(); }
             } else {
-                process(ctx);
+                valbox b{ctx->get_resume_stack_value("pos")};
+                pos = b.cast_to_size_t();
+            }
+            shut_on_destroy resume_index_restore{[ctx]() {
+                if(!ctx->delay_requested()) {
+                    ctx->set_resume_index(0);
+                }
+            }};
+            std::size_t stats_size{stats_.size()};
+            for(; pos < stats_size; ++pos) {
+                stats_[pos]->exec(ctx);
+                if(ctx->delay_requested()) {
+                    ctx->set_resume_stack_value("pos", pos);
+                    ctx->set_resume_index(1);
+                    return;
+                }
+                if(ctx->some_jump_requested()) {
+                    return;
+                }
             }
         }
 
@@ -263,31 +453,10 @@ namespace dfi {
         }
 
     private:
-        void process(execution_context *ctx) {
-            // std::size_t stats_size{stats_.size()};
-            // std::size_t index{ctx->get_resume_index()};
-            // for(; index < stats_size; ++index) {
-            //     stats_[index]->exec(ctx);
-            //     if(ctx->some_jump_requested()) {
-            //         ctx->set_resume_index(0);
-            //         return;
-            //     }
-            // }
-            // ctx->set_resume_index(index >= stats_size ? 0 : index);
-            std::size_t stats_size{stats_.size()};
-            std::size_t index{0};
-            for(; index < stats_size; ++index) {
-                stats_[index]->exec(ctx);
-                if(ctx->some_jump_requested()) {
-                    return;
-                }
-            }
-        }
-
-    private:
         std::vector<statement_ptr> stats_{};
         bool own_frame_{true};
     };
+
 
     class statement_while: public statement {
     public:
@@ -299,55 +468,105 @@ namespace dfi {
         }
 
         void exec(execution_context *ctx) override {
-            if(ctx->some_jump_requested()) { return; }
-            ctx->new_stack_frame();
+            if(ctx->some_jump_requested()) {
+                return;
+            }
             dfi::shut_on_destroy leave_frame{[&]() {
-                ctx->del_stack_frame();
+                if(!ctx->delay_requested()) {
+                    ctx->del_stack_frame();
+                }
+            }};
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy sod{[ctx]() {
+                ctx->clear_resume_stack_values();
+                ctx->set_resume_index(0);
             }};
 
-            valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
-            bool bcond{false};
             std::string classname{};
             str_map_t<std::function<valbox(valbox &)>> const *unops{nullptr};
             std::function<valbox(valbox &)> converter{};
-            if(cond.is_class()) {
-                classname = cond.class_name();
-                unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
-                if(unops == nullptr) {
-                    throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                }
-                auto it{unops->find("(bool)")};
-                if(it == unops->end()) {
-                    throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                }
-                converter = it->second;
-                bcond = converter(cond).cast_to_bool();
-            } else {
-                bcond = cond.cast_to_bool();
-            }
-            while(bcond) {
-                if(stat_) { stat_->exec(ctx); }
-                if(ctx->return_requested() || ctx->termination_requested()) { return; }
-                if(ctx->continue_requested()) { ctx->clear_continue_request(); }
-                if(ctx->break_requested()) { ctx->clear_break_request(); break; }
-                cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
-                if(cond.is_class()) {
-                    if(cond.class_name() != classname) {
-                        classname = cond.class_name();
-                        unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
-                        if(unops == nullptr) {
-                            throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                        }
-                        auto it{unops->find("(bool)")};
-                        if(it == unops->end()) {
-                            throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                        }
-                        converter = it->second;
+            if(resume_index == 1) {
+                valbox cond{};
+                bool bcond{true};
+                std::string classname{};
+                while(bcond) {
+                    if(stat_) { stat_->exec(ctx); }
+                    if(ctx->delay_requested()) {
+                        sod.cancel();
+                        ctx->set_resume_index(1);
+                        break;
                     }
+                    if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                    if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                    if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                    cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                    if(cond.is_class()) {
+                        if(cond.class_name() != classname) {
+                            classname = cond.class_name();
+                            unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                            if(unops == nullptr) {
+                                throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                            }
+                            auto it{unops->find("(bool)")};
+                            if(it == unops->end()) {
+                                throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                            }
+                            converter = it->second;
+                        }
+                        bcond = converter(cond).cast_to_bool();
+                    } else {
+                        classname.clear();
+                        bcond = cond.cast_to_bool();
+                    }
+                }
+            } else {
+                ctx->new_stack_frame();
+                valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                bool bcond{false};
+                if(cond.is_class()) {
+                    classname = cond.class_name();
+                    unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                    if(unops == nullptr) {
+                        throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                    }
+                    auto it{unops->find("(bool)")};
+                    if(it == unops->end()) {
+                        throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                    }
+                    converter = it->second;
                     bcond = converter(cond).cast_to_bool();
                 } else {
-                    classname.clear();
                     bcond = cond.cast_to_bool();
+                }
+                while(bcond) {
+                    if(stat_) { stat_->exec(ctx); }
+                    if(ctx->delay_requested()) {
+                        sod.cancel();
+                        ctx->set_resume_index(1);
+                        break;
+                    }
+                    if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                    if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                    if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                    cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                    if(cond.is_class()) {
+                        if(cond.class_name() != classname) {
+                            classname = cond.class_name();
+                            unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                            if(unops == nullptr) {
+                                throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                            }
+                            auto it{unops->find("(bool)")};
+                            if(it == unops->end()) {
+                                throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                            }
+                            converter = it->second;
+                        }
+                        bcond = converter(cond).cast_to_bool();
+                    } else {
+                        classname.clear();
+                        bcond = cond.cast_to_bool();
+                    }
                 }
             }
         }
@@ -356,6 +575,7 @@ namespace dfi {
         expr_ptr cond_expr_{};
         statement_ptr stat_{};
     };
+
 
     class statement_dowhile: public statement {
     public:
@@ -368,14 +588,23 @@ namespace dfi {
 
         void exec(execution_context *ctx) override {
             if(ctx->some_jump_requested()) { return; }
-            ctx->new_stack_frame();
             dfi::shut_on_destroy leave_frame{[&]() {
-                ctx->del_stack_frame();
+                if(!ctx->delay_requested()) ctx->del_stack_frame();
             }};
-
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                ctx->clear_resume_stack_values();
+                ctx->set_resume_index(0);
+            }};
+            if(resume_index == 0) { ctx->new_stack_frame(); }
             bool bcond{};
             do {
                 if(stat_) { stat_->exec(ctx); }
+                if(ctx->delay_requested()) {
+                    resume_index_restore.cancel();
+                    ctx->set_resume_index(1);
+                    break;
+                }
                 if(ctx->return_requested() || ctx->termination_requested()) { return; }
                 if(ctx->break_requested()) { ctx->clear_break_request(); break; }
                 if(ctx->continue_requested()) { ctx->clear_continue_request(); }
@@ -408,6 +637,7 @@ namespace dfi {
         statement_ptr stat_{};
     };
 
+
     class statement_range_for: public statement {
     public:
         statement_range_for(expr_ptr slider_expr, expr_ptr range_expr, statement_ptr const &stat):
@@ -419,24 +649,130 @@ namespace dfi {
         }
 
         void exec(execution_context *ctx) override {
-            if(ctx->some_jump_requested()) { return; }
-            ctx->new_stack_frame();
+            if(stat_->empty_statement()) {
+                return;
+            }
+            if(ctx->some_jump_requested()) {
+                return;
+            }
             dfi::shut_on_destroy leave_frame{[&]() {
-                ctx->del_stack_frame();
+                if(!ctx->delay_requested()) {
+                    ctx->del_stack_frame();
+                }
             }};
-
-            if(!stat_->empty_statement()) {
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                if(!ctx->delay_requested()) {
+                    ctx->clear_resume_stack_values();
+                    ctx->set_resume_index(0);
+                }
+            }};
+            if(resume_index > 0) {
+                if(resume_index == 1) {
+                    valbox range{ctx->get_resume_stack_value("rng")};
+                    std::string &s{range.as_string()};
+                    auto ss{s.size()};
+                    ctx->set_create_if_not_exists(false);
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    valbox iv{ctx->get_resume_stack_value("idx")};
+                    for(size_t i{iv.cast_to_size_t()}; i < ss; ++i) {
+                        l.assign_no_deref(valbox{s.data() + i});
+                        stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("idx", i);
+                            ctx->set_resume_index(1);
+                            return;
+                        }
+                        if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                        if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                        if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                    }
+                } else if(resume_index == 2) {
+                    valbox range{ctx->get_resume_stack_value("rng")};
+                    std::wstring &s{range.as_wstring()};
+                    auto ss{s.size()};
+                    ctx->set_create_if_not_exists(false);
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    valbox iv{ctx->get_resume_stack_value("idx")};
+                    for(size_t i{iv.cast_to_size_t()}; i < ss; ++i) {
+                        l.assign_no_deref(valbox{s.data() + i});
+                        stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("idx", i);
+                            ctx->set_resume_index(2);
+                            return;
+                        }
+                        if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                        if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                        if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                    }
+                } else if(resume_index == 3) {
+                    valbox range{ctx->get_resume_stack_value("rng")};
+                    valbox::array_t &s{range.as_array()};
+                    auto ss{s.size()};
+                    ctx->set_create_if_not_exists(false);
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    valbox iv{ctx->get_resume_stack_value("idx")};
+                    for(size_t i{iv.cast_to_size_t()}; i < ss; ++i) {
+                        l.assign_no_deref(&s[i]);
+                        stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("idx", i);
+                            ctx->set_resume_index(3);
+                            return;
+                        }
+                        if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                        if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                        if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                    }
+                } else if(resume_index == 4) {
+                    valbox range{ctx->get_resume_stack_value("rng")};
+                    valbox::object_t &s{range.as_object()};
+                    ctx->set_create_if_not_exists(false);
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    valbox iv{ctx->get_resume_stack_value("idx")};
+                    for(auto it{s.find(iv.as_string())}; it != s.end(); ++it) {
+                        l.as_array()[0].assign(it->first);
+                        l.as_array()[1] = it->second;
+                        stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("idx", it->first);
+                            ctx->set_resume_index(4);
+                            return;
+                        }
+                        if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                        if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                        if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                    }
+                } else if(resume_index == 5) {
+                    ctx->set_create_if_not_exists(false);
+                    valbox range{range_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    l.assign_no_deref(&range);
+                    stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        ctx->set_resume_index(5);
+                        return;
+                    }
+                }
+            } else {
+                ctx->new_stack_frame();
                 valbox range{range_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
                 if(range.is_string()) {
                     std::string &s{range.as_string()};
                     auto ss{s.size()};
                     ctx->set_create_if_not_exists(true);
-                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
                     ctx->set_create_if_not_exists(false);
                     for(size_t i{}; i < ss; ++i) {
                         l.assign_no_deref(valbox{s.data() + i});
-
                         stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("rng", range);
+                            ctx->set_resume_stack_value("idx", i);
+                            ctx->set_resume_index(1);
+                            return;
+                        }
                         if(ctx->return_requested() || ctx->termination_requested()) { return; }
                         if(ctx->continue_requested()) { ctx->clear_continue_request(); }
                         if(ctx->break_requested()) { ctx->clear_break_request(); break; }
@@ -445,12 +781,17 @@ namespace dfi {
                     std::wstring &s{range.as_wstring()};
                     auto ss{s.size()};
                     ctx->set_create_if_not_exists(true);
-                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
                     ctx->set_create_if_not_exists(false);
                     for(size_t i{}; i < ss; ++i) {
                         l.assign_no_deref(valbox{s.data() + i});
-
                         stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("rng", range);
+                            ctx->set_resume_stack_value("idx", i);
+                            ctx->set_resume_index(2);
+                            return;
+                        }
                         if(ctx->return_requested() || ctx->termination_requested()) { return; }
                         if(ctx->continue_requested()) { ctx->clear_continue_request(); }
                         if(ctx->break_requested()) { ctx->clear_break_request(); break; }
@@ -459,11 +800,17 @@ namespace dfi {
                     valbox::array_t &s{range.as_array()};
                     auto ss{s.size()};
                     ctx->set_create_if_not_exists(true);
-                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
                     ctx->set_create_if_not_exists(false);
                     for(size_t i{}; i < ss; ++i) {
                         l.assign_no_deref(&s[i]);
                         stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("rng", range);
+                            ctx->set_resume_stack_value("idx", i);
+                            ctx->set_resume_index(3);
+                            return;
+                        }
                         if(ctx->return_requested() || ctx->termination_requested()) { return; }
                         if(ctx->continue_requested()) { ctx->clear_continue_request(); }
                         if(ctx->break_requested()) { ctx->clear_break_request(); break; }
@@ -471,24 +818,34 @@ namespace dfi {
                 } else if(range.is_object()) {
                     valbox::object_t &s{range.as_object()};
                     ctx->set_create_if_not_exists(true);
-                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
                     ctx->set_create_if_not_exists(false);
                     l.become_array();
                     l.as_array().resize(2);
-                    for(auto &&p: s) {
-                        l.as_array()[0].assign(p.first);
-                        l.as_array()[1] = valbox{&p.second};
+                    for(auto it{s.begin()}; it != s.end(); ++it) {
+                        l.as_array()[0].assign(it->first);
+                        l.as_array()[1] = it->second;
                         stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_stack_value("rng", range);
+                            ctx->set_resume_stack_value("idx", it->first);
+                            ctx->set_resume_index(4);
+                            return;
+                        }
                         if(ctx->return_requested() || ctx->termination_requested()) { return; }
                         if(ctx->continue_requested()) { ctx->clear_continue_request(); }
                         if(ctx->break_requested()) { ctx->clear_break_request(); break; }
                     }
                 } else {
                     ctx->set_create_if_not_exists(true);
-                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox l{slider_expr_->eval(ctx, eval_caller_type::no_matter, nullptr)};
                     ctx->set_create_if_not_exists(false);
                     l.assign_no_deref(&range);
                     stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        ctx->set_resume_index(5);
+                        return;
+                    }
                 }
             }
         }
@@ -516,40 +873,38 @@ namespace dfi {
         }
 
         void exec(execution_context *ctx) override {
-            if(ctx->some_jump_requested()) { return; }
-            ctx->new_stack_frame();
+            if(ctx->some_jump_requested()) {
+                return;
+            }
             dfi::shut_on_destroy leave_frame{[&]() {
-                ctx->del_stack_frame();
+                if(!ctx->delay_requested()) {
+                    ctx->del_stack_frame();
+                }
             }};
-            init_expr_->eval(ctx, eval_caller_type::no_matter, nullptr);
-            if(stat_->empty_statement()) {
-                valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
-                bool bcond{false};
+
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                if(!ctx->delay_requested()) {
+                    ctx->clear_resume_stack_values();
+                    ctx->set_resume_index(0);
+                }
+            }};
+            if(resume_index == 1) {
+                bool bcond{true};
                 std::string classname{};
                 str_map_t<std::function<valbox(valbox &)>> const *unops{nullptr};
                 std::function<valbox(valbox &)> converter{};
-                if(cond.is_class()) {
-                    classname = cond.class_name();
-                    unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
-                    if(unops == nullptr) {
-                        throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                    }
-                    auto it{unops->find("(bool)")};
-                    if(it == unops->end()) {
-                        throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                    }
-                    converter = it->second;
-                    bcond = converter(cond).cast_to_bool();
-                } else {
-                    bcond = cond.cast_to_bool();
-                }
                 while(bcond) {
                     stat_->exec(ctx);
+                    if(ctx->delay_requested()) {
+                        ctx->set_resume_index(1);
+                        return;
+                    }
                     if(ctx->return_requested() || ctx->termination_requested()) { return; }
                     if(ctx->continue_requested()) { ctx->clear_continue_request(); }
                     if(ctx->break_requested()) { ctx->clear_break_request(); break; }
                     incr_expr_->eval(ctx, eval_caller_type::no_matter, nullptr);
-                    cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                    valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
                     if(cond.is_class()) {
                         if(cond.class_name() != classname) {
                             classname = cond.class_name();
@@ -570,50 +925,104 @@ namespace dfi {
                     }
                 }
             } else {
-                valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
-                bool bcond{false};
-                std::string classname{};
-                str_map_t<std::function<valbox(valbox &)>> const *unops{nullptr};
-                std::function<valbox(valbox &)> converter{};
-                if(cond.is_class()) {
-                    classname = cond.class_name();
-                    unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
-                    if(unops == nullptr) {
-                        throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                    }
-                    auto it{unops->find("(bool)")};
-                    if(it == unops->end()) {
-                        throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                    }
-                    converter = it->second;
-                    bcond = converter(cond).cast_to_bool();
-                } else {
-                    bcond = cond.cast_to_bool();
-                }
-                while(bcond) {
-                    stat_->exec(ctx);
-                    if(ctx->return_requested() || ctx->termination_requested()) { return; }
-                    if(ctx->continue_requested()) { ctx->clear_continue_request(); }
-                    if(ctx->break_requested()) { ctx->clear_break_request(); break; }
-                    incr_expr_->eval(ctx, eval_caller_type::no_matter, nullptr);
-                    cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                ctx->new_stack_frame();
+                init_expr_->eval(ctx, eval_caller_type::no_matter, nullptr);
+                if(stat_->empty_statement()) {
+                    valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    bool bcond{false};
+                    std::string classname{};
+                    str_map_t<std::function<valbox(valbox &)>> const *unops{nullptr};
+                    std::function<valbox(valbox &)> converter{};
                     if(cond.is_class()) {
-                        if(cond.class_name() != classname) {
-                            classname = cond.class_name();
-                            unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
-                            if(unops == nullptr) {
-                                throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                            }
-                            auto it{unops->find("(bool)")};
-                            if(it == unops->end()) {
-                                throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
-                            }
-                            converter = it->second;
+                        classname = cond.class_name();
+                        unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                        if(unops == nullptr) {
+                            throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
                         }
+                        auto it{unops->find("(bool)")};
+                        if(it == unops->end()) {
+                            throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                        }
+                        converter = it->second;
                         bcond = converter(cond).cast_to_bool();
                     } else {
-                        classname.clear();
                         bcond = cond.cast_to_bool();
+                    }
+                    while(bcond) {
+                        if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                        if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                        if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                        incr_expr_->eval(ctx, eval_caller_type::no_matter, nullptr);
+                        cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                        if(cond.is_class()) {
+                            if(cond.class_name() != classname) {
+                                classname = cond.class_name();
+                                unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                                if(unops == nullptr) {
+                                    throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                                }
+                                auto it{unops->find("(bool)")};
+                                if(it == unops->end()) {
+                                    throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                                }
+                                converter = it->second;
+                            }
+                            bcond = converter(cond).cast_to_bool();
+                        } else {
+                            classname.clear();
+                            bcond = cond.cast_to_bool();
+                        }
+                    }
+                } else {
+                    valbox cond{cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    bool bcond{false};
+                    std::string classname{};
+                    str_map_t<std::function<valbox(valbox &)>> const *unops{nullptr};
+                    std::function<valbox(valbox &)> converter{};
+                    if(cond.is_class()) {
+                        classname = cond.class_name();
+                        unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                        if(unops == nullptr) {
+                            throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                        }
+                        auto it{unops->find("(bool)")};
+                        if(it == unops->end()) {
+                            throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                        }
+                        converter = it->second;
+                        bcond = converter(cond).cast_to_bool();
+                    } else {
+                        bcond = cond.cast_to_bool();
+                    }
+                    while(bcond) {
+                        stat_->exec(ctx);
+                        if(ctx->delay_requested()) {
+                            ctx->set_resume_index(1);
+                            return;
+                        }
+                        if(ctx->return_requested() || ctx->termination_requested()) { return; }
+                        if(ctx->continue_requested()) { ctx->clear_continue_request(); }
+                        if(ctx->break_requested()) { ctx->clear_break_request(); break; }
+                        incr_expr_->eval(ctx, eval_caller_type::no_matter, nullptr);
+                        cond = cond_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                        if(cond.is_class()) {
+                            if(cond.class_name() != classname) {
+                                classname = cond.class_name();
+                                unops = &(ctx->rt_interface()->get_object_services(classname)->unops);
+                                if(unops == nullptr) {
+                                    throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                                }
+                                auto it{unops->find("(bool)")};
+                                if(it == unops->end()) {
+                                    throw runtime_error{line(), col(), "invalid condition conversion to logical value"};
+                                }
+                                converter = it->second;
+                            }
+                            bcond = converter(cond).cast_to_bool();
+                        } else {
+                            classname.clear();
+                            bcond = cond.cast_to_bool();
+                        }
                     }
                 }
             }
@@ -626,6 +1035,7 @@ namespace dfi {
         statement_ptr stat_{};
     };
 
+
     class statement_continue: public statement {
     public:
         void exec(execution_context *ctx) override {
@@ -636,6 +1046,7 @@ namespace dfi {
         }
     };
 
+
     class statement_break: public statement {
     public:
         void exec(execution_context *ctx) override {
@@ -645,6 +1056,7 @@ namespace dfi {
             ctx->request_break();
         }
     };
+
 
     class statement_return: public statement {
     public:
@@ -662,9 +1074,10 @@ namespace dfi {
         expr_ptr ret_expr_{};
     };
 
+
     class statement_emit: public statement {
     public:
-        statement_emit(expr_ptr y_expr): y_expr_{y_expr} {}
+        statement_emit(expr_ptr y_expr): eres_expr_{y_expr} {}
 
         void exec(execution_context *ctx) override {
             if(ctx->some_jump_requested()) {
@@ -673,11 +1086,42 @@ namespace dfi {
             if(ctx->is_inside_function()) {
                 throw runtime_error{line(), col(), "cannot emit within the function context"};
             }
-            ctx->emit(y_expr_->eval(ctx, eval_caller_type::no_matter, nullptr));
+            ctx->emit(eres_expr_->eval(ctx, eval_caller_type::no_matter, nullptr));
         }
 
     private:
-        expr_ptr y_expr_{};
+        expr_ptr eres_expr_{};
+    };
+
+
+    class statement_delay: public statement {
+    public:
+        statement_delay(expr_ptr timeout_expr): timeout_expr_{timeout_expr} {}
+
+        void exec(execution_context *ctx) override {
+            if(ctx->some_jump_requested()) {
+                return;
+            }
+            if(ctx->is_inside_function()) {
+                throw runtime_error{line(), col(), "cannot delay within the function context"};
+            }
+            long double timeout{timeout_expr_->eval(ctx, eval_caller_type::no_matter, nullptr).cast_to_long_double()};
+            if(timeout <= 0) {
+                return;
+            }
+            std::size_t resume_index{ctx->get_resume_index()};
+            shut_on_destroy resume_index_restore{[ctx]() {
+                ctx->set_resume_index(0);
+            }};
+            if(resume_index == 0) {
+                ctx->request_delay(timeout);
+                resume_index_restore.cancel();
+                ctx->set_resume_index(1);
+            }
+        }
+
+    private:
+        expr_ptr timeout_expr_{};
     };
 
 }

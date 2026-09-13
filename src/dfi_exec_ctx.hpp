@@ -2,6 +2,9 @@
 
 #include "inc/commondefs.hpp"
 #include "inc/emhash/hash_set8.hpp"
+#if defined(DFI_USE_CUSTOM_ANY)
+#include "inc/any.hpp"
+#endif
 
 #include "dfi_util.hpp"
 #include "dfi_value.hpp"
@@ -141,30 +144,36 @@ namespace dfi {
         }
 
         void set_stack_barrier() {
-            stack_barriers_.push_back(stack_ptr_);
+            if(stack_ptr_ < 0) {
+                return;
+            }
+            if(static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
+                throw std::runtime_error{"stack operation error"};
+            }
+            stack_[stack_ptr_].set_barrier();
         }
 
         void clear_stack_barrier() {
-            if(stack_barriers_.empty()) {
+            if(stack_ptr_ < 0) {
                 return;
             }
-            stack_barriers_.pop_back();
-        }
-
-        int64_t stack_barrier() const {
-            return stack_barriers_.empty() ? -1 : stack_barriers_.back();
+            if(static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
+                throw std::runtime_error{"stack operation error"};
+            }
+            stack_[stack_ptr_].clear_barrier();
         }
 
         void new_stack_frame() {
-            while((int64_t)stack_.size() <= stack_ptr_ + 1) {
+            ++stack_ptr_;
+            while(static_cast<int64_t>(stack_.size()) <= stack_ptr_ ) {
                 stack_.emplace_back();
             }
-            ++stack_ptr_;
         }
 
         void del_stack_frame() {
-            if(stack_ptr_ < 0) {
-                return;
+            if(stack_ptr_ < 0) { return; }
+            if(static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
+                throw std::runtime_error{"stack operation error"};
             }
             stack_[stack_ptr_--].clear();
         }
@@ -172,13 +181,16 @@ namespace dfi {
         void clear_stack_hard() {
             stack_.clear();
             stack_ptr_ = -1;
-            stack_barriers_.clear();
             clear_frame_ignore_stack();
         }
 
         void clear_stack_soft() {
-            for(; stack_ptr_ >= 0; --stack_ptr_) { stack_[stack_ptr_].clear(); }
-            stack_barriers_.clear();
+            if(static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
+                throw std::runtime_error{"stack operation error"};
+            }
+            for(; stack_ptr_ >= 0; --stack_ptr_) {
+                stack_[stack_ptr_].clear();
+            }
             clear_frame_ignore_stack();
         }
 
@@ -199,6 +211,9 @@ namespace dfi {
         }
 
         void set_local_value(std::string const &name, valbox &val) {
+            if(stack_ptr_ < 0 || static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
+                throw std::runtime_error{"stack operation error"};
+            }
             val.set_stack_placement();
             stack_[stack_ptr_].put(name, val);
         }
@@ -214,16 +229,13 @@ namespace dfi {
         }
 
         bool clear_stack_variable_before_barrier(valbox const &v) {
-            int64_t stb{-2};
             for(int64_t i{stack_ptr_}; i >= 0; --i) {
-                if(stb != -2 && i <= stb) {
-                    break;
-                }
-                if(stack_[i].clear_var(v)) {
+                stack_frame &frm{stack_[i]};
+                if(frm.clear_var(v)) {
                     return true;
                 }
-                if(stb == -2) {
-                    stb = stack_barrier();
+                if(frm.has_barrier()) {
+                    break;
                 }
             }
             return false;
@@ -231,19 +243,19 @@ namespace dfi {
 
         valbox find_val_by_sym_name(std::string const &name, int64_t l, int64_t c) {
             valbox res{};
-            int64_t stb{-2};
             for(int64_t i{stack_ptr_}; i >= 0; --i) {
-                if(stb != -2 && i <= stb) {
-                    break;
-                }
-                if(stack_[i].get(name, res)) {
+                stack_frame &frm{stack_[i]};
+                if(frm.get(name, res)) {
                     return res;
                 }
-                if(stb == -2) {
-                    stb = stack_barrier();
+                if(frm.has_barrier()) {
+                    break;
                 }
             }
             if(create_if_not_exists()) {
+                if(static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
+                    throw std::runtime_error{"stack operation error"};
+                }
                 stack_[stack_ptr_].put(name, res);
                 return res;
             }
@@ -377,15 +389,30 @@ namespace dfi {
         }
 
         std::size_t get_resume_index() {
-            if(resume_stack_ptr_ + 1 >= resume_stack_.size()) {
-                resume_stack_.resize(resume_stack_ptr_ + 2);
+            ++resume_stack_ptr_;
+            while(static_cast<int64_t>(resume_stack_.size()) <= resume_stack_ptr_) {
+                resume_stack_.emplace_back(0, str_map_t<valbox>{});
             }
-            return resume_stack_[++resume_stack_ptr_];
+            return resume_stack_[resume_stack_ptr_].first;
         }
 
         void set_resume_index(std::size_t val) {
-            resume_stack_[resume_stack_ptr_] = val;
-            --resume_stack_ptr_;
+            resume_stack_[resume_stack_ptr_--].first = val;
+        }
+
+        void set_resume_stack_value(std::string const &name, valbox const &v) {
+            resume_stack_[resume_stack_ptr_].second[name] = v;
+        }
+
+        valbox get_resume_stack_value(std::string const &name) {
+            str_map_t<valbox> &m{resume_stack_[resume_stack_ptr_].second};
+            auto it{m.find(name)};
+            if(it == m.end()) { return {}; }
+            return it->second;
+        }
+
+        void clear_resume_stack_values() {
+            resume_stack_[resume_stack_ptr_].second.clear();
         }
 
         void reset_resume_stack_ptr() {
@@ -395,6 +422,18 @@ namespace dfi {
     private:
         class stack_frame {
         public:
+            bool has_barrier() const {
+                return barrier_ == 1;
+            }
+
+            void set_barrier() {
+                barrier_ = 1;
+            }
+
+            void clear_barrier() {
+                barrier_ = 0;
+            }
+
             void put(std::string const &name, valbox &value) {
                 if(!value.is_stack_placement()) {
                     value.set_stack_placement();
@@ -424,16 +463,17 @@ namespace dfi {
 
             void clear() {
                 m_.clear();
+                barrier_ = 0;
             }
 
         private:
             str_map_t<valbox> m_{};
+            std::size_t barrier_{0};
         };
 
         runtime_interface *rt_ptr_{nullptr};
         std::atomic_int64_t function_depth_{0};
         std::vector<stack_frame> stack_{};
-        std::vector<size_t> stack_barriers_{};
         int64_t stack_ptr_{-1};
         std::function<void(valbox const &)> emit_delegate_{nullptr};
         valbox return_result_{};
@@ -445,7 +485,7 @@ namespace dfi {
         str_map_t<valbox> *self_fields_{nullptr};
         std::uint64_t create_if_not_exists_{0};
         runtime_error rte_{0, 0, ""};
-        std::vector<std::size_t> resume_stack_{};
+        std::vector<std::pair<std::size_t, str_map_t<valbox>>> resume_stack_{};
         int64_t resume_stack_ptr_{-1};
     };
 

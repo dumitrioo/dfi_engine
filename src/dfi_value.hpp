@@ -579,6 +579,7 @@ namespace dfi {
         void set_literal_placement() { plx_ = mem_placement::literal; }
         bool is_literal_placement() const { return plx_ == mem_placement::literal; }
         void set_global_placement() { plx_ = mem_placement::global; allocate_undefined(); }
+        void set_global_placement_no_alloc_undefined() { plx_ = mem_placement::global; }
         bool is_global_placement() const { return plx_ == mem_placement::global; }
         bool is_immutable_placement() const { return ((int)plx_ & ((int)mem_placement::global | (int)mem_placement::literal)) != 0; }
         void set_stack_placement() { plx_ = mem_placement::stack; allocate_undefined(); }

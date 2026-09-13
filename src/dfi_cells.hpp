@@ -157,6 +157,22 @@ namespace dfi {
             return &exctx_;
         }
 
+        bool delayed(bool &was_set) {
+            if(exctx_.delay_requested()) {
+                was_set = true;
+                if(exctx_.delay_expired()) {
+                    exctx_.clear_delay_request();
+                }
+            } else {
+                was_set = false;
+            }
+            return exctx_.delay_requested();
+        }
+
+        bool delay_requested() const {
+            return exctx_.delay_requested();
+        }
+
         void set_type_info(
             std::int64_t num_args,
             std::vector<std::string> const &arg_names

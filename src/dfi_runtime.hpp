@@ -1328,79 +1328,100 @@ namespace dfi {
             }
             for(auto &&w: worker_cells_) {
                 std::shared_ptr<worker_cell_instance> &curr_cell{w.second};
-
                 execution_context *exctx{curr_cell->exctx()};
-                exctx->new_stack_frame();
-                dfi::shut_on_destroy del_frm{[exctx]() { exctx->del_stack_frame(); }};
+                bool was_delayed;
+                if(!curr_cell->delayed(was_delayed)) {
+                    if(was_delayed) {
+                        curr_cell->exec();
+                        if(!curr_cell->delay_requested()) {
+                            exctx->del_stack_frame();
 
-                auto &&args_info{curr_cell->actual_args_info()};
-                auto ainfsiz{args_info.size()};
-                bool have_undefineds{false};
-                for(std::size_t curr_arg_number{0}; curr_arg_number < ainfsiz; ++curr_arg_number) {
-                    auto &&ai{args_info[curr_arg_number]};
-                    if(!ai.is_cell) {
-                        if(ai.expr_val.is_undefined()) {
-                            ai.expr_val = ai.expr->eval(exctx, eval_caller_type::no_matter, nullptr);
-                            ai.expr_val.set_global_placement();
-                        }
-                        valbox vb{ai.expr_val};
-                        if(vb.is_undefined() && !undefined_inputs_enabled()) {
-                            have_undefineds = true;
-                            break;
-                        } else {
-                            exctx->set_local_value(ai.argname, vb);
+                            if(termination_requested()) {
+                                break;
+                            }
+                            if(exctx->return_requested()) {
+                                curr_cell->set_value(exctx->return_result());
+                                if(!curr_cell->output_name().empty()) {
+                                    exctx->set_output(curr_cell->output_name(), exctx->return_result());
+                                }
+                            }
+                            exctx->clear_all_jumps_request();
                         }
                     } else {
-                        if(ai.cell_ptr == nullptr) {
-                            auto w_it{worker_cells_.find(ai.cell_name)};
-                            if(w_it == worker_cells_.end()) {
-                                auto in_it{input_cells_.find(ai.cell_name)};
-                                if(in_it == input_cells_.end()) {
-                                    auto ex_it{extern_cells_.find(ai.cell_name)};
-                                    if(ex_it == extern_cells_.end()) {
-                                        throw runtime_error{
-                                            curr_cell->line(), curr_cell->col(),
-                                            std::string{"node identifier \"" + ai.cell_name +
-                                                        "\" not found as input for compute node \""} +
-                                                curr_cell->inst_name() + "\""
-                                        };
-                                    } else {
-                                        ai.cell_ptr = ex_it->second.get();
-                                    }
+                        exctx->new_stack_frame();
+                        dfi::shut_on_destroy del_frm{[exctx]() {
+                            if(!exctx->delay_requested()) {
+                                exctx->del_stack_frame();
+                            }
+                        }};
+                        auto &&args_info{curr_cell->actual_args_info()};
+                        auto ainfsiz{args_info.size()};
+                        bool have_undefineds{false};
+                        for(std::size_t curr_arg_number{0}; curr_arg_number < ainfsiz; ++curr_arg_number) {
+                            auto &&ai{args_info[curr_arg_number]};
+                            if(!ai.is_cell) {
+                                ai.expr_val = ai.expr->eval(exctx, eval_caller_type::no_matter, nullptr);
+                                ai.expr_val.set_global_placement_no_alloc_undefined();
+                                valbox vb{ai.expr_val};
+                                if(vb.is_undefined() && !undefined_inputs_enabled()) {
+                                    have_undefineds = true;
+                                    break;
                                 } else {
-                                    ai.cell_ptr = in_it->second.get();
+                                    exctx->set_local_value(ai.argname, vb);
                                 }
                             } else {
-                                ai.cell_ptr = w_it->second.get();
+                                if(ai.cell_ptr == nullptr) {
+                                    auto w_it{worker_cells_.find(ai.cell_name)};
+                                    if(w_it == worker_cells_.end()) {
+                                        auto in_it{input_cells_.find(ai.cell_name)};
+                                        if(in_it == input_cells_.end()) {
+                                            auto ex_it{extern_cells_.find(ai.cell_name)};
+                                            if(ex_it == extern_cells_.end()) {
+                                                throw runtime_error{
+                                                    curr_cell->line(), curr_cell->col(),
+                                                    std::string{"node identifier \"" + ai.cell_name +
+                                                                "\" not found as input for compute node \""} +
+                                                        curr_cell->inst_name() + "\""
+                                                };
+                                            } else {
+                                                ai.cell_ptr = ex_it->second.get();
+                                            }
+                                        } else {
+                                            ai.cell_ptr = in_it->second.get();
+                                        }
+                                    } else {
+                                        ai.cell_ptr = w_it->second.get();
+                                    }
+                                }
+                                valbox stack_var{ai.cell_ptr->value()};
+                                if(stack_var.is_undefined() && !undefined_inputs_enabled()) {
+                                    have_undefineds = true;
+                                    break;
+                                } else {
+                                    exctx->set_local_value(ai.argname, stack_var);
+                                }
                             }
                         }
-                        valbox stack_var{ai.cell_ptr->value()};
-                        if(stack_var.is_undefined() && !undefined_inputs_enabled()) {
-                            have_undefineds = true;
-                            break;
-                        } else {
-                            exctx->set_local_value(ai.argname, stack_var);
+
+                        if(have_undefineds && !undefined_inputs_enabled()) {
+                            continue;
+                        }
+                        curr_cell->exec();
+
+                        if(!curr_cell->delay_requested()) {
+                            if(termination_requested()) {
+                                break;
+                            }
+                            if(exctx->return_requested()) {
+                                curr_cell->set_value(exctx->return_result());
+                                if(!curr_cell->output_name().empty()) {
+                                    exctx->set_output(curr_cell->output_name(), exctx->return_result());
+                                }
+                            }
+                            exctx->clear_all_jumps_request();
                         }
                     }
                 }
-
-                if(have_undefineds && !undefined_inputs_enabled()) {
-                    continue;
-                }
-                curr_cell->exec();
-
-                exctx->del_stack_frame();
-
-                if(termination_requested()) {
-                    break;
-                }
-                if(exctx->return_requested()) {
-                    curr_cell->set_value(exctx->return_result());
-                    if(!curr_cell->output_name().empty()) {
-                        exctx->set_output(curr_cell->output_name(), exctx->return_result());
-                    }
-                }
-                exctx->clear_all_jumps_request();
             }
         }
 
@@ -1537,98 +1558,115 @@ namespace dfi {
 #ifndef DFI_DEBUGGING
                     try {
 #endif
-                        bool sequential_cells_execution_traversal{sequential_cells_execution_traversal_};
                         uint64_t wc_indx{};
                         uint64_t const worker_cells_cnt{worker_cells_flat_array_.size()};
-                        uint64_t const worker_cells_max_idx{worker_cells_flat_array_.size() - 1};
                         bool have_locked{false};
-                        uint64_t loop_ctr{0};
                         uint64_t num_cycles{0};
                         uint64_t sleep_between_cycles_nanoseconds{sleep_between_cycles_nanoseconds_};
                         while(!termination_requested() && !failure_occured()) {
                             wc_indx = worker_cells_flat_array_index_.fetch_add(1);
-                            worker_cell_instance *curr_cell{worker_cells_flat_array_[
-                                    sequential_cells_execution_traversal ? loop_ctr : wc_indx % worker_cells_cnt
-                                ]
-                            };
+                            worker_cell_instance *curr_cell{worker_cells_flat_array_[wc_indx % worker_cells_cnt]};
                             bool cell_executed{false};
                             if(curr_cell->try_lock()) {
-                                shut_on_destroy sod{[&]() { curr_cell->unlock(); }};
-                                cell_executed = true;
                                 have_locked = true;
+                                shut_on_destroy sod{[&]() { curr_cell->unlock(); }};
+                                bool was_delayed;
+                                if(!curr_cell->delayed(was_delayed)) {
+                                    execution_context *exctx_ptr{curr_cell->exctx()};
+                                    if(was_delayed) {
+                                        curr_cell->exec();
+                                        if(!curr_cell->delay_requested()) {
+                                            exctx_ptr->del_stack_frame();
 
-                                execution_context *exctx_ptr{curr_cell->exctx()};
-                                exctx_ptr->new_stack_frame();
-                                dfi::shut_on_destroy del_frm{[exctx_ptr]() { exctx_ptr->del_stack_frame(); }};
-
-                                std::vector<worker_cell_instance::arg_info> &args_info{curr_cell->actual_args_info()};
-                                auto ainfsiz{args_info.size()};
-                                bool have_undefineds{false};
-                                for(std::size_t curr_arg_number{0}; curr_arg_number < ainfsiz; ++curr_arg_number) {
-                                    worker_cell_instance::arg_info &ai{args_info[curr_arg_number]};
-                                    if(!ai.is_cell) {
-                                        if(ai.expr_val.is_undefined()) {
-                                            ai.expr_val = ai.expr->eval(exctx_ptr, eval_caller_type::no_matter, nullptr);
-                                            ai.expr_val.set_global_placement();
-                                        }
-                                        valbox vb{ai.expr_val};
-                                        if(vb.is_undefined() && !undefined_inputs_enabled()) {
-                                            have_undefineds = true;
-                                            break;
-                                        } else {
-                                            exctx_ptr->set_local_value(ai.argname, vb);
+                                            if(termination_requested()) {
+                                                break;
+                                            }
+                                            if(exctx_ptr->return_requested()) {
+                                                curr_cell->set_value(exctx_ptr->return_result());
+                                                if(!curr_cell->output_name().empty()) {
+                                                    exctx_ptr->set_output(curr_cell->output_name(), exctx_ptr->return_result());
+                                                }
+                                            }
+                                            exctx_ptr->clear_all_jumps_request();
                                         }
                                     } else {
-                                        if(ai.cell_ptr == nullptr) {
-                                            auto w_it{worker_cells_.find(ai.cell_name)};
-                                            if(w_it == worker_cells_.end()) {
-                                                auto in_it{input_cells_.find(ai.cell_name)};
-                                                if(in_it == input_cells_.end()) {
-                                                    auto ex_it{extern_cells_.find(ai.cell_name)};
-                                                    if(ex_it == extern_cells_.end()) {
-                                                        throw runtime_error{
-                                                            curr_cell->line(), curr_cell->col(),
-                                                            std::string{"node identifier \"" + ai.cell_name +
-                                                                        "\" not found as input for compute node \""} +
-                                                                curr_cell->inst_name() + "\""
-                                                        };
-                                                    } else {
-                                                        ai.cell_ptr = ex_it->second.get();
-                                                    }
+                                        cell_executed = true;
+                                        exctx_ptr->new_stack_frame();
+                                        dfi::shut_on_destroy del_frm{[exctx_ptr]() {
+                                            if(!exctx_ptr->delay_requested()) {
+                                                exctx_ptr->del_stack_frame();
+                                            }
+                                        }};
+                                        bool have_undefineds{false};
+                                        std::vector<worker_cell_instance::arg_info> &args_info{curr_cell->actual_args_info()};
+                                        auto ainfsiz{args_info.size()};
+                                        for(std::size_t curr_arg_number{0}; curr_arg_number < ainfsiz; ++curr_arg_number) {
+                                            worker_cell_instance::arg_info &ai{args_info[curr_arg_number]};
+                                            if(!ai.is_cell) {
+                                                ai.expr_val = ai.expr->eval(exctx_ptr, eval_caller_type::no_matter, nullptr);
+                                                ai.expr_val.set_global_placement_no_alloc_undefined();
+                                                valbox vb{ai.expr_val};
+                                                if(vb.is_undefined() && !undefined_inputs_enabled()) {
+                                                    have_undefineds = true;
+                                                    break;
                                                 } else {
-                                                    ai.cell_ptr = in_it->second.get();
+                                                    exctx_ptr->set_local_value(ai.argname, vb);
                                                 }
                                             } else {
-                                                ai.cell_ptr = w_it->second.get();
+                                                if(ai.cell_ptr == nullptr) {
+                                                    auto w_it{worker_cells_.find(ai.cell_name)};
+                                                    if(w_it == worker_cells_.end()) {
+                                                        auto in_it{input_cells_.find(ai.cell_name)};
+                                                        if(in_it == input_cells_.end()) {
+                                                            auto ex_it{extern_cells_.find(ai.cell_name)};
+                                                            if(ex_it == extern_cells_.end()) {
+                                                                throw runtime_error{
+                                                                    curr_cell->line(), curr_cell->col(),
+                                                                    std::string{"node identifier \"" + ai.cell_name +
+                                                                                "\" not found as input for compute node \""} +
+                                                                        curr_cell->inst_name() + "\""
+                                                                };
+                                                            } else {
+                                                                ai.cell_ptr = ex_it->second.get();
+                                                            }
+                                                        } else {
+                                                            ai.cell_ptr = in_it->second.get();
+                                                        }
+                                                    } else {
+                                                        ai.cell_ptr = w_it->second.get();
+                                                    }
+                                                }
+                                                valbox stack_var{ai.cell_ptr->value()};
+                                                if(stack_var.is_undefined() && !undefined_inputs_enabled()) {
+                                                    have_undefineds = true;
+                                                    break;
+                                                } else {
+                                                    exctx_ptr->set_local_value(ai.argname, stack_var);
+                                                }
                                             }
                                         }
-                                        valbox stack_var{ai.cell_ptr->value()};
-                                        if(stack_var.is_undefined() && !undefined_inputs_enabled()) {
-                                            have_undefineds = true;
-                                            break;
+                                        if(have_undefineds && !undefined_inputs_enabled()) {
+                                            continue;
+                                        }
+
+                                        curr_cell->exec();
+
+                                        if(!curr_cell->delay_requested()) {
+                                            if(termination_requested()) {
+                                                break;
+                                            }
+                                            if(exctx_ptr->return_requested()) {
+                                                curr_cell->set_value(exctx_ptr->return_result());
+                                                if(!curr_cell->output_name().empty()) {
+                                                    exctx_ptr->set_output(curr_cell->output_name(), exctx_ptr->return_result());
+                                                }
+                                            }
+                                            exctx_ptr->clear_all_jumps_request();
                                         } else {
-                                            exctx_ptr->set_local_value(ai.argname, stack_var);
+                                            del_frm.cancel();
                                         }
                                     }
                                 }
-
-                                if(have_undefineds && !undefined_inputs_enabled()) {
-                                    continue;
-                                }
-                                curr_cell->exec();
-
-                                exctx_ptr->del_stack_frame();
-
-                                if(termination_requested()) {
-                                    break;
-                                }
-                                if(exctx_ptr->return_requested()) {
-                                    curr_cell->set_value(exctx_ptr->return_result());
-                                    if(!curr_cell->output_name().empty()) {
-                                        exctx_ptr->set_output(curr_cell->output_name(), exctx_ptr->return_result());
-                                    }
-                                }
-                                exctx_ptr->clear_all_jumps_request();
                             }
 
                             if(cell_executed && sleep_between_cycles_nanoseconds > 0) {
@@ -1642,11 +1680,6 @@ namespace dfi {
                                 }
                                 sleep_between_cycles_nanoseconds = sleep_between_cycles_nanoseconds_;
                                 have_locked = false;
-                            }
-                            if(loop_ctr >= worker_cells_max_idx) {
-                                loop_ctr = 0;
-                            } else {
-                                ++loop_ctr;
                             }
                         }
 #ifndef DFI_DEBUGGING
@@ -1702,10 +1735,6 @@ namespace dfi {
 
         void set_wait_granularity_nsec(std::int64_t val) noexcept {
             wait_granularity_nsec_ = val;
-        }
-
-        void set_sequential_cells_execution(bool v) override {
-            sequential_cells_execution_traversal_ = v;
         }
 
         void set_undefined_inputs_enabled(bool val) override {
@@ -2092,7 +2121,6 @@ namespace dfi {
                 return it != user_functions_.end();
             }
         };
-        bool sequential_cells_execution_traversal_{false};
         bool enable_undefined_inputs_{true};
         bool except_on_out_of_range_or_field_{false};
         std::function<valbox(std::vector<valbox> &)> user_function_selector_{
