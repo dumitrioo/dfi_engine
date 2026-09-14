@@ -1989,6 +1989,10 @@ namespace dfi {
         }
 
         void unload_extensions() {
+            {
+                std::unique_lock lck{obj_ser_mtp_};
+                obj_svc_.clear();
+            }
             std::unique_lock l{loaded_extensions_mtp_};
             for(auto &&ep: loaded_extensions_) {
                 ep.second->unregister_runtime();
@@ -2045,6 +2049,8 @@ namespace dfi {
         };
 
     private:
+        mutable shared_mutex obj_ser_mtp_{};
+        std::map<std::string, obj_services> obj_svc_{};
         console con_{this};
 
         std::string persistence_file_path_{};
@@ -2196,8 +2202,6 @@ namespace dfi {
 #ifdef DFI_USE_EIGEN
         eigen_ext eigen_ext_{};
 #endif
-        mutable shared_mutex obj_ser_mtp_{};
-        std::map<std::string, obj_services> obj_svc_{};
         friend class valbox;
 
         shared_mutex loaded_extensions_mtp_{};
