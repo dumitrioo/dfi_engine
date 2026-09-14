@@ -15,16 +15,14 @@ zmq_cli() {
             return exit(3);
         }
     }
-    if(steady_clock() > this.t) {
-        this.t = steady_clock() + 0.1;
-        console.println("client sending hello...");
-        sent = this.skt.zmq_send("hello");
-        rcvd = this.skt.zmq_recv(100, ZMQ_DONTWAIT);
-        console.println("client received: ", rcvd);
-        if(rcvd.size() == 0) {
-            console.println(zmq_errstr());
-        }
+    console.println("client sending hello...");
+    sent = this.skt.zmq_send("hello");
+    rcvd = this.skt.zmq_recv(100, ZMQ_DONTWAIT);
+    console.println("client received: ", rcvd);
+    if(rcvd.size() == 0) {
+        console.println(zmq_errstr());
     }
+    delay(0.1);
     return 0;
 }
 

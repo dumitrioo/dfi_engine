@@ -1,8 +1,6 @@
 dbg_printer(val, period) {
-    if(steady_clock() > this.t) {
-        this.t = steady_clock() + period;
-        val.print();
-    }
+    val.print();
+    delay(period);
 }
 
 pwm_node(frq, t) {
