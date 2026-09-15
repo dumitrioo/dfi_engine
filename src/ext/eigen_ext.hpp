@@ -108,34 +108,7 @@ namespace dfi {
                     if(args[0].is_numeric() && args[1].is_numeric()) {
                         res.resize(args[0].cast_to_int(), args[1].cast_to_int());
                     }
-                }/* else if(
-                    args.size() == 3 &&
-                    args[0].is_numeric() &&
-                    args[1].is_numeric() &&
-                    args[2].is_mat4()
-                ) {
-                    res.resize(args[0].cast_to_int(), args[1].cast_to_int());
-                    for(int r{}; r < 4 && r < args[0].cast_to_int(); ++r) {
-                        for(int c{}; c < 4 && c < args[1].cast_to_int(); ++c) {
-                            res(r, c) = args[2].as_mat4()[r][c];
-                        }
-                    }
-                } else if(
-                    args.size() == 3 &&
-                    args[0].is_numeric() &&
-                    args[1].is_numeric() &&
-                    args[2].is_array()
-                ) {
-                    res.resize(args[0].cast_to_int(), args[1].cast_to_int());
-                    for(int r{}; r < args[0].cast_to_int(); ++r) {
-                        for(int c{}; c < args[1].cast_to_int(); ++c) {
-                            int ai{r * args[1].cast_to_int() + c};
-                            if((int)args[2].as_array().size() > ai) {
-                                res(r, c) = args[2].as_array().at(ai).cast_to_double();
-                            }
-                        }
-                    }
-                }*/ else {
+                } else {
                     throw std::runtime_error{"invalid matrix initialization"};
                 }
                 return dfi::valbox{std::move(res), "matrix"};
