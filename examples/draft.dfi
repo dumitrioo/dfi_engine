@@ -724,9 +724,7 @@ my_drafts(host_data) {
             break;
         }
     }
-
-    delay(3);
-
+    delay(0.5);
     return exit(9);
 }
 
@@ -753,9 +751,9 @@ delay_test(val, period) {
                         }
                         i = 3 / 0;
                     } catch(errr) {
-                        println("uu: ", errr);
+                        println("caught: ", errr);
                         delay(period);
-                        println("uu: ", errr);
+                        println("caught: ", errr);
                     }
                 } else {
                     delay(period * 2);
