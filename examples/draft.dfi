@@ -194,6 +194,19 @@ function baricenter(b1, b2) {
 }
 
 
+function matmul(w) {
+    m1 = matrix(w, w);
+    m2 = matrix(w, w);
+    for(y = 0; y < w; ++y) {
+        for(x = 0; x < w; ++x) {
+            m1.at(y, x) = randf();
+            m2.at(y, x) = randf();
+        }
+    }
+    m3 = m1 * m2;
+    return m3;
+}
+
 my_drafts(host_data) {
     emit 3;
 
@@ -205,6 +218,11 @@ my_drafts(host_data) {
         console.enable_colors(true);
         console.setprecision(9);
     }
+
+    bt = steady_clock();
+    mr = matmul(400);
+    et = steady_clock();
+    println("matrix 400x400 multiplied by matrix 400x400 in ", et - bt, " sec.");
 
     obj = { potential: this.init, glutamate: 1.0, electrical: 1.0, };
     obj.println();
