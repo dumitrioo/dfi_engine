@@ -57,12 +57,12 @@ namespace dfi {
                 }
                 return static_cast<long double>(0);
             });
-            rt->add_function("rand", DFIFUN() { return ud_(dre_); });
-            rt->add_function("hwrand", DFIFUN() { return ud_(rd_); });
-            rt->add_function("randf", DFIFUN() { return urd_(dre_); });
-            rt->add_function("hwrandf", DFIFUN() { return urd_(rd_); });
-            rt->add_function("frand", DFIFUN() { return urd_(dre_); });
-            rt->add_function("hw_frand", DFIFUN() { return urd_(rd_); });
+            rt->add_function("rand", DFICLOSURE() { return ud_(dre_); });
+            rt->add_function("hwrand", DFICLOSURE() { return ud_(rd_); });
+            rt->add_function("randf", DFICLOSURE() { return urd_(dre_); });
+            rt->add_function("hwrandf", DFICLOSURE() { return urd_(rd_); });
+            rt->add_function("frand", DFICLOSURE() { return urd_(dre_); });
+            rt->add_function("hw_frand", DFICLOSURE() { return urd_(rd_); });
         }
 
         void unregister_runtime() override {

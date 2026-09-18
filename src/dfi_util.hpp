@@ -12,7 +12,8 @@
 #include "inc/emhash/hash_table8.hpp"
 #endif
 
-#define DFIFUN(ARGS) [&](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
+#define DFIFUN(ARGS) [](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
+#define DFICLOSURE(ARGS) [&](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
 #define DFINUMARG(ARGS, INDX, TYPE) ARGS[INDX].cast_num_to_num<TYPE>()
 #define DFI_CHCK_FUN_PARMS_NUM_EQ(ARGS, NUM_ARGS) \
     if(ARGS.size() != (NUM_ARGS)) { \

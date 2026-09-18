@@ -213,11 +213,11 @@ namespace dfi {
             add_method("console", "enable_colors", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 2) DFITHIS(args, console *)->enable_colors(args.size() == 2 ? args[1].cast_to_bool() : true); return valbox{}; });
             add_method("console", "colors_enabled", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) return DFITHIS(args, console *)->colors_enabled(); });
             add_method("console", "sync_stdio", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) return DFITHIS(args, console *)->setsync(args[1].cast_to_bool()); });
-            add_function("print", DFIFUN(args) { con_.rawprint(args); return {}; });
-            add_function("println", DFIFUN(args) { con_.rawprintln(args); return {}; });
+            add_function("print", DFICLOSURE(args) { con_.rawprint(args); return {}; });
+            add_function("println", DFICLOSURE(args) { con_.rawprintln(args); return {}; });
 
 
-            add_function("to_string", DFIFUN(args) {
+            add_function("to_string", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
                 if(args[0].is_class()) {
                     std::function<valbox(valbox const &)> const &strfy{
@@ -240,7 +240,7 @@ namespace dfi {
             });
 
 
-            add_function("sizeof", DFIFUN(args) {
+            add_function("sizeof", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
                 return sizeof_func_(args[0]);
             });
@@ -879,7 +879,7 @@ namespace dfi {
                 }
                 return time_to_sleep;
             });
-            add_function("set_cycle_sleep_seconds", DFIFUN(args) {
+            add_function("set_cycle_sleep_seconds", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1);
                 long double ttsld{args[0].cast_to_long_double()};
                 if(ttsld <= 10) {
@@ -888,10 +888,10 @@ namespace dfi {
                 }
                 return (long double)sleep_between_cycles_nanoseconds() * 1e-9L;
             });
-            add_function("cycle_sleep_seconds", DFIFUN() {
+            add_function("cycle_sleep_seconds", DFICLOSURE() {
                 return sleep_between_cycles_nanoseconds() * 1e-9L;
             });
-            add_function("set_inactive_sleep_seconds", DFIFUN(args) {
+            add_function("set_inactive_sleep_seconds", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1);
                 long double issld{args[0].cast_to_long_double()};
                 if(issld <= 10) {
@@ -900,11 +900,11 @@ namespace dfi {
                 }
                 return sleep_inactive_thread_nanoseconds() * 1e-9L;
             });
-            add_function("inactive_sleep_seconds", DFIFUN() {
+            add_function("inactive_sleep_seconds", DFICLOSURE() {
                 return sleep_inactive_thread_nanoseconds() * 1e-9L;
             });
 
-            add_function("persistence_enabled", DFIFUN() {
+            add_function("persistence_enabled", DFICLOSURE() {
                 return !persistence_file_path_.empty();
             });
 
@@ -914,7 +914,7 @@ namespace dfi {
                 return args[0];
             });
 
-            add_function("exit", DFIFUN(args) {
+            add_function("exit", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 0, 1);
                 if(programmatic_termination_enabled_ != 0) {
                     exit_status_ = args.size() == 1 ? args[0].cast_num_to_num<int>() : 0;
@@ -936,25 +936,25 @@ namespace dfi {
                 ss >> res;
                 return res;
             });
-            add_function("hardware_concurrency", DFIFUN() {
+            add_function("hardware_concurrency", DFICLOSURE() {
                 std::shared_lock l{threads_mtp_};
                 auto ts{threads_.size()};
                 return ts > 0 ? ts : 1;
             });
-            add_function("runtime_input_nodes", DFIFUN() {
+            add_function("runtime_input_nodes", DFICLOSURE() {
                 std::shared_lock l{input_cells_mtp_};
                 return input_cells_.size();
             });
-            add_function("runtime_computation_nodes", DFIFUN() {
+            add_function("runtime_computation_nodes", DFICLOSURE() {
                 std::shared_lock l{workers_mtp_};
                 return worker_cells_.size();
             });
-            add_function("runtime_external_nodes", DFIFUN() {
+            add_function("runtime_external_nodes", DFICLOSURE() {
                 std::shared_lock l{extern_cells_mtp_};
                 return extern_cells_.size();
             });
 
-            add_function("enable_external_values_server", DFIFUN(args) {
+            add_function("enable_external_values_server", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 0, 3);
                 std::string bind_addr{"0.0.0.0"};
                 std::uint16_t port{43987};
@@ -966,23 +966,23 @@ namespace dfi {
             });
 
 
-            add_function("disable_external_values_server", DFIFUN(args) {
+            add_function("disable_external_values_server", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 0);
                 stop_net_server();
                 return !net_server_running();
             });
 
-            add_function("external_values_server_enabled", DFIFUN(args) {
+            add_function("external_values_server_enabled", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 0);
                 return net_server_running();
             });
 
-            add_function("extern_update_seconds", DFIFUN(args) {
+            add_function("extern_update_seconds", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 0);
                 return ext_cells_refresh_interval_nanos_ / 1'000'000'000.0L;
             });
 
-            add_function("set_extern_update_seconds", DFIFUN(args) {
+            add_function("set_extern_update_seconds", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1);
                 ext_cells_refresh_interval_nanos_ = math::clamp<long double>(args[0].cast_to_long_double(), 0, 3) * 1'000'000'000;
                 return ext_cells_refresh_interval_nanos_;
