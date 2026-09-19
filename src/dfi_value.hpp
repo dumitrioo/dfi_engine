@@ -3824,6 +3824,200 @@ namespace dfi {
                 case type::FUNC:
                     break;
                 case type::ARRAY:
+                    switch(rt) {
+                        case type::BOOL: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_bool());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::CHAR: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_char());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S8: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_s8());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U8: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_u8());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S16: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_s16());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U16: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_u16());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::WCHAR: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_wchar());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S32: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_s32());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U32: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_u32());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S64: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_s64());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U64: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_u64());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::FLOAT: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_float());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::DOUBLE: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_double());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::LONG_DOUBLE: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] - rr.as_long_double());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::VEC4: break;
+                        case type::MAT4: break;
+                        case type::POINTER: break;
+                        case type::CLASS: break;
+                        case type::FUNC: break;
+                        case type::ARRAY: {
+                            array_t const &la{lr.as_array()};
+                            array_t const &ra{rr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(std::min(la.size(), ra.size()));
+                            for(size_t i{}; i < la.size(); ++i) {
+                                if(i >= ra.size()) {
+                                    break;
+                                }
+                                ares.push_back(la[i] - ra[i]);
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::UNDEFINED: return lr;
+                        case type::VALBOX: break;
+                        default: break;
+                    }
                     break;
                 case type::OBJECT:
                     break;
