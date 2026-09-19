@@ -60,7 +60,7 @@ net_server() {
                                 in.skfd = wres[i].data.fd;
                                 in.data = indata;
                                 in.println();
-                                this.contexts.data_input.push_back(in);
+                                this.contexts.data_input.append(in);
                             }
                         } catch(e) {
                             println("error: ", e);

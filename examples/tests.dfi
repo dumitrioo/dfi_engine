@@ -170,7 +170,7 @@ finddupes() {
         for(i = 0; i < dir_list.size(); ++i) {
             curr_fname = dir_list[i];
             if(file_exists(curr_fname)) {
-                try dupes[sha256(load_from_file(curr_fname))].push_back(curr_fname); catch();
+                try dupes[sha256(load_from_file(curr_fname))].append(curr_fname); catch();
             }
         }
         for(i = 0; i < dupes.size(); ++i) {

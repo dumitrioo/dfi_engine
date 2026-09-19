@@ -242,7 +242,7 @@ my_drafts(host_data) {
     timestamps = [];
     timestamps.reserve(500);
     for(i = 0; i < 500; ++i) {
-        timestamps.push_back(steady_clock());
+        timestamps.append(steady_clock());
     }
     timestamps.apply_func(println);
     println("-------------");
@@ -269,7 +269,7 @@ my_drafts(host_data) {
         println("creating masses array...");
         btime = steady_clock();
         for(i = 0; i < array_size; ++i) {
-            masses.push_back(rand_body(mass_range, dist_range));
+            masses.append(rand_body(mass_range, dist_range));
         }
         etime = steady_clock();
         println("masses array created in ", etime - btime, " sec.");
@@ -362,10 +362,10 @@ my_drafts(host_data) {
     }
 
     v4a = [];
-    v4a.push_back(vec4(1,1,0));
-    v4a.push_back(vec4(1,1,0));
-    v4a.push_back(vec4(1,1,0));
-    v4a.push_back(vec4(1,1,0));
+    v4a.append(vec4(1,1,0));
+    v4a.append(vec4(1,1,0));
+    v4a.append(vec4(1,1,0));
+    v4a.append(vec4(1,1,0));
     array_avg(v4a).println();
 
     wewerwer = rnd_str(64);
@@ -804,7 +804,7 @@ wind_speed_avg_fltr(curr_speed) {
     if(this.vals == undefined) { this.vals = []; this.last_time = 0; this.avg_speed = 0.0; }
     if(steady_clock() - this.last_time > 0.2) {
         this.last_time = steady_clock();
-        this.vals.push_back(curr_speed);
+        this.vals.append(curr_speed);
         if(this.vals.size() > 10) { this.vals.pop_front(); }
         this.avg_speed = this.vals.array_avg();
     }
