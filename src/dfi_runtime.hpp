@@ -600,6 +600,22 @@ namespace dfi {
                 }
                 throw std::runtime_error{"not array"};
             });
+            add_function("append", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
+                valbox &a1r{args[0].deref()};
+                if(a1r.is_undefined()) {
+                    a1r.become_array();
+                }
+                if(a1r.is_array()) {
+                    if(args[1].is_unbounded_placement()) {
+                        a1r.as_array().push_back(args[1]);
+                    } else {
+                        a1r.as_array().push_back(args[1].clone());
+                    }
+                    return args[0];
+                }
+                throw std::runtime_error{"not array"};
+            });
             add_function("pop_back", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
                 valbox &a1r{args[0].deref()};
@@ -615,6 +631,30 @@ namespace dfi {
                 throw std::runtime_error{"not array"};
             });
             add_function("push_front", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
+                valbox &a1r{args[0].deref()};
+                if(a1r.is_undefined()) {
+                    a1r.become_array();
+                }
+                if(a1r.is_array()) {
+                    if(args[1].is_unbounded_placement()) {
+#ifndef DFI_ARRAY_USE_STL_DEQUE
+                        a1r.as_array().insert(a1r.as_array().begin(), args[1]);
+#else
+                        a1r.as_array().push_front(args[1]);
+#endif
+                    } else {
+#ifndef DFI_ARRAY_USE_STL_DEQUE
+                        a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
+#else
+                        a1r.as_array().push_front(args[1].clone());
+#endif
+                    }
+                    return args[0];
+                }
+                throw std::runtime_error{"not array"};
+            });
+            add_function("prepend", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
                 valbox &a1r{args[0].deref()};
                 if(a1r.is_undefined()) {
