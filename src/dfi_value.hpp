@@ -2872,11 +2872,29 @@ namespace dfi {
                             return res;
                         }
                         break;
-                        case type::VEC4: break;
+                        case type::VEC4: {
+                            array_t const &la{lr.as_array()};
+                            vec4_t const &ra{rr.as_vec4()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(std::min<std::size_t>(la.size(), 4));
+                            for(size_t i{}; i < la.size(); ++i) {
+                                if(i >= 4) {
+                                    break;
+                                }
+                                ares.push_back(la[i] + ra[i]);
+                            }
+                            return res;
+                        }
+                        break;
                         case type::MAT4: break;
                         case type::POINTER: break;
                         case type::CLASS: break;
                         case type::FUNC: break;
+                        case type::STRING: break;
+                        case type::WSTRING: break;
+                        case type::OBJECT: break;
                         case type::ARRAY: {
                             array_t const &la{lr.as_array()};
                             array_t const &ra{rr.as_array()};
@@ -4412,7 +4430,22 @@ namespace dfi {
                             return res;
                         }
                         break;
-                        case type::VEC4: break;
+                        case type::VEC4:  {
+                            array_t const &la{lr.as_array()};
+                            vec4_t const &ra{rr.as_vec4()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(std::min<std::size_t>(la.size(), 4));
+                            for(size_t i{}; i < la.size(); ++i) {
+                                if(i >= 4) {
+                                    break;
+                                }
+                                ares.push_back(la[i] - ra[i]);
+                            }
+                            return res;
+                        }
+                        break;
                         case type::MAT4: break;
                         case type::POINTER: break;
                         case type::CLASS: break;
