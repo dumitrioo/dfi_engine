@@ -757,7 +757,6 @@ my_drafts(host_data) {
             break;
         }
     }
-    delay(0.5);
     return exit(9);
 }
 
@@ -799,8 +798,8 @@ delay_test(val, period) {
     }
 }
 
-// delay_test dt1(["s1",4,2,6,], 0.25);
-// delay_test dt2(345, 0.01);
+delay_test dt1(["s1",4,2,6,], 0.25);
+delay_test dt2(345, 0.01);
 
 
 
