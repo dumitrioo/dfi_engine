@@ -482,26 +482,20 @@ namespace dfi {
 
             rt->add_method("matrix", "transposed", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                Eigen::MatrixXd &m{DFITHIS(args, Eigen::MatrixXd)};
+                if(m.rows() == 0 || m.cols() == 0) {
+                    return args[0];
+                }
                 Eigen::MatrixXd res{DFITHIS(args, Eigen::MatrixXd).transpose()};
-                if(res.rows() != res.cols()) {
-                    throw std::runtime_error{"invalid argument: rows and columns should be same size"};
-                }
-                if(res.rows() == 0) {
-                    throw std::runtime_error{"invalid argument: empty"};
-                }
                 return dfi::valbox{res, "matrix"};
             });
 
             rt->add_method("matrix", "transpose", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
                 Eigen::MatrixXd &m{DFITHIS(args, Eigen::MatrixXd)};
-                if(m.rows() != m.cols()) {
-                    throw std::runtime_error{"invalid argument: rows and columns should be same size"};
+                if(m.rows() > 0 && m.cols() > 0) {
+                    m.transposeInPlace();
                 }
-                if(m.rows() == 0) {
-                    throw std::runtime_error{"invalid argument: empty"};
-                }
-                m.transposeInPlace();
                 return args[0];
             });
 
