@@ -257,8 +257,8 @@ my_test mtst();
 
 
 ctr(anything) {
-    if(this.delay == undefined) {
-        this.delay = 0.0007;
+    if(this.delay_time == undefined) {
+        this.delay_time = 0.0007;
         this.tsfs = localtime();
         console.fixed();
         console.setprecision(16);
@@ -267,13 +267,13 @@ ctr(anything) {
         ts = timestamp();
         tsfs = ts.fseconds();
         t = (0.1 - (tsfs - this.tsfs)) * 0.025;
-        this.delay += sign(t) * t * t;
+        this.delay_time += sign(t) * t * t;
         this.tsfs = tsfs;
         if(this.i % 1000 == 0) {
-            console.print(ts.as_iso_8601(), " ", this.delay);
+            console.print(ts.as_iso_8601(), " ", this.delay_time);
         }
     }
-    return this.delay;
+    return this.delay_time;
 }
 
 ctr cto(tm);
@@ -349,11 +349,11 @@ dbg_prn dprn(ftest, 0.01);
 
 neuron_process(in_1, in_2, in_3) {
     // Суммируем химические составляющие (если поля нет, undefined превратится в 0)
-    let total_glutamate = (f64)in_1.glutamate + (f64)in_2.glutamate + (f64)in_3.glutamate;
-    let total_gaba = (f64)in_1.gaba + (f64)in_2.gaba + (f64)in_3.gaba;
+    total_glutamate = (f64)in_1.glutamate + (f64)in_2.glutamate + (f64)in_3.glutamate;
+    total_gaba = (f64)in_1.gaba + (f64)in_2.gaba + (f64)in_3.gaba;
 
     // Усредняем электрический потенциал (например, для Gap Junctions)
-    let avg_potential = ((f64)in_1.potential + (f64)in_2.potential + (f64)in_3.potential) / 3.0;
+    avg_potential = ((f64)in_1.potential + (f64)in_2.potential + (f64)in_3.potential) / 3.0;
 
     // Считаем свой новый потенциал с учетом торможения (GABA) и возбуждения (Glutamate)
     this.potential = this.potential + (total_glutamate * 1.5) - (total_gaba * 2.0) + (avg_potential * 0.1);
