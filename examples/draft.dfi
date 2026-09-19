@@ -222,6 +222,10 @@ my_drafts(host_data) {
         console.setprecision(9);
     }
 
+    a1 = [2,4,6];
+    a2 = [33,233,0];
+    (a1 + a2).println();
+
     x = matrix([1,2,3]);
     y = matrix([1,2,3]);
     z = matrix([[1],[2],[3]]);
@@ -592,7 +596,7 @@ my_drafts(host_data) {
     k.println();
 
     a[0].name = "string";
-    println(a + string(3));
+    println(a.append(string(3)));
 
     console.enable_colors(true);
     console.fixed();
