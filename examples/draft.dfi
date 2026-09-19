@@ -139,7 +139,11 @@ function bitrev(n) {
 function cpu_info() {
     res = {};
     if(PLATFORM == "linux") {
-        cpu_strings = file("/proc/cpuinfo").read(1000000).split("\n");
+        fstr = "";
+        for(s = (f = file("/proc/cpuinfo")).read(1024); s.size() > 0; s = f.read(1024)) {
+            fstr += s;
+        }
+        cpu_strings = fstr.split("\n");
         for(i = 0; i < cpu_strings.size(); ++i) {
             p = cpu_strings[i].split(":");
             if(p.size() == 2) {
@@ -193,7 +197,6 @@ function baricenter(b1, b2) {
     return {mass: b1.mass + b2.mass, center: (b2.center - b1.center) * (b2.mass / (b1.mass + b2.mass))};
 }
 
-
 function matmul(w) {
     m1 = matrix(w, w);
     m2 = matrix(w, w);
@@ -218,6 +221,15 @@ my_drafts(host_data) {
         console.enable_colors(true);
         console.setprecision(9);
     }
+
+    x = matrix([1,2,3]);
+    y = matrix([1,2,3]);
+    z = matrix([[1],[2],[3]]);
+    x.println();
+    y.println();
+    z.println();
+
+    cpu_info().serialize5(2).println();
 
     bt = steady_clock();
     mr = matmul(400);
@@ -402,8 +414,6 @@ my_drafts(host_data) {
     astr.println();
     ko = astr[0];
     ko.println();
-
-    cpu_info().serialize5(2).println();
 
     ctr = 0;
     if(persistence_enabled()) {
