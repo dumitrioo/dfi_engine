@@ -1910,38 +1910,149 @@ namespace dfi {
                     break;
                 case type::ARRAY:
                     switch(rt) {
-                        case type::BOOL:
-                        case type::CHAR:
-                        case type::S8:
-                        case type::U8:
-                        case type::S16:
-                        case type::U16:
-                        case type::WCHAR:
-                        case type::S32:
-                        case type::U32:
-                        case type::S64:
-                        case type::U64:
-                        case type::FLOAT:
-                        case type::DOUBLE:
-                        case type::LONG_DOUBLE:
-                        case type::VEC4:
-                        case type::MAT4:
-                        case type::POINTER:
-                        case type::CLASS:
-                        case type::FUNC:
-                        case type::OBJECT:
-                        case type::STRING:
-                        case type::WSTRING:
-                        case type::UNDEFINED:
-                        case type::VALBOX:
-                            lr.as_array().push_back(rr.clone()); return *this;
-                        case type::ARRAY:
-                            for(auto &&v: rr.as_array()) {
-                                lr.as_array().push_back(v.clone());
+                        case type::BOOL: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_bool();
                             }
                             return *this;
-                        default:
-                            break;
+                        }
+                        break;
+                        case type::CHAR: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_char();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S8: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_s8();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U8: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_u8();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S16: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_s16();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U16: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_u16();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::WCHAR: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_wchar();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S32: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_s32();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U32: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_u32();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S64: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_s64();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U64: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_u64();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::FLOAT: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_float();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::DOUBLE: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_double();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::LONG_DOUBLE: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] += rr.as_long_double();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::VEC4: {
+                            array_t &ares{as_array()};
+                            vec4_t const &rv{rr.as_vec4()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                if(i >= 4) {
+                                    break;
+                                }
+                                ares[i] = ares[i] + rv[i];
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::MAT4: break;
+                        case type::POINTER: break;
+                        case type::CLASS: break;
+                        case type::FUNC: break;
+                        case type::ARRAY: {
+                            array_t &ares{as_array()};
+                            array_t const &ra{rr.as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                if(i >= ares.size()) {
+                                    break;
+                                }
+                                ares[i] = ares[i] + ra[i];
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::UNDEFINED: return lr;
+                        case type::VALBOX: break;
+                        default: break;
                     }
                     break;
                 case type::OBJECT:
@@ -2593,35 +2704,197 @@ namespace dfi {
                     break;
                 case type::ARRAY:
                     switch(rt) {
-                        case type::BOOL:
-                        case type::CHAR:
-                        case type::S8:
-                        case type::U8:
-                        case type::S16:
-                        case type::U16:
-                        case type::WCHAR:
-                        case type::S32:
-                        case type::U32:
-                        case type::S64:
-                        case type::U64:
-                        case type::FLOAT:
-                        case type::DOUBLE:
-                        case type::LONG_DOUBLE:
-                        case type::VEC4:
-                        case type::MAT4:
-                        case type::POINTER:
-                        case type::CLASS:
-                        case type::FUNC:
-                        case type::OBJECT:
-                        case type::STRING:
-                        case type::WSTRING:
-                        case type::UNDEFINED:
-                        case type::VALBOX: {
-                            auto res{lr.clone()};
-                            res.as_array().push_back(rr.clone());
+                        case type::BOOL: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_bool());
+                            }
                             return res;
                         }
-                        case type::ARRAY: { auto res{lr.clone()}; for(auto &&v: rr.as_array()) { res.as_array().push_back(v.clone()); } return res; }
+                        break;
+                        case type::CHAR: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_char());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S8: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_s8());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U8: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_u8());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S16: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_s16());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U16: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_u16());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::WCHAR: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_wchar());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S32: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_s32());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U32: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_u32());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::S64: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_s64());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::U64: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_u64());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::FLOAT: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_float());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::DOUBLE: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_double());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::LONG_DOUBLE: {
+                            array_t const &la{lr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(la.size());
+                            for(size_t i{}; i < la.size(); ++i) {
+                                ares.push_back(la[i] + rr.as_long_double());
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::VEC4: break;
+                        case type::MAT4: break;
+                        case type::POINTER: break;
+                        case type::CLASS: break;
+                        case type::FUNC: break;
+                        case type::ARRAY: {
+                            array_t const &la{lr.as_array()};
+                            array_t const &ra{rr.as_array()};
+                            valbox res{};
+                            res.become_array();
+                            array_t &ares{res.as_array()};
+                            ares.reserve(std::min(la.size(), ra.size()));
+                            for(size_t i{}; i < la.size(); ++i) {
+                                if(i >= ra.size()) {
+                                    break;
+                                }
+                                ares.push_back(la[i] + ra[i]);
+                            }
+                            return res;
+                        }
+                        break;
+                        case type::UNDEFINED: return lr;
+                        case type::VALBOX: break;
                         default: break;
                     }
                     break;
@@ -3282,6 +3555,7 @@ namespace dfi {
             valbox &lr{deref()};
             valbox const &rr{rarg.deref()};
             auto lt{lr.val_or_pointed_type()};
+            auto rt{rr.val_or_pointed_type()};
             switch(lt) {
                 case type::BOOL: lr.as_bool() -= rr.cast_to_bool(); return *this;
                 case type::CHAR: lr.as_char() -= rr.cast_to_char(); return *this;
@@ -3318,6 +3592,151 @@ namespace dfi {
                 case type::FUNC:
                     break;
                 case type::ARRAY:
+                    switch(rt) {
+                        case type::BOOL: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_bool();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::CHAR: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_char();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S8: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_s8();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U8: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_u8();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S16: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_s16();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U16: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_u16();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::WCHAR: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_wchar();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S32: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_s32();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U32: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_u32();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::S64: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_s64();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::U64: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_u64();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::FLOAT: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_float();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::DOUBLE: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_double();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::LONG_DOUBLE: {
+                            array_t &ares{as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                ares[i] -= rr.as_long_double();
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::VEC4: {
+                            array_t &ares{as_array()};
+                            vec4_t const &rv{rr.as_vec4()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                if(i >= 4) {
+                                    break;
+                                }
+                                ares[i] = ares[i] - rv[i];
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::MAT4: break;
+                        case type::POINTER: break;
+                        case type::CLASS: break;
+                        case type::FUNC: break;
+                        case type::ARRAY: {
+                            array_t &ares{as_array()};
+                            array_t const &ra{rr.as_array()};
+                            for(size_t i{}; i < ares.size(); ++i) {
+                                if(i >= ares.size()) {
+                                    break;
+                                }
+                                ares[i] = ares[i] - ra[i];
+                            }
+                            return *this;
+                        }
+                        break;
+                        case type::UNDEFINED: return lr;
+                        case type::VALBOX: break;
+                        default: break;
+                    }
                     break;
                 case type::OBJECT:
                     break;
