@@ -8,8 +8,21 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-if(MSVC)
-    add_compile_options(/Zc:__cplusplus /bigobj)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(
+        -O3
+        -mavx2
+    )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+        -O3
+        -mavx2
+    )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(
+        /Zc:__cplusplus
+        /bigobj
+    )
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
