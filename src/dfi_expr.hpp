@@ -2285,6 +2285,14 @@ namespace dfi {
                             }
                         } else {
                             if(caller_type == eval_caller_type::func_call) {
+                                if(l.is_undefined()) {
+                                    bool old{ctx->set_create_if_not_exists(true)};
+                                    shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
+                                    l = this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr);
+                                    if(dotlptr) {
+                                        *dotlptr = l;
+                                    }
+                                }
                                 bool func_found{false};
                                 if(l.is_object()) {
                                     auto it{l.as_object().find(this_->rval_->symbol())};

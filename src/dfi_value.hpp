@@ -15,6 +15,10 @@
 
 namespace dfi {
 
+    enum valbox_creation_ctl {
+        init
+    };
+
     class valbox final {
     public:
         enum class mem_placement {
@@ -245,7 +249,8 @@ namespace dfi {
         };
 
     public:
-        valbox()/*: box_{std::make_shared<box_data>(value_t{}, type::UNDEFINED)}*/ {}
+        valbox() = default;
+        valbox(valbox_creation_ctl): box_{std::make_shared<box_data>(value_t{}, type::UNDEFINED)} {}
         valbox(bool v): box_{std::make_shared<box_data>(v, type::BOOL)} {}
         valbox(bool *v): box_{std::make_shared<box_data>((void *)v, type::POINTER, type::BOOL)} {}
         valbox(float v): box_{std::make_shared<box_data>(v, type::FLOAT)} {}
@@ -1320,7 +1325,7 @@ namespace dfi {
             auto t{val_or_pointed_type()};
             if(t_of_indx == type::STRING) {
                 if(t == type::UNDEFINED && !constant) {
-                    become_object();
+                    der.become_object();
                 }
                 if(is_object()) {
                     object_t &o{der.as_object()};
@@ -1331,7 +1336,7 @@ namespace dfi {
                 }
             } else if(t_of_indx == type::WSTRING) {
                 if(t == type::UNDEFINED && !constant) {
-                    become_object();
+                    der.become_object();
                 }
                 if(t == type::OBJECT) {
                     object_t &o{der.as_object()};

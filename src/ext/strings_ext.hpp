@@ -3,6 +3,7 @@
 #include "../inc/commondefs.hpp"
 #include "../inc/sequence_generator.hpp"
 #include "../inc/str_util.hpp"
+#include "../inc/hash/crc.hpp"
 #include "../inc/base16.hpp"
 #include "../inc/base64.hpp"
 #include "../inc/base85.hpp"
@@ -513,6 +514,80 @@ namespace dfi {
                     return static_cast<int64_t>(-1);
                 }
             });
+
+            rt_->add_function("fnv1a64", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 1)
+                constexpr std::uint64_t offset_basis{14695981039346656037ULL};
+                constexpr std::uint64_t prime{1099511628211ULL};
+                std::uint64_t hash{offset_basis};
+                if(args[0].is_string()) {
+                    std::string const &src{args[0].as_string()};
+                    for(unsigned char byte: src) { hash ^= byte; hash *= prime; }
+                } else {
+                    auto src{args[0].cast_to_string()};
+                    for(unsigned char byte: src) { hash ^= byte; hash *= prime; }
+                }
+                return hash;
+            });
+
+#define CRC_FUN(CRCNAME, CRCTYPE) \
+            rt_->add_function(CRCNAME, DFIFUN(args) { \
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 1) \
+                if(args[0].is_string()) { \
+                    std::string const &src{args[0].as_string()}; \
+                    return CRCTYPE{}.calculate(src.data(), src.size()); \
+                } else { \
+                    auto src{args[0].cast_to_string()}; \
+                    return CRCTYPE{}.calculate(src.data(), src.size()); \
+                } \
+            });
+            CRC_FUN("crc8", crc8)
+            CRC_FUN("crc8_cdma2000", crc8_cdma2000)
+            CRC_FUN("crc8_darc", crc8_darc)
+            CRC_FUN("crc8_dvb_s2", crc8_dvb_s2)
+            CRC_FUN("crc8_ebu", crc8_ebu)
+            CRC_FUN("crc8_i_code", crc8_i_code)
+            CRC_FUN("crc8_itu", crc8_itu)
+            CRC_FUN("crc8_maxim", crc8_maxim)
+            CRC_FUN("crc8_rohc", crc8_rohc)
+            CRC_FUN("crc8_wcdma", crc8_wcdma)
+            CRC_FUN("crc16_arc", crc16_arc)
+            CRC_FUN("crc16_aug_ccitt", crc16_aug_ccitt)
+            CRC_FUN("crc16_buypass", crc16_buypass)
+            CRC_FUN("crc16_ccitt_false", crc16_ccitt_false)
+            CRC_FUN("crc16_cdma2000", crc16_cdma2000)
+            CRC_FUN("crc16_dds_110", crc16_dds_110)
+            CRC_FUN("crc16_dect_r", crc16_dect_r)
+            CRC_FUN("crc16_dect_x", crc16_dect_x)
+            CRC_FUN("crc16_dnp", crc16_dnp)
+            CRC_FUN("crc16_en_13757", crc16_en_13757)
+            CRC_FUN("crc16_genibus", crc16_genibus)
+            CRC_FUN("crc16_maxim", crc16_maxim)
+            CRC_FUN("crc16_mcrf4xx", crc16_mcrf4xx)
+            CRC_FUN("crc16_riello", crc16_riello)
+            CRC_FUN("crc16_t10_dif", crc16_t10_dif)
+            CRC_FUN("crc16_teledisk", crc16_teledisk)
+            CRC_FUN("crc16_tms37157", crc16_tms37157)
+            CRC_FUN("crc16_usb", crc16_usb)
+            CRC_FUN("crc16_a", crc16_a)
+            CRC_FUN("crc16_kermit", crc16_kermit)
+            CRC_FUN("crc16_modbus", crc16_modbus)
+            CRC_FUN("crc16_x_25", crc16_x_25)
+            CRC_FUN("crc16_xmodem", crc16_xmodem)
+            CRC_FUN("crc32", crc32)
+            CRC_FUN("crc32_zlib", crc32_zlib)
+            CRC_FUN("crc32_bzip2", crc32_bzip2)
+            CRC_FUN("crc32_c", crc32_c)
+            CRC_FUN("crc32_d", crc32_d)
+            CRC_FUN("crc32_mpeg2", crc32_mpeg2)
+            CRC_FUN("crc32_posix", crc32_posix)
+            CRC_FUN("crc32_q", crc32_q)
+            CRC_FUN("crc32_jamcrc", crc32_jamcrc)
+            CRC_FUN("crc32_xfer", crc32_xfer)
+            CRC_FUN("crc64", crc64)
+            CRC_FUN("crc64_we", crc64_we)
+            CRC_FUN("crc64_xz", crc64_xz)
+#undef CRC_FUN
         }
 
         void unregister_runtime() override {

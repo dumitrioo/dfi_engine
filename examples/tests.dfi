@@ -135,7 +135,7 @@ misc_test() {
 misc_test msctst();
 
 
-untab(argv) {
+untab() {
     dir_or_filename = "/path/to/file_or_dir";
     if(file_exists(dir_or_filename)) {
         try {
@@ -159,33 +159,35 @@ untab(argv) {
     }
 }
 
-// untab utb();
+untab utb();
 
 
 finddupes() {
-    dirname = "/path/to/your/dir";
+    dirname = "/path/to/dir";
     if(dir_exists(dirname)) {
         dupes = {};
         dir_list = list_directory(dirname, true);
         for(i = 0; i < dir_list.size(); ++i) {
             curr_fname = dir_list[i];
             if(file_exists(curr_fname)) {
-                try dupes[sha256(load_from_file(curr_fname))].append(curr_fname); catch();
+                try {
+                    hsh = crc64(load_from_file(curr_fname)).utoa();
+                    dupes[hsh].append(curr_fname);
+                } catch(e)
+                    console.error(e);
             }
         }
-        for(i = 0; i < dupes.size(); ++i) {
-            if(dupes[i].size() > 1) {
-                for(j = 0; j < dupes[i].size(); ++j) {
-                    console.print(dupes[i][j]);
-                }
-                console.print("----------------------------------------------------------");
+        println("search done");
+        for(p: dupes) {
+            if(p[1].size() > 1) {
+                println("duplication: ", p[1].serialize(4));
             }
         }
     }
     return 0;
 }
 
-// finddupes dps();
+finddupes dps();
 
 
 exception_test() {
