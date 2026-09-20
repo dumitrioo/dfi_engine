@@ -413,53 +413,43 @@ namespace dfi::file_util {
     }
 
     static std::vector<std::uint8_t> load_from_file(const std::string &fn, std::uint64_t how_much = 0) {
+        std::ifstream file(fn, std::ios::binary | std::ios::ate);
+        if (!file) { throw std::runtime_error("file opening error: " + fn); }
+        std::streampos const end_pos{file.tellg()};
+        if (end_pos < 0) { throw std::runtime_error("failed to get file size"); }
+        const auto file_size{static_cast<std::uintmax_t>(end_pos)};
+        const std::uintmax_t bytes_to_read {how_much == 0 ? file_size : std::min<std::uintmax_t>(file_size, how_much)};
         std::vector<std::uint8_t> result{};
-        if(!file_exists(fn)) {
-            throw file_loading_error{};
-        }
-        std::ifstream file{};
-        file.open(fn.c_str(), std::ios_base::in | std::ios_base::binary);
-        if(file.is_open()) {
-            file.seekg(0, std::ios_base::end);
-            auto fs{file.tellg()};
-            result.reserve(how_much == 0 ? static_cast<std::size_t>(fs) : (std::min<std::size_t>)(fs, how_much));
-            file.seekg(0);
-            int c{};
-            std::uint64_t total_read{0};
-            while((c = file.get()) != -1) {
-                result.push_back(static_cast<std::uint8_t>(c));
-                ++total_read;
-                if(how_much > 0 && total_read >= how_much) {
-                    break;
-                }
+        if(bytes_to_read > 0) {
+            result.resize(static_cast<std::size_t>(bytes_to_read));
+            file.seekg(0, std::ios::beg);
+            if (bytes_to_read > 0) {
+                file.read(reinterpret_cast<std::ifstream::char_type *>(result.data()), static_cast<std::streamsize>(bytes_to_read));
+                if (!file && !file.eof()) { throw std::runtime_error("file reading error"); }
+                auto gcnt{static_cast<std::size_t>(file.gcount())};
+                if(gcnt != result.size()) { result.resize(gcnt); }
             }
-            file.close();
         }
-        return std::vector<std::uint8_t>{result.begin(), result.end()};
+        return result;
     }
 
-    static std::string load_str_from_file(const std::string &fn, std::uint64_t how_much = 0) {
+    std::string load_str_from_file(std::string const &fileName, std::size_t maxBytes = 0) {
+        std::ifstream file(fileName, std::ios::binary | std::ios::ate);
+        if (!file) { throw std::runtime_error("file opening error: " + fileName); }
+        std::streampos const end_pos{file.tellg()};
+        if (end_pos < 0) { throw std::runtime_error("failed to get file size"); }
+        const auto file_size{static_cast<std::uintmax_t>(end_pos)};
+        const std::uintmax_t bytes_to_read { (maxBytes == 0) ? file_size : std::min<std::uintmax_t>(file_size, maxBytes) };
         std::string result{};
-        if(!file_exists(fn)) {
-            throw file_loading_error{};
-        }
-        std::ifstream file{};
-        file.open(fn.c_str(), std::ios_base::in | std::ios_base::binary);
-        if(file.is_open()) {
-            file.seekg(0, std::ios_base::end);
-            auto fs{file.tellg()};
-            result.reserve(how_much == 0 ? static_cast<std::size_t>(fs) : (std::min<std::size_t>)(fs, how_much));
-            file.seekg(0);
-            int c{};
-            std::uint64_t total_read{0};
-            while((c = file.get()) != -1) {
-                result.push_back(static_cast<char>(c));
-                ++total_read;
-                if(how_much > 0 && total_read >= how_much) {
-                    break;
-                }
+        if(bytes_to_read > 0) {
+            result.resize(static_cast<std::size_t>(bytes_to_read));
+            file.seekg(0, std::ios::beg);
+            if (bytes_to_read > 0) {
+                file.read(result.data(), static_cast<std::streamsize>(bytes_to_read));
+                if (!file && !file.eof()) { throw std::runtime_error("file reading error"); }
+                auto gcnt{static_cast<std::size_t>(file.gcount())};
+                if(gcnt != result.size()) { result.resize(gcnt); }
             }
-            file.close();
         }
         return result;
     }
