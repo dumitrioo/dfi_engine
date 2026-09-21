@@ -762,6 +762,7 @@ my_drafts(host_data) {
         }
     }
     delay(0.1);
+    exit();
     return 0;
 }
 
