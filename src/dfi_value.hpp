@@ -1663,6 +1663,10 @@ namespace dfi {
                 default: throw std::runtime_error{"assigning is needed to become a given type"};
             }
             vref.box_->type_ = t;
+            vref.box_->class_.clear();
+            vref.box_->func_name_.clear();
+            vref.box_->pointed_type_ = type::UNDEFINED;
+            vref.box_->user_func_ = false;
             return *this;
         }
 
