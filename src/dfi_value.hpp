@@ -15,8 +15,12 @@
 
 namespace dfi {
 
-    enum valbox_creation_ctl {
+    enum class valbox_creation_ctl {
         init
+    };
+
+    enum class undefined_t {
+        undefined
     };
 
     class valbox final {
@@ -249,7 +253,12 @@ namespace dfi {
         };
 
     public:
-        valbox() = default;
+        valbox(): box_{std::make_shared<box_data>(value_t{}, type::UNDEFINED)} {}
+        valbox(valbox const &that): box_{that.box_}, plx_{that.plx_} {}
+        valbox &operator=(valbox const &that) { if(this != &that) { box_ = that.box_; plx_ = that.plx_;} return *this; }
+        valbox(valbox &&that): box_{std::move(that.box_)}, plx_{that.plx_} {}
+        valbox &operator=(valbox &&that) { if(this != &that) { box_ = std::move(that.box_); plx_ = that.plx_;} return *this; }
+        ~valbox() = default;
         valbox(valbox_creation_ctl): box_{std::make_shared<box_data>(value_t{}, type::UNDEFINED)} {}
         valbox(bool v): box_{std::make_shared<box_data>(v, type::BOOL)} {}
         valbox(bool *v): box_{std::make_shared<box_data>((void *)v, type::POINTER, type::BOOL)} {}
@@ -596,9 +605,8 @@ namespace dfi {
         bool is_mutable_resident_placement() const { return ((int)plx_ & ((int)mem_placement::stack | (int)mem_placement::instance)) != 0; }
 
         void allocate_undefined() {
-            valbox &dr{deref()};
-            if(!dr.box_) {
-                dr.box_ = std::make_shared<box_data>(value_t{}, type::UNDEFINED);
+            if(!box_) {
+                box_ = std::make_shared<box_data>(value_t{}, type::UNDEFINED);
             }
         }
         void undefine() {

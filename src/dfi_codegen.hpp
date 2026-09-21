@@ -32,7 +32,6 @@ namespace dfi {
             str_map_t<valbox> const &global_functions_dictionary,
             str_map_t<std::shared_ptr<extern_cell>> &extern_cells
         ) {
-            clear_imm_cache();
             for(std::size_t i = 0; i < ast.size(); ++i) {
                 json const &cur{ast[i]};
                 if(cur["subtype"].as_string() == "cell_definition") {
@@ -194,7 +193,6 @@ namespace dfi {
                     user_functions[func_name] = std::move(fn);
                 }
             }
-            clear_imm_cache();
         }
 
     private:
@@ -337,17 +335,6 @@ namespace dfi {
             auto res {std::make_shared<statement_expr>(chop_expression(ast["content"]))};
             res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());
             return res;
-        }
-
-        std::map<std::string, std::map<std::string, std::shared_ptr<immediate_val_expression>>> imm_exprs_{};
-        std::shared_ptr<immediate_val_expression> get_cached_imm(std::string const &cat, std::string const &es) {
-            return imm_exprs_[cat][es];
-        }
-        void clear_imm_cache() {
-            imm_exprs_.clear();
-        }
-        void cache_imm(std::string const &cat, std::string const &es, std::shared_ptr<immediate_val_expression> e) {
-            imm_exprs_[cat][es] = e;
         }
 
         expr_ptr chop_expression(json const &ast) {
@@ -577,11 +564,7 @@ namespace dfi {
                 } else if((*stack.back().ast)["subtype"].as_string() == "literal") {
                     json const &cnt{(*stack.back().ast)["content"]};
                     if((*stack.back().ast)["literal"].as_string() == "flt") {
-                        std::shared_ptr<immediate_val_expression> ive{get_cached_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string())};
-                        if(!ive) {
-                            ive = std::make_shared<immediate_val_expression>(cnt.as_double());
-                            cache_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string(), ive);
-                        }
+                        std::shared_ptr<immediate_val_expression> ive{std::make_shared<immediate_val_expression>(cnt.as_double())};
                         stack.back().res = ive;
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
@@ -590,11 +573,7 @@ namespace dfi {
                         stack_res = std::move(stack.back());
                         stack.pop_back();
                     } else if(hobi.find((*stack.back().ast)["literal"].as_string()) != hobi.end()) {
-                        std::shared_ptr<immediate_val_expression> ive{get_cached_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string())};
-                        if(!ive) {
-                            ive = std::make_shared<immediate_val_expression>(cnt.as_number());
-                            cache_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string(), ive);
-                        }
+                        std::shared_ptr<immediate_val_expression> ive{std::make_shared<immediate_val_expression>(cnt.as_number())};
                         stack.back().res = ive;
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
@@ -603,11 +582,7 @@ namespace dfi {
                         stack_res = std::move(stack.back());
                         stack.pop_back();
                     } else if((*stack.back().ast)["literal"].as_string() == "bool") {
-                        std::shared_ptr<immediate_val_expression> ive{get_cached_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string())};
-                        if(!ive) {
-                            ive = std::make_shared<immediate_val_expression>(cnt.as_boolean());
-                            cache_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string(), ive);
-                        }
+                        std::shared_ptr<immediate_val_expression> ive{std::make_shared<immediate_val_expression>(cnt.as_boolean())};
                         stack.back().res = ive;
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
@@ -616,11 +591,7 @@ namespace dfi {
                         stack_res = std::move(stack.back());
                         stack.pop_back();
                     } else if((*stack.back().ast)["literal"].as_string() == "undefined") {
-                        std::shared_ptr<immediate_val_expression> ive{get_cached_imm((*stack.back().ast)["literal"].as_string(), "undefined")};
-                        if(!ive) {
-                            ive = std::make_shared<immediate_val_expression>(valbox{});
-                            cache_imm((*stack.back().ast)["literal"].as_string(), "undefined", ive);
-                        }
+                        std::shared_ptr<immediate_val_expression> ive{std::make_shared<immediate_val_expression>(valbox{})};
                         stack.back().res = ive;
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
@@ -629,11 +600,7 @@ namespace dfi {
                         stack_res = std::move(stack.back());
                         stack.pop_back();
                     } else if((*stack.back().ast)["literal"].as_string() == "str") {
-                        std::shared_ptr<immediate_val_expression> ive{get_cached_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string())};
-                        if(!ive) {
-                            ive = std::make_shared<immediate_val_expression>(cnt.as_string());
-                            cache_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string(), ive);
-                        }
+                        std::shared_ptr<immediate_val_expression> ive{std::make_shared<immediate_val_expression>(cnt.as_string())};
                         stack.back().res = ive;
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
@@ -665,31 +632,28 @@ namespace dfi {
                         stack.pop_back();
                     } else if((*stack.back().ast)["literal"].as_string() == "chr") {
                         std::wstring chr_str{dfi::str_util::from_utf8(cnt.as_string())};
-                        std::shared_ptr<immediate_val_expression> ive{get_cached_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string())};
-                        if(!ive) {
-                            if(chr_str.size() == 1) {
-                                if(chr_str[0] < 256) {
-                                    ive = std::make_shared<immediate_val_expression>((char)chr_str[0]);
-                                } else {
-                                    ive = std::make_shared<immediate_val_expression>(chr_str[0]);
-                                }
-                            } else if(chr_str.size() > 1) {
-                                uint32_t c{};
-                                int pos{(int)(chr_str.size() - 1)};
-                                for(size_t i{0}; i < 4 && pos >= 0; ++i) {
-                                    int cc{(std::uint8_t)chr_str[pos]};
-                                    c |= cc << (i * 8);
-                                    --pos;
-                                }
-                                ive = std::make_shared<immediate_val_expression>((wchar_t)c);
+                        std::shared_ptr<immediate_val_expression> ive{};
+                        if(chr_str.size() == 1) {
+                            if(chr_str[0] < 256) {
+                                ive = std::make_shared<immediate_val_expression>((char)chr_str[0]);
                             } else {
-                                throw compilation_error{
-                                    (*stack.back().ast)["loc"]["line"].try_as_number(),
-                                    (*stack.back().ast)["loc"]["col"].try_as_number(),
-                                    "invalid character"
-                                };
+                                ive = std::make_shared<immediate_val_expression>(chr_str[0]);
                             }
-                            cache_imm((*stack.back().ast)["literal"].as_string(), cnt.as_string(), ive);
+                        } else if(chr_str.size() > 1) {
+                            uint32_t c{};
+                            int pos{(int)(chr_str.size() - 1)};
+                            for(size_t i{0}; i < 4 && pos >= 0; ++i) {
+                                int cc{(std::uint8_t)chr_str[pos]};
+                                c |= cc << (i * 8);
+                                --pos;
+                            }
+                            ive = std::make_shared<immediate_val_expression>((wchar_t)c);
+                        } else {
+                            throw compilation_error{
+                                (*stack.back().ast)["loc"]["line"].try_as_number(),
+                                (*stack.back().ast)["loc"]["col"].try_as_number(),
+                                "invalid character"
+                            };
                         }
                         stack.back().res = ive;
                         stack.back().res->set_loc(
@@ -741,11 +705,7 @@ namespace dfi {
             std::vector<expr_ptr> res{};
             for(std::size_t i = 0; i < ast.size(); ++i) {
                 std::string k{ast.key(i)};
-                std::shared_ptr<immediate_val_expression> vbk{get_cached_imm("str", k)};
-                if(!vbk) {
-                    vbk = std::make_shared<immediate_val_expression>(valbox{k});
-                    cache_imm("str", k, vbk);
-                }
+                std::shared_ptr<immediate_val_expression> vbk{std::make_shared<immediate_val_expression>(valbox{k})};
                 res.push_back(vbk);
                 res.push_back(chop_expression(ast[k]));
             }

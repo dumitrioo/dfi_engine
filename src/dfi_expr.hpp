@@ -78,26 +78,31 @@ namespace dfi {
             return fun_ref_;
         }
 
+#ifdef DFI_CACHE_FUNCTION_VALUES
         bool primary() const override {
             return is_primary_.load(std::memory_order_relaxed);
         }
-
+#endif
         valbox eval(execution_context *ctx, eval_caller_type, valbox *) override {
+#ifdef DFI_CACHE_FUNCTION_VALUES
             if(primary()) {
                 return primary_val_;
             }
+#endif
             valbox res{};
             if(fun_ref_) {
                 res = ctx->find_func(name_);
                 if(!res.is_func()) {
                     res = ctx->find_val_by_sym_name(name_, line(), col());
                 }
+#ifdef DFI_CACHE_FUNCTION_VALUES
                 if(res.is_func()) {
                     if(!is_primary_) {
                         primary_val_ = res;
                         is_primary_ = true;
                     }
                 }
+#endif
             } else {
                 bool excepted{false};
                 runtime_error er{{}, {}, {}};
@@ -128,8 +133,10 @@ namespace dfi {
 
     private:
         std::string name_{};
+#ifdef DFI_CACHE_FUNCTION_VALUES
         valbox primary_val_{};
         std::atomic_bool is_primary_{false};
+#endif
         bool fun_ref_{false};
     };
 
@@ -1320,11 +1327,13 @@ namespace dfi {
                 ,
                 /* ASSIGN */
                 [](binop_expression *this_, execution_context *ctx, eval_caller_type, valbox *) -> valbox {
-                    valbox r{this_->rval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    valbox r{this_->rval_->eval(ctx, eval_caller_type::no_matter, nullptr).clone()};
+#if 0
                     auto vopt{r.val_or_pointed_type()};
                     if(vopt == valbox::type::ARRAY || vopt == valbox::type::OBJECT) {
                         r = r.clone();
                     }
+#endif
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
@@ -2201,7 +2210,7 @@ namespace dfi {
                                 }
                             }
                             res = l.operator_brackets(r, !ctx->create_if_not_exists(), ctx->rt_interface()->except_on_out_of_range_or_field());
-                            // res.set_placement(l.placement());
+                            res.set_placement(l.placement());
                         } else {
                             if(valbox::is_any_string_type(rt)) {
                                 if(lt != valbox::type::OBJECT) {
@@ -2213,7 +2222,7 @@ namespace dfi {
                                     }
                                 } else {
                                     res = l.operator_brackets(r, !ctx->create_if_not_exists(), ctx->rt_interface()->except_on_out_of_range_or_field());
-                                    // res.set_placement(l.placement());
+                                    res.set_placement(l.placement());
                                 }
                             } else if(valbox::is_numeric_type(rt)) {
                                 if(lt == valbox::type::ARRAY) {
@@ -2225,7 +2234,7 @@ namespace dfi {
                                     }
                                 } else {
                                     res = l.operator_brackets(r, !ctx->create_if_not_exists(), ctx->rt_interface()->except_on_out_of_range_or_field());
-                                    // res.set_placement(l.placement());
+                                    res.set_placement(l.placement());
                                 }
                             }
                         }
@@ -2292,6 +2301,9 @@ namespace dfi {
                                     if(dotlptr) {
                                         *dotlptr = l;
                                     }
+                                    // if(l.is_undefined()) {
+                                    //     throw runtime_error{this_->line(), this_->col(), "undefined reference"};
+                                    // }
                                 }
                                 bool func_found{false};
                                 if(l.is_object()) {

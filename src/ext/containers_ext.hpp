@@ -69,12 +69,12 @@ namespace dfi {
             });
             rt_->add_method("queue", "push_front", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
-                DFITHIS(args, std::shared_ptr<queue>)->push_front(args[1]);
+                DFITHIS(args, std::shared_ptr<queue>)->push_front(args[1].clone());
                 return args[1];
             });
             rt_->add_method("queue", "push_back", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
-                DFITHIS(args, std::shared_ptr<queue>)->push_back(args[1]);
+                DFITHIS(args, std::shared_ptr<queue>)->push_back(args[1].clone());
                 return args[1];
             });
             rt_->add_method("queue", "pop_front", DFIFUN(args) {
@@ -99,7 +99,11 @@ namespace dfi {
             });
 
 
-            rt_->add_function("sequence_generator", DFIFUN() {
+            rt_->add_function("sequence_generator", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 0, 1)
+                if(args.size() == 1) {
+                    return valbox{std::make_shared<atomic_sequence_generator<uint64_t>>(args[0].cast_to_u64()), "sequence_generator"};
+                }
                 return valbox{std::make_shared<atomic_sequence_generator<uint64_t>>(), "sequence_generator"};
             });
             rt_->add_method("sequence_generator", "reset", DFIFUN(args) {

@@ -39,11 +39,7 @@ tbbt2cola(sg) {
 
     outstr = "Target turn number: " + utoa(n) + "\n";
 
-    a[0].name = "Sheldon"; a[0].num = 1;
-    a[1].name = "Leonard"; a[1].num = 1;
-    a[2].name = "Penny";   a[2].num = 1;
-    a[3].name = "Rajesh";  a[3].num = 1;
-    a[4].name = "Howard";  a[4].num = 1;
+    a = [{name:"Sheldon",num: 1},{name:"Leonard",num: 1},{name:"Penny",num: 1},{name:"Rajesh",num: 1},{name:"Howard",num: 1}];
 
     for(i = 1; i < n; ++i) {
         --a[0].num;
@@ -62,7 +58,7 @@ tbbt2cola(sg) {
     outstr += "Current queue state: " + serialize_tbbt_array(a) + "\n";
     outstr += "Current RLE-optimized queue state: " + a.to_string() + "\n";
     outstr += "----------------------------------------------------------------";
-    console.print(outstr);
+    println(outstr);
     return 0;
 }
 

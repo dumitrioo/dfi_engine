@@ -591,11 +591,8 @@ namespace dfi {
                     a1r.become_array();
                 }
                 if(a1r.is_array()) {
-                    if(args[1].is_unbounded_placement()) {
-                        a1r.as_array().push_back(args[1]);
-                    } else {
-                        a1r.as_array().push_back(args[1].clone());
-                    }
+                    valbox::array_t &arr{a1r.as_array()};
+                    arr.push_back(args[1].clone());
                     return args[0];
                 }
                 throw std::runtime_error{"not array"};
@@ -607,11 +604,7 @@ namespace dfi {
                     a1r.become_array();
                 }
                 if(a1r.is_array()) {
-                    if(args[1].is_unbounded_placement()) {
-                        a1r.as_array().push_back(args[1]);
-                    } else {
-                        a1r.as_array().push_back(args[1].clone());
-                    }
+                    a1r.as_array().push_back(args[1].clone());
                     return args[0];
                 }
                 throw std::runtime_error{"not array"};
@@ -637,19 +630,11 @@ namespace dfi {
                     a1r.become_array();
                 }
                 if(a1r.is_array()) {
-                    if(args[1].is_unbounded_placement()) {
 #ifndef DFI_ARRAY_USE_STL_DEQUE
-                        a1r.as_array().insert(a1r.as_array().begin(), args[1]);
+                    a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
 #else
-                        a1r.as_array().push_front(args[1]);
+                    a1r.as_array().push_front(args[1].clone());
 #endif
-                    } else {
-#ifndef DFI_ARRAY_USE_STL_DEQUE
-                        a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
-#else
-                        a1r.as_array().push_front(args[1].clone());
-#endif
-                    }
                     return args[0];
                 }
                 throw std::runtime_error{"not array"};
@@ -661,19 +646,11 @@ namespace dfi {
                     a1r.become_array();
                 }
                 if(a1r.is_array()) {
-                    if(args[1].is_unbounded_placement()) {
 #ifndef DFI_ARRAY_USE_STL_DEQUE
-                        a1r.as_array().insert(a1r.as_array().begin(), args[1]);
+                    a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
 #else
-                        a1r.as_array().push_front(args[1]);
+                    a1r.as_array().push_front(args[1].clone());
 #endif
-                    } else {
-#ifndef DFI_ARRAY_USE_STL_DEQUE
-                        a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
-#else
-                        a1r.as_array().push_front(args[1].clone());
-#endif
-                    }
                     return args[0];
                 }
                 throw std::runtime_error{"not array"};

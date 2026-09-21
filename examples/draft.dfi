@@ -1,10 +1,13 @@
+function fac(n) return n <= 1 ? 1 : n * fac(n - 1);
+fac_test(n) return [n, n.fac()];
+fac_test ftest(3);
+dbg_printer dp(ftest, .1);
+
 'host_provided_data' host_provided_data;
 
 dbg_printer(val, period) {
-    if(steady_clock() > this.t) {
-        this.t = steady_clock() + period;
-        val.println();
-    }
+    val.println();
+    delay(period);
 }
 
 function between(v, l, h) return (v >= l && v <= h) || (v >= h && v <= l);
@@ -119,13 +122,19 @@ function fibonaccir(n)
         return fibonaccir((f128)n - (f128)1) + fibonaccir((f128)n - (f128)2);
 
 function arr_vals_0_5(a) {
-    a[0].println();
-    a[5].println();
+    try {
+        a[0].println();
+        a[5].println();
+    } catch(e) {
+    }
 }
 
 function obj_vals_c_f(o) {
-    o["c"].println();
-    o["f"].println();
+    try {
+        o["c"].println();
+        o["f"].println();
+    } catch(e) {
+    }
 }
 
 function reverse(s) {
@@ -247,7 +256,7 @@ my_drafts(host_data) {
     timestamps = [];
     timestamps.reserve(500);
     for(i = 0; i < 500; ++i) {
-        timestamps.append(steady_clock());
+        timestamps.push_back(steady_clock());
     }
     timestamps.apply_func(println);
     println("-------------");
@@ -274,7 +283,7 @@ my_drafts(host_data) {
         println("creating masses array...");
         btime = steady_clock();
         for(i = 0; i < array_size; ++i) {
-            masses.append(rand_body(mass_range, dist_range));
+            masses.push_back(rand_body(mass_range, dist_range));
         }
         etime = steady_clock();
         println("masses array created in ", etime - btime, " sec.");
@@ -367,10 +376,10 @@ my_drafts(host_data) {
     }
 
     v4a = [];
-    v4a.append(vec4(1,1,0));
-    v4a.append(vec4(1,1,0));
-    v4a.append(vec4(1,1,0));
-    v4a.append(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
+    v4a.push_back(vec4(1,1,0));
     array_avg(v4a).println();
 
     wewerwer = rnd_str(64);
@@ -579,7 +588,7 @@ my_drafts(host_data) {
         print(k, "\t", measurements[k], "\t", kf.x, "\t", kf.P, "\n");
     }
 
-    host_data.serialize5(4).println();
+    if(host_data != undefined) host_data.serialize5(4).println();
 
     timestamp().to_string().println();
 
@@ -597,7 +606,7 @@ my_drafts(host_data) {
     k.println();
 
     a[0].name = "string";
-    println(a.append(string(3)));
+    println(a.push_back(string(3)));
 
     console.enable_colors(true);
     console.fixed();
@@ -715,9 +724,9 @@ my_drafts(host_data) {
     k = undefine;
     s = "123";
     println("s = ", s);
-    k(s);
+    try k(s); catch();
     println("s = ", s);
-    k(k);
+    try k(k); catch();
     println("k = ", k);
     s = "123";
     try
@@ -757,10 +766,11 @@ my_drafts(host_data) {
             break;
         }
     }
-    return exit(9);
+    delay(0.1);
+    return 0;
 }
 
-my_drafts drf(host_provided_data);
+// my_drafts drf(host_provided_data);
 
 
 delay_test(val, period) {
@@ -798,8 +808,8 @@ delay_test(val, period) {
     }
 }
 
-delay_test dt1(["s1",4,2,6,], 0.25);
-delay_test dt2(345, 0.01);
+// delay_test dt1(["s1",4,2,6,], 0.25);
+// delay_test dt2(345, 0.01);
 
 
 
@@ -808,7 +818,7 @@ wind_speed_avg_fltr(curr_speed) {
     if(this.vals == undefined) { this.vals = []; this.last_time = 0; this.avg_speed = 0.0; }
     if(steady_clock() - this.last_time > 0.2) {
         this.last_time = steady_clock();
-        this.vals.append(curr_speed);
+        this.vals.push_back(curr_speed);
         if(this.vals.size() > 10) { this.vals.pop_front(); }
         this.avg_speed = this.vals.array_avg();
     }
