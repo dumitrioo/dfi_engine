@@ -1,8 +1,3 @@
-function fac(n) return n <= 1 ? 1 : n * fac(n - 1);
-fac_test(n) return [n, n.fac()];
-fac_test ftest(3);
-dbg_printer dp(ftest, .1);
-
 'host_provided_data' host_provided_data;
 
 dbg_printer(val, period) {
@@ -770,7 +765,7 @@ my_drafts(host_data) {
     return 0;
 }
 
-// my_drafts drf(host_provided_data);
+my_drafts drf(host_provided_data);
 
 
 delay_test(val, period) {
