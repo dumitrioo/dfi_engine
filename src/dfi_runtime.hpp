@@ -1971,16 +1971,12 @@ namespace dfi {
             lxr.consume_eof();
             auto ast{prs.parse()};
 
-            code_generator lj{strict_mode_};
+            code_generator lj{};
             lj.chop(ast, input_cells_, input_names_to_instances_mapping_, worker_cells_templates_,
                 worker_cells_, worker_bodies_, user_functions_, global_functions_dictionary_, extern_cells_
             );
             ext_cells_processor_needed_ = ext_cells_processor_needed_ || (extern_cells_.size() > 0);
             start_extcell_processing();
-        }
-
-        void set_strict_mode(bool val) {
-            strict_mode_ = val;
         }
 
         bool load_library(std::string const &fname) {
@@ -2390,7 +2386,6 @@ namespace dfi {
         std::atomic_bool pp_subs_functor_enabled_{false};
         std::map<net::conn_id_t, net_value_subscriber> net_subs_{};
         uint64_t ext_cells_refresh_interval_nanos_{1000000ULL};
-        bool strict_mode_{false};
 
         void pp_subscribe(net::conn_id_t conn_id, std::string const &name, std::string const &alias) {
             std::unique_lock l{net_subs_mtp_};

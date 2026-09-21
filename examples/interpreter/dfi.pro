@@ -106,7 +106,6 @@ HEADERS += \
     ../../src/dfi_console.hpp \
     ../../src/dfi_exec_ctx.hpp \
     ../../src/dfi_expr.hpp \
-    ../../src/dfi_expr_poison.hpp \
     ../../src/dfi_interfaces.hpp \
     ../../src/dfi_lexer.hpp \
     ../../src/dfi_parser.hpp \

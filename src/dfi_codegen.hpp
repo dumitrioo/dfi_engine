@@ -10,7 +10,6 @@
 #include "dfi_value.hpp"
 #include "dfi_token.hpp"
 #include "dfi_expr.hpp"
-#include "dfi_expr_poison.hpp"
 #include "dfi_statement.hpp"
 #include "dfi_cells.hpp"
 
@@ -18,9 +17,6 @@ namespace dfi {
 
     class code_generator {
     public:
-        code_generator(bool poison = false): poison_{poison} {
-        }
-
         void chop(
             json const &ast,
             str_map_t<std::shared_ptr<input_cell>> &input_cells,
@@ -265,19 +261,11 @@ namespace dfi {
                     );
                     res->set_loc(ast["loc"]["line"].try_as_number(), ast["loc"]["col"].try_as_number());
                 } else if(ast["subtype"].as_string() == "if") {
-                    if(poison_) {
-                        res = std::make_shared<statement_if_else_poison>(
-                            chop_expression(ast["content"]["cond"]),
-                            chop_statement(ast["content"]["then_statement"]),
-                            chop_statement(ast["content"]["else_statement"])
-                        );
-                    } else {
-                        res = std::make_shared<statement_if_else>(
-                            chop_expression(ast["content"]["cond"]),
-                            chop_statement(ast["content"]["then_statement"]),
-                            chop_statement(ast["content"]["else_statement"])
-                        );
-                    }
+                    res = std::make_shared<statement_if_else>(
+                        chop_expression(ast["content"]["cond"]),
+                        chop_statement(ast["content"]["then_statement"]),
+                        chop_statement(ast["content"]["else_statement"])
+                    );
                 } else if(ast["subtype"].as_string() == "throw") {
                     res = std::make_shared<statement_throw>(
                         chop_expression(ast["content"])
@@ -390,19 +378,11 @@ namespace dfi {
                         stack.emplace_back(&cnt["right"]);
                         continue;
                     } else if(stack.back().phase == 2) {
-                        if(poison_) {
-                            stack.back().res = std::make_shared<binop_expression_poison>(
-                                static_cast<token::type>(cnt["oper_enum"].as_int()),
-                                stack.back().buf1,
-                                stack_res.res
-                            );
-                        } else {
-                            stack.back().res = std::make_shared<binop_expression>(
-                                static_cast<token::type>(cnt["oper_enum"].as_int()),
-                                stack.back().buf1,
-                                stack_res.res
-                            );
-                        }
+                        stack.back().res = std::make_shared<binop_expression>(
+                            static_cast<token::type>(cnt["oper_enum"].as_int()),
+                            stack.back().buf1,
+                            stack_res.res
+                        );
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
                             (*stack.back().ast)["loc"]["col"].try_as_number()
@@ -439,19 +419,11 @@ namespace dfi {
                         stack.emplace_back(&cnt["false_expr"]);
                         continue;
                     } else if(stack.back().phase == 3) {
-                        if(poison_) {
-                            stack.back().res = std::make_shared<ternop_expression_poison>(
-                                stack.back().buf1,
-                                stack.back().buf2,
-                                stack_res.res
-                            );
-                        } else {
-                            stack.back().res = std::make_shared<ternop_expression>(
-                                stack.back().buf1,
-                                stack.back().buf2,
-                                stack_res.res
-                            );
-                        }
+                        stack.back().res = std::make_shared<ternop_expression>(
+                            stack.back().buf1,
+                            stack.back().buf2,
+                            stack_res.res
+                        );
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
                             (*stack.back().ast)["loc"]["col"].try_as_number()
@@ -487,31 +459,16 @@ namespace dfi {
                                     cnt["operation"].as_string() + ": invalid type to convert to"
                                 };
                             }
-                            if(poison_) {
-                                stack.back().res = std::make_shared<prefix_unop_expression_poison>(
-                                    static_cast<token::type>(cnt["oper_enum"].as_int()),
-                                    stack_res.res,
-                                    cnt["operation"].as_string()
-                                );
-                            } else {
-                                stack.back().res = std::make_shared<prefix_unop_expression>(
-                                    static_cast<token::type>(cnt["oper_enum"].as_int()),
-                                    stack_res.res,
-                                    cnt["operation"].as_string()
-                                );
-                            }
+                            stack.back().res = std::make_shared<prefix_unop_expression>(
+                                static_cast<token::type>(cnt["oper_enum"].as_int()),
+                                stack_res.res,
+                                cnt["operation"].as_string()
+                            );
                         } else {
-                            if(poison_) {
-                                stack.back().res = std::make_shared<prefix_unop_expression_poison>(
-                                    static_cast<token::type>(cnt["oper_enum"].as_int()),
-                                    stack_res.res
-                                );
-                            } else {
-                                stack.back().res = std::make_shared<prefix_unop_expression>(
-                                    static_cast<token::type>(cnt["oper_enum"].as_int()),
-                                    stack_res.res
-                                );
-                            }
+                            stack.back().res = std::make_shared<prefix_unop_expression>(
+                                static_cast<token::type>(cnt["oper_enum"].as_int()),
+                                stack_res.res
+                            );
                         }
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
@@ -534,17 +491,10 @@ namespace dfi {
                         stack.emplace_back(&cnt["operand"]);
                         continue;
                     } else if(stack.back().phase == 1) {
-                        if(poison_) {
-                            stack.back().res = std::make_shared<postfix_unop_expression_poison>(
-                                stack_res.res,
-                                static_cast<token::type>(cnt["oper_enum"].as_int())
-                            );
-                        } else {
-                            stack.back().res = std::make_shared<postfix_unop_expression>(
-                                stack_res.res,
-                                static_cast<token::type>(cnt["oper_enum"].as_int())
-                             );
-                        }
+                        stack.back().res = std::make_shared<postfix_unop_expression>(
+                            stack_res.res,
+                            static_cast<token::type>(cnt["oper_enum"].as_int())
+                         );
                         stack.back().res->set_loc(
                             (*stack.back().ast)["loc"]["line"].try_as_number(),
                             (*stack.back().ast)["loc"]["col"].try_as_number()
@@ -711,9 +661,6 @@ namespace dfi {
             }
             return res;
         }
-
-    private:
-        bool poison_;
     };
 
 }
