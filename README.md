@@ -174,7 +174,7 @@ Client side
 extern 'dfi://hostname:43987/sample_val' remote_value;
 
 print_val(v) {
-    console.print("value to print: ", val);
+    console.print("value to print: ", v);
 }
 
 print_val sample_val(remote_value);
@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
 
     try {
         if(argc == 2) {
-            rt.load_file(args[1]);
+            rt.load_file(argv[1]);
         }
         rt.loading_complete();
 
@@ -242,7 +242,6 @@ int main(int argc, char **argv) {
             auto motor_torque_fr{rt.get_output("motor_torque_fr").cast_to_double()};
             auto motor_torque_rl{rt.get_output("motor_torque_rl").cast_to_double()};
             auto motor_torque_rr{rt.get_output("motor_torque_rr").cast_to_double()};
-            auto collision_warning{rt.get_output("collision_warning").cast_to_bool()};
             auto precharge_brakes{rt.get_output("precharge_brakes").cast_to_bool()};
             auto cooling_pump_speed_request{rt.get_output("cooling_pump_speed_request").cast_to_double()};
             auto electric_motor_power_limit{rt.get_output("electric_motor_power_limit").cast_to_double()};
