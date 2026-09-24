@@ -10,7 +10,7 @@ To unlock true scalability and AI integration, the software architecture of any 
  * The Deterministic Reflexive Substrate (The "Spinal Cord"): The lower software layer must be exclusively dedicated to hard real-time execution. Its sole purpose is to instantaneously ingest high-frequency sensor data and drive actuators with microsecond precision. It must remain lightweight, uncompromisingly deterministic, and devoid of business logic.
  * The Cognitive Orchestration Layer (The "Cerebral Cortex"): The upper layer should be latency-tolerant but tasked with managing the huge complexity of the system’s behavioral logic, state machines, and AI integration.
 
-The critical mistake the industry is making today is attempting to build this "Cerebral Cortex" directly in C++. Forcing engineers to weave highly complex, asynchronous business logic and neural network orchestration into a low-level systems language results in skyrocketing development costs, brittle codebases, and stunted vehicle intelligence.
+Building a "Cerebral Cortex" directly in C++ is a blunder. Forcing engineers to weave highly complex, asynchronous business logic and neural network orchestration into a low-level systems language results in skyrocketing development costs, brittle codebases, and stunted vehicle intelligence.
 
 The solution is to decouple the cognitive layer into a specialized, expressive scripting environment - specifically, one built on the Data-flow Graph (DFG) paradigm. A DFG-based engine operates as the strategic brain: it effortlessly consumes the abstracted states from the lower layer, orchestrates complex multi-actuator scenarios, and seamlessly integrates with AI models.
 
