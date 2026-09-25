@@ -5586,7 +5586,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: { float dvzr{0.0f}; return lr.as_float() / dvzr; }
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5616,7 +5616,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: { double dvzr{0.0}; return lr.as_double() / dvzr; }
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5646,7 +5646,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: { long double dvzr{0.0}; return lr.as_long_double() / dvzr; }
                         case type::VALBOX: break;
                         default: break;
                     }
