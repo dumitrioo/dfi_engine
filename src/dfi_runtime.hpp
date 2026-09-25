@@ -898,27 +898,19 @@ namespace dfi {
             });
             add_function("set_cycle_sleep_seconds", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1);
-                long double ttsld{args[0].cast_to_long_double()};
-                if(ttsld <= 10) {
-                    uint64_t time_to_sleep{static_cast<uint64_t>(ttsld * 1e9L)};
-                    set_nanoseconds_of_sleeping_between_cycles(time_to_sleep);
-                }
-                return (long double)sleep_between_cycles_nanoseconds() * 1e-9L;
+                set_cycle_sleep_seconds(args[0].cast_to_long_double());
+                return cycle_sleep_seconds();
             });
             add_function("cycle_sleep_seconds", DFICLOSURE() {
-                return sleep_between_cycles_nanoseconds() * 1e-9L;
+                return cycle_sleep_seconds();
             });
             add_function("set_inactive_sleep_seconds", DFICLOSURE(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1);
-                long double issld{args[0].cast_to_long_double()};
-                if(issld <= 10) {
-                    uint64_t time_to_sleep{static_cast<uint64_t>(issld * 1e9L)};
-                    set_sleep_inactive_thread_nanoseconds(time_to_sleep);
-                }
-                return sleep_inactive_thread_nanoseconds() * 1e-9L;
+                set_inactive_sleep_seconds(args[0].cast_to_long_double());
+                return inactive_sleep_seconds();
             });
             add_function("inactive_sleep_seconds", DFICLOSURE() {
-                return sleep_inactive_thread_nanoseconds() * 1e-9L;
+                return inactive_sleep_seconds();
             });
 
             add_function("persistence_enabled", DFICLOSURE() {
@@ -1492,20 +1484,23 @@ namespace dfi {
             return exit_status_;
         }
 
-        std::uint64_t sleep_between_cycles_nanoseconds() const noexcept {
-            return sleep_between_cycles_nanoseconds_;
+        void set_cycle_sleep_seconds(long double val) override {
+            if(val <= 10) {
+                uint64_t time_to_sleep{static_cast<uint64_t>(val * 1e9L)};
+                set_nanoseconds_of_sleeping_between_cycles(time_to_sleep);
+            }
         }
-
-        void set_nanoseconds_of_sleeping_between_cycles(std::uint64_t val) noexcept {
-            sleep_between_cycles_nanoseconds_ = val;
+        long double cycle_sleep_seconds() override {
+            return sleep_between_cycles_nanoseconds() * 1e-9L;
         }
-
-        std::uint64_t sleep_inactive_thread_nanoseconds() const noexcept {
-            return sleep_inactive_thread_nanoseconds_;
+        void set_inactive_sleep_seconds(long double val) override {
+            if(val <= 10) {
+                uint64_t time_to_sleep{static_cast<uint64_t>(val * 1e9L)};
+                set_sleep_inactive_thread_nanoseconds(time_to_sleep);
+            }
         }
-
-        void set_sleep_inactive_thread_nanoseconds(std::uint64_t val) noexcept {
-            sleep_inactive_thread_nanoseconds_ = val;
+        long double inactive_sleep_seconds() override {
+            return sleep_inactive_thread_nanoseconds() * 1e-9L;
         }
 
         void stop_mt() {
@@ -2112,8 +2107,13 @@ namespace dfi {
         bool is_current_thread_mode_none() const { return thread_mode_ == thread_mode::none; }
         bool is_current_thread_mode_single() const { return thread_mode_ == thread_mode::single; }
         bool is_current_thread_mode_multi() const { return thread_mode_ == thread_mode::multi; }
+
         std::uint64_t sleep_between_cycles_nanoseconds_{0};
         std::uint64_t sleep_inactive_thread_nanoseconds_{1'000'000ULL};
+        std::uint64_t sleep_between_cycles_nanoseconds() const noexcept { return sleep_between_cycles_nanoseconds_; }
+        void set_nanoseconds_of_sleeping_between_cycles(std::uint64_t val) noexcept { sleep_between_cycles_nanoseconds_ = val; }
+        std::uint64_t sleep_inactive_thread_nanoseconds() const noexcept { return sleep_inactive_thread_nanoseconds_; }
+        void set_sleep_inactive_thread_nanoseconds(std::uint64_t val) noexcept { sleep_inactive_thread_nanoseconds_ = val; }
 
         shared_mutex threads_mtp_{};
         std::list<std::thread> threads_{};

@@ -103,6 +103,10 @@ namespace dfi {
         virtual void clear_output(std::string const &) = 0;
         virtual void clear_inputs() = 0;
         virtual void clear_outputs() = 0;
+        virtual void set_cycle_sleep_seconds(long double val) = 0;
+        virtual long double cycle_sleep_seconds() = 0;
+        virtual void set_inactive_sleep_seconds(long double val) = 0;
+        virtual long double inactive_sleep_seconds() = 0;
         virtual bool programmatic_termination_enabled() const = 0;
         virtual void set_exit_status(int) = 0;
         virtual void terminate() = 0;
