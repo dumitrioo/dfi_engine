@@ -10,8 +10,8 @@ sqgen() {
         this.gen = sequence_generator();
         return this.gen;
     }
+    delay(0.1);
 }
-
 sqgen sqg();
 
 function serialize_tbbt_array(a) {

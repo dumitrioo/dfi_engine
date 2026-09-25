@@ -210,7 +210,10 @@ function matmul(w) {
             m2.at(y, x) = randf();
         }
     }
+    bt = steady_clock();
     m3 = m1 * m2;
+    et = steady_clock();
+    println("matrix ", medge, "x", medge, " multiplied by matrix ", medge, "x", medge, " in ", et - bt, " sec.");
     return m3;
 }
 
@@ -240,10 +243,7 @@ my_drafts(host_data) {
     cpu_info().serialize5(2).println();
 
     medge = 100;
-    bt = steady_clock();
     mr = matmul(medge);
-    et = steady_clock();
-    println("matrix ", medge, "x", medge, " multiplied by matrix ", medge, "x", medge, " in ", et - bt, " sec.");
 
     obj = { potential: this.init, glutamate: 1.0, electrical: 1.0, };
     obj.println();
@@ -436,7 +436,7 @@ my_drafts(host_data) {
         persistence.put("ctr", ctr);
     }
 
-    println((f64)"AUTOSAR"[1]);
+    println((f64)"qwerty"[1]);
 
     wewerwer = [4,26,3,6,1,8,6,3,5,98,43,76,24,82];
     wewerwer.println();
@@ -804,8 +804,8 @@ delay_test(val, period) {
     }
 }
 
-// delay_test dt1(["s1",4,2,6,], 0.25);
-// delay_test dt2(345, 0.01);
+delay_test dt1(["s1",4,2,6,], 0.25);
+delay_test dt2(345, 0.01);
 
 
 
@@ -1149,5 +1149,3 @@ should_initiate_room_window_ventilation should_initiate_room3_window1_ventilatio
 dbg_printer dbg_prn_1(can_window_be_opened, 0.1);
 
 */
-
-
