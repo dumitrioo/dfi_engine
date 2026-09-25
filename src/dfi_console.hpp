@@ -23,25 +23,41 @@ namespace dfi {
         }
 
         void print(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[32mprint\033[0m" : "print"), args, false);
+            cout_out((terminal_colors_ ? "\033[32mprint\033[0m" : "print"), args, false);
         }
         void println(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[32mprint\033[0m" : "print"), args, true);
+            cout_out((terminal_colors_ ? "\033[32mprint\033[0m" : "print"), args, true);
         }
         void info(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[34minfo\033[0m" : "info"), args, false);
+            cout_out((terminal_colors_ ? "\033[34minfo\033[0m" : "info"), args, false);
         }
         void log(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[32mlog\033[0m" : "log"), args, false);
+            cout_out((terminal_colors_ ? "\033[32mlog\033[0m" : "log"), args, false);
         }
         void warn(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[35mwarning\033[0m" : "warning"), args, false);
+            cout_out((terminal_colors_ ? "\033[35mwarning\033[0m" : "warning"), args, false);
         }
         void debug(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[93mdebug\033[0m" : "debug"), args, false);
+            cout_out((terminal_colors_ ? "\033[93mdebug\033[0m" : "debug"), args, false);
         }
         void error(std::vector<valbox> const &args) {
-            cout_out((terminal_colours_ ? "\033[91merror\033[0m" : "error"), args, false);
+            cout_out((terminal_colors_ ? "\033[91merror\033[0m" : "error"), args, false);
+        }
+
+        void set_timestamp_prec(size_t val) noexcept {
+            if(val <= 9) {
+                timestamp_prec_ = val;
+            }
+        }
+        size_t timestamp_prec() const noexcept {
+            return timestamp_prec_;
+        }
+
+        void set_gmt_timestamp(bool val) noexcept {
+            gmt_timestamp_ = val;
+        }
+        bool gmt_timestamp() const noexcept {
+            return gmt_timestamp_;
         }
 
         void rawprint(std::vector<valbox> const &args) {
@@ -117,8 +133,8 @@ namespace dfi {
         void setw(int w) { setw_ = true; w_ = w; }
         void setfill(char arg) { setfill_ = true; fill_char_ = arg; }
         char fill() { return fill_char_; }
-        bool colors_enabled() const { return terminal_colours_; }
-        void enable_colors(bool v) { terminal_colours_ = v; }
+        bool colors_enabled() const { return terminal_colors_; }
+        void enable_colors(bool v) { terminal_colors_ = v; }
         bool setsync(bool v) const { return std::ios::sync_with_stdio(v); }
 
     private:
@@ -135,7 +151,11 @@ namespace dfi {
                     default: out << std::defaultfloat; break;
                 }
             }
-            out << str_util::from_utf8(timespec_wrapper::now().as_iso_8601_str()) << " " << type << ": ";
+            if(gmt_timestamp_) {
+                out << str_util::from_utf8(timespec_wrapper::gmtnow().as_gmt_iso_8601_str(timestamp_prec_)) << " " << type << ": ";
+            } else {
+                out << str_util::from_utf8(timespec_wrapper::now().as_iso_8601_str(timestamp_prec_)) << " " << type << ": ";
+            }
             for(auto &&v: args) {
                 auto printed{false};
                 if(v.is_class()) {
@@ -170,7 +190,11 @@ namespace dfi {
                     default: out << std::defaultfloat; break;
                 }
             }
-            out << str_util::from_utf8(timespec_wrapper::now().as_iso_8601_str()) << " " << type << ": ";
+            if(gmt_timestamp_) {
+                out << str_util::from_utf8(timespec_wrapper::gmtnow().as_gmt_iso_8601_str(timestamp_prec_)) << " " << type << ": ";
+            } else {
+                out << str_util::from_utf8(timespec_wrapper::now().as_iso_8601_str(timestamp_prec_)) << " " << type << ": ";
+            }
             for(auto &&v: args) {
                 auto printed{false};
                 if(v.is_class()) {
@@ -194,6 +218,8 @@ namespace dfi {
 
     private:
         runtime_interface *rt_{nullptr};
+        size_t timestamp_prec_{6};
+        bool gmt_timestamp_{false};
         bool setfill_{false};
         char fill_char_{};
         bool setw_{false};
@@ -203,7 +229,7 @@ namespace dfi {
         shared_mutex out_mtp_{};
         enum class flt_kind{def, sci, fix, hex};
         flt_kind fk_{flt_kind::def};
-        bool terminal_colours_{false};
+        bool terminal_colors_{false};
     };
 
 }

@@ -205,7 +205,7 @@ namespace dfi {
             add_method("console", "scientific", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) DFITHIS(args, console *)->scientific(); return valbox{}; });
             add_method("console", "hexfloat", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) DFITHIS(args, console *)->hexfloat(); return valbox{}; });
             add_method("console", "defaultfloat", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) DFITHIS(args, console *)->defaultfloat(); return valbox{}; });
-            add_method("console", "setprecision", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, console *)->setprecision(args[1].cast_to_u64()); return valbox{}; });
+            add_method("console", "setprecision", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, console *)->setprecision(args[1].cast_to_u64()); return DFITHIS(args, console *)->precision(); });
             add_method("console", "precision", DFIFUN(args) { return DFITHIS(args, console *)->precision(); });
             add_method("console", "setw", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, console *)->setw(args[1].cast_to_u64()); return valbox{}; });
             add_method("console", "setfill", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, console *)->setfill(args[1].cast_to_char()); return valbox{}; });
@@ -213,6 +213,10 @@ namespace dfi {
             add_method("console", "enable_colors", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 2) DFITHIS(args, console *)->enable_colors(args.size() == 2 ? args[1].cast_to_bool() : true); return valbox{}; });
             add_method("console", "colors_enabled", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) return DFITHIS(args, console *)->colors_enabled(); });
             add_method("console", "sync_stdio", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) return DFITHIS(args, console *)->setsync(args[1].cast_to_bool()); });
+            add_method("console", "set_timestamp_prec", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, console *)->set_timestamp_prec(args[1].cast_to_u64()); return DFITHIS(args, console *)->timestamp_prec(); });
+            add_method("console", "timestamp_prec", DFIFUN(args) { return DFITHIS(args, console *)->timestamp_prec(); });
+            add_method("console", "set_gmt_timestamp", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, console *)->set_gmt_timestamp(args[1].cast_to_bool()); return DFITHIS(args, console *)->gmt_timestamp(); });
+            add_method("console", "gmt_timestamp", DFIFUN(args) { return DFITHIS(args, console *)->gmt_timestamp(); });
             add_function("print", DFICLOSURE(args) { con_.rawprint(args); return {}; });
             add_function("println", DFICLOSURE(args) { con_.rawprintln(args); return {}; });
 
