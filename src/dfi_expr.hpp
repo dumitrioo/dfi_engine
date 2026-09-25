@@ -426,6 +426,8 @@ namespace dfi {
                     valbox res{};
                     try {
                         res = this_->val_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                        ctx->set_create_if_not_exists(old);
+                        sod.cancel();
                         if(!res.is_mutable_resident_placement()) {
                             if(res.is_global_placement()) {
                                 throw runtime_error{this_->line_, this_->col_, "invalid increment: immutable entity"};
@@ -470,6 +472,8 @@ namespace dfi {
                     valbox res{};
                     try {
                         res = this_->val_->eval(ctx, eval_caller_type::no_matter, nullptr).deref();
+                        ctx->set_create_if_not_exists(old);
+                        sod.cancel();
                         if(!res.is_mutable_resident_placement()) {
                             if(res.is_global_placement()) {
                                 throw runtime_error{this_->line_, this_->col_, "invalid decrement: immutable entity"};
@@ -652,6 +656,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     dfi::shut_on_destroy sod{[ctx, old]() { ctx->set_create_if_not_exists(old); }};
                     valbox res{val_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(!res.is_mutable_resident_placement()) {
                         if(res.is_global_placement()) {
                             throw runtime_error{line_, col_, "invalid increment: immutable entity"};
@@ -684,6 +690,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     dfi::shut_on_destroy sod{[ctx, old]() { ctx->set_create_if_not_exists(old); }};
                     valbox res{val_->eval(ctx, eval_caller_type::no_matter, nullptr)};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(!res.is_mutable_resident_placement()) {
                         if(res.is_global_placement()) {
                             throw runtime_error{line_, col_, "invalid decrement: immutable entity"};
@@ -1327,16 +1335,16 @@ namespace dfi {
                 ,
                 /* ASSIGN */
                 [](binop_expression *this_, execution_context *ctx, eval_caller_type, valbox *) -> valbox {
-                    valbox r{this_->rval_->eval(ctx, eval_caller_type::no_matter, nullptr).clone()};
-#if 0
+                    valbox r{this_->rval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
                     auto vopt{r.val_or_pointed_type()};
                     if(vopt == valbox::type::ARRAY || vopt == valbox::type::OBJECT) {
                         r = r.clone();
                     }
-#endif
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1376,6 +1384,9 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
+
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1427,6 +1438,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1478,6 +1491,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1533,6 +1548,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1582,6 +1599,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1632,6 +1651,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1686,6 +1707,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1737,6 +1760,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1790,6 +1815,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
@@ -1841,6 +1868,8 @@ namespace dfi {
                     bool old{ctx->set_create_if_not_exists(true)};
                     shut_on_destroy sod{[&]() { ctx->set_create_if_not_exists(old); }};
                     valbox l{this_->lval_->eval(ctx, eval_caller_type::no_matter, nullptr).deref()};
+                    ctx->set_create_if_not_exists(old);
+                    sod.cancel();
                     if(l.is_immutable_placement()) {
                         if(l.is_literal_placement()) {
                             throw runtime_error{this_->line_, this_->col_, "invalid assignment: lvalue required"};
