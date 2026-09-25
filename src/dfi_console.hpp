@@ -45,9 +45,7 @@ namespace dfi {
         }
 
         void set_timestamp_prec(size_t val) noexcept {
-            if(val <= 9) {
-                timestamp_prec_ = val;
-            }
+            timestamp_prec_ = val <= 9 ? val : 9;
         }
         size_t timestamp_prec() const noexcept {
             return timestamp_prec_;
