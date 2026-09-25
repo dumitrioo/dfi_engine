@@ -227,6 +227,8 @@ my_drafts(host_data) {
         console.fixed();
         console.enable_colors(true);
         console.setprecision(9);
+        console.set_gmt_timestamp(false);
+        console.set_timestamp_prec(9);
     }
 
     a1 = [2,4,6];
@@ -761,6 +763,7 @@ my_drafts(host_data) {
             break;
         }
     }
+
     delay(0.1);
     exit();
     return 0;
