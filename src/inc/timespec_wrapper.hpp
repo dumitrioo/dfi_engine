@@ -126,9 +126,9 @@ namespace dfi {
             std::stringstream ss;
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             ss << weekdays_shrt[tmp.tm_wday] << ", "
                << std::setfill('0') << std::setw(2) << tmp.tm_mday << ' '
@@ -146,9 +146,9 @@ namespace dfi {
             std::stringstream ss;
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             ss << weekdays_full[tmp.tm_wday] << ", "
                << std::setfill('0') << std::setw(2) << tmp.tm_mday << '-'
@@ -166,9 +166,9 @@ namespace dfi {
             std::stringstream ss{};
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             ss << tmp.tm_year + 1900 << '-' << std::setfill('0')
                << std::setfill('0') << std::setw(2) << static_cast<int>(tmp.tm_mon + 1) << '-'
@@ -198,16 +198,12 @@ namespace dfi {
         }
 
         std::string as_gmt_iso_8601_str(std::size_t prec = 9) const {
-            long double fsecs{fseconds()};
-            std::int64_t secs{static_cast<std::int64_t>(fsecs)};
-            long double subseconds{fsecs - secs};
-
             std::stringstream ss;
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             ss << tmp.tm_year + 1900 << '-' << std::setfill('0')
                << std::setfill('0') << std::setw(2) << static_cast<int>(tmp.tm_mon + 1) << '-'
@@ -218,6 +214,9 @@ namespace dfi {
                << std::setfill('0') << std::setw(2) << static_cast<int>(tmp.tm_sec);
 
             if(prec > 0) {
+                long double fsecs{fseconds()};
+                std::int64_t secs{static_cast<std::int64_t>(fsecs)};
+                long double subseconds{fsecs - secs};
                 if(prec > 9) { prec = 9; }
                 ss << subseconds_to_str(subseconds, prec);
             }
@@ -230,54 +229,54 @@ namespace dfi {
         int year() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_year + 1900;
         }
         int month() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_mon + 1;
         }
         int day() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_mday;
         }
         int hour() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_hour;
         }
         int minute() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_min;
         }
         int sec() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_sec;
         }
@@ -286,30 +285,26 @@ namespace dfi {
         int weekday() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             return tmp.tm_wday;
         }
 
-        std::string as_any_tz_iso_8601_str(std::size_t prec = 9, long double hours_offset = 0) const {
+        std::string as_any_tz_iso_8601_str(long double hours_offset = 0, std::size_t prec = 9) const {
             if(std::abs(hours_offset) > 12.0L) { return {}; }
 
             timespec_wrapper dst_tsw{*this};
             dst_tsw.to_gmt();
             dst_tsw += timespec_wrapper{hours_offset * 3600.0L};
 
-            long double fsecs{fseconds()};
-            std::int64_t secs{static_cast<std::int64_t>(fsecs)};
-            long double subseconds{fsecs - secs};
-
             std::stringstream ss;
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(dst_tsw.t_.tv_sec));
+            gmtime_s(&tmp, &(dst_tsw.t_.tv_sec));
 #else
-            localtime_r(&(dst_tsw.t_.tv_sec), &tmp);
+            gmtime_r(&(dst_tsw.t_.tv_sec), &tmp);
 #endif
             ss << tmp.tm_year + 1900 << '-' << std::setfill('0')
                << std::setfill('0') << std::setw(2) << static_cast<int>(tmp.tm_mon + 1) << '-'
@@ -320,6 +315,9 @@ namespace dfi {
                << std::setfill('0') << std::setw(2) << static_cast<int>(tmp.tm_sec);
 
             if(prec > 0) {
+                long double fsecs{fseconds()};
+                std::int64_t secs{static_cast<std::int64_t>(fsecs)};
+                long double subseconds{fsecs - secs};
                 if(prec > 9) { prec = 9; }
                 ss << subseconds_to_str(subseconds, prec);
             }
@@ -351,9 +349,9 @@ namespace dfi {
         std::string asctime() const {
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
 #if defined(PLATFORM_WINDOWS)
             char str[64];
@@ -444,9 +442,9 @@ namespace dfi {
             std::stringstream ss;
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(t_.tv_sec));
+            gmtime_s(&tmp, &(t_.tv_sec));
 #else
-            localtime_r(&(t_.tv_sec), &tmp);
+            gmtime_r(&(t_.tv_sec), &tmp);
 #endif
             ss << tmp.tm_year + 1900 << '-' << std::setfill('0')
                << std::setfill('0') << std::setw(2) << static_cast<int>(tmp.tm_mon + 1) << '-'
@@ -475,54 +473,40 @@ namespace dfi {
 
         static timespec_wrapper now() noexcept {
             timespec_wrapper result{};
-            timespec ts{};
-            std::timespec_get(&ts, TIME_UTC);
-            result.t_.tv_sec = ts.tv_sec;
-            result.t_.tv_nsec = ts.tv_nsec;
+            try {
+                auto now_utc = std::chrono::system_clock::now();
+                auto tz = std::chrono::current_zone();
+                std::chrono::zoned_time zt{tz, now_utc};
+                long double cnt{std::chrono::duration<long double>(zt.get_local_time().time_since_epoch()).count()};
+                result.t_.tv_sec = cnt;
+                result.t_.tv_nsec = (cnt - static_cast<int64_t>(cnt)) * 1e9L;
+            } catch(const std::exception& e) {
+            }
             return result;
         }
 
         static timespec_wrapper gmtnow() noexcept {
             timespec_wrapper result{};
-            timespec ts{};
-            std::timespec_get(&ts, TIME_UTC);
-            time_t t{ts.tv_sec};
-#if defined(PLATFORM_WINDOWS)
-            struct tm ltm{};
-            gmtime_s(&ltm, &t);
-            ts.tv_sec = std::mktime(&ltm);
-            result.t_.tv_sec = ts.tv_sec;
-            result.t_.tv_nsec = ts.tv_nsec;
-#else
-            struct tm *ltm{std::gmtime(&t)};
-            ts.tv_sec = std::mktime(ltm);
-            result.t_.tv_sec = ts.tv_sec;
-            result.t_.tv_nsec = ts.tv_nsec;
-#endif
+            long double ts{std::chrono::duration<long double>(std::chrono::system_clock::now().time_since_epoch()).count()};
+            result.t_.tv_sec = ts;
+            result.t_.tv_nsec = (ts - static_cast<int64_t>(ts)) * 1e9L;
             return result;
         }
 
         static timespec_wrapper date_gmtoffset(timespec_wrapper const &d) noexcept {
-#if (__cplusplus < 202002L)
-            timespec_wrapper result;
-            struct timeval tv;
-            tv.tv_sec = d.t_.tv_sec;
-            time_t t{tv.tv_sec};
-            struct tm *ltm{::localtime(&t)};
-            result.t_.tv_sec = ltm->tm_gmtoff;
-            result.t_.tv_nsec = 0;
-            return result;
-#else
             timespec_wrapper result{};
-    #if defined(PLATFORM_WINDOWS)
-            std::chrono::nanoseconds ns_duration(d.nseconds());
-            std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> tp{ns_duration};
-    #else
-            std::chrono::system_clock::time_point tp{std::chrono::nanoseconds{d.nseconds()}};
-    #endif
-            result.t_.tv_sec = std::chrono::current_zone()->get_info(tp).offset.count();
+            try {
+                std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<long double>> now_utc{
+                    std::chrono::duration<long double>{d.fseconds()}};
+                long double ucnt{d.fseconds()};
+                auto tz = std::chrono::current_zone();
+                std::chrono::zoned_time zt{tz, now_utc};
+                long double lcnt{std::chrono::duration<long double>(zt.get_local_time().time_since_epoch()).count()};
+                result.t_.tv_sec = lcnt - ucnt;
+                result.t_.tv_nsec = 0;
+            } catch(const std::exception& e) {
+            }
             return result;
-#endif
         }
 
         static timespec_wrapper system_gmtoffset() noexcept {
@@ -530,21 +514,18 @@ namespace dfi {
         }
 
         timespec_wrapper gmtoffset() const noexcept {
-#if (__cplusplus < 202002L)
-            timespec_wrapper result;
-            struct timeval tv;
-            gettimeofday(&tv, nullptr);
-            time_t t{tv.tv_sec};
-            struct tm *ltm{::localtime(&t)};
-            result.t_.tv_sec = ltm->tm_gmtoff;
-            result.t_.tv_nsec = 0;
+            timespec_wrapper result{};
+            try {
+                auto now_utc = std::chrono::system_clock::now();
+                long double ucnt{std::chrono::duration<long double>(now_utc.time_since_epoch()).count()};
+                auto tz = std::chrono::current_zone();
+                std::chrono::zoned_time zt{tz, now_utc};
+                long double lcnt{std::chrono::duration<long double>(zt.get_local_time().time_since_epoch()).count()};
+                result.t_.tv_sec = lcnt - ucnt;
+                result.t_.tv_nsec = 0;
+            } catch(const std::exception& e) {
+            }
             return result;
-#else
-            timespec_wrapper result;
-            std::chrono::system_clock::time_point tp{ std::chrono::system_clock::now() };
-            result.t_.tv_sec = std::chrono::current_zone()->get_info(tp).offset.count();
-            return result;
-#endif
         }
 
         timespec_wrapper &operator+=(const timespec_wrapper &rhs) noexcept {
@@ -658,9 +639,9 @@ namespace dfi {
             //struct tm *tmp{std::localtime(&(tspc.tv_sec))};
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(tspc.tv_sec));
+            gmtime_s(&tmp, &(tspc.tv_sec));
 #else
-            localtime_r(&(tspc.tv_sec), &tmp);
+            gmtime_r(&(tspc.tv_sec), &tmp);
 #endif
             int first_day_of_first_week{tmp.tm_wday == 0 ? 7 : tmp.tm_wday};
 
@@ -681,9 +662,9 @@ namespace dfi {
             }
             tspc.tv_sec = intial_sec + 86400 * flat_day;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(tspc.tv_sec));
+            gmtime_s(&tmp, &(tspc.tv_sec));
 #else
-            localtime_r(&(tspc.tv_sec), &tmp);
+            gmtime_r(&(tspc.tv_sec), &tmp);
 #endif
             if(tmp.tm_year != initial_y) {
                 return std::pair<int, int>{-1, -1};
@@ -705,9 +686,9 @@ namespace dfi {
             tspc.tv_sec = intial_sec + 86400 * (yd - 1);
             struct tm tmp;
 #if defined(PLATFORM_WINDOWS)
-            localtime_s(&tmp, &(tspc.tv_sec));
+            gmtime_s(&tmp, &(tspc.tv_sec));
 #else
-            localtime_r(&(tspc.tv_sec), &tmp);
+            gmtime_r(&(tspc.tv_sec), &tmp);
 #endif
             if(initial_y != tmp.tm_year) {
                 return std::pair<int, int>{-1, -1};
@@ -1109,15 +1090,9 @@ namespace dfi {
                         val_nsec = 0;
                     }
                     if(have_gmtoffs) {
-                        val_sec += -(res_gmt_offs_hour * 3600 + res_gmt_offs_min * 60) * res_gmt_offs_sign;
-                        //struct timeval tv;
-                        //tv.tv_sec = val_sec;
-                        //time_t t{tv.tv_sec};
-                        //struct tm *ltm{std::localtime(&t)};
-                        //val_sec += ltm->tm_gmtoff;
+                        val_sec += (res_gmt_offs_hour * 3600 + res_gmt_offs_min * 60) * res_gmt_offs_sign;
                         timespec_wrapper tsw;
                         tsw.t_.tv_sec = val_sec;
-                        val_sec += date_gmtoffset(tsw).seconds();
                     }
                 }
                 t_.tv_sec = val_sec;
