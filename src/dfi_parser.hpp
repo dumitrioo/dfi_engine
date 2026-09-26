@@ -350,7 +350,26 @@ namespace dfi {
                             increment_pos();
                             check_eof();
                             json catchexpr{};
-                            if(get_token(0).is_id()) {
+                            if(get_token(0).type_is(token::type::ELLIPSIS)) {
+                                increment_pos();
+                                check_eof();
+                                if(get_token(0).lexem() == L")") {
+                                    increment_pos();
+                                    check_eof();
+                                } else {
+                                    throw compilation_error{
+                                        get_token(0).line(),
+                                        get_token(0).col(),
+                                        "invalid \"catch\": \")\" expected"
+                                    };
+                                }
+                            }
+#if 0
+                            else if(get_token(0).lexem() == L")") {
+                                increment_pos();
+                            }
+#endif
+                            else  if(get_token(0).is_id()) {
                                 catchexpr = get_expr();
                                 if(
                                     catchexpr.is_object() &&
@@ -373,8 +392,6 @@ namespace dfi {
                                         "invalid \"try\": invalid catch expression, identifier expected"
                                     };
                                 }
-                            } else if(get_token(0).lexem() == L")") {
-                                increment_pos();
                             } else {
                                 throw compilation_error{
                                     get_token(0).line(),

@@ -6,7 +6,6 @@
 
 #include "dfi_util.hpp"
 #include "dfi_token.hpp"
-#include "dfi_util.hpp"
 
 namespace dfi {
 
@@ -119,6 +118,7 @@ namespace dfi {
             } else if(state_ == "bin") { bin(c);
             } else if(state_ == "float") { flt(c);
             } else if(state_ == "dot") { dot(c);
+            } else if(state_ == "2dots") { two_dots(c);
             } else if(state_ == "iden") { ident(c);
             } else if(state_ == "str") { dq_str(c);
             } else if(state_ == "sc_str") { sc_str(c);
@@ -281,8 +281,19 @@ namespace dfi {
                 state_ = "float";
                 float_phase_ = ".";
                 buff_ += c;
+            } else if(c == '.') {
+                state_ = "2dots";
+                buff_ += c;
             } else {
                 report_token(token::type::DOT, c);
+            }
+        }
+
+        void two_dots(std::int64_t c) {
+            if(c == '.') {
+                report_token(token::type::ELLIPSIS);
+            } else {
+                throw compilation_error{row_, col_, "syntax error: incomplete ellipsis"};
             }
         }
 

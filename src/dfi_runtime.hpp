@@ -591,9 +591,6 @@ namespace dfi {
             add_function("push_back", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
                 valbox &a1r{args[0].deref()};
-                if(a1r.is_undefined()) {
-                    a1r.become_array();
-                }
                 if(a1r.is_array()) {
                     valbox::array_t &arr{a1r.as_array()};
                     arr.push_back(args[1].clone());
@@ -604,14 +601,19 @@ namespace dfi {
             add_function("append", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
                 valbox &a1r{args[0].deref()};
-                if(a1r.is_undefined()) {
-                    a1r.become_array();
-                }
                 if(a1r.is_array()) {
                     a1r.as_array().push_back(args[1].clone());
                     return args[0];
                 }
-                throw std::runtime_error{"not array"};
+                if(a1r.is_string()) {
+                    a1r.as_string() += args[1].cast_to_string();
+                    return args[0];
+                }
+                if(a1r.is_wstring()) {
+                    a1r.as_wstring() += args[1].cast_to_wstring();
+                    return args[0];
+                }
+                throw std::runtime_error{"not applicable"};
             });
             add_function("pop_back", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
@@ -630,9 +632,6 @@ namespace dfi {
             add_function("push_front", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
                 valbox &a1r{args[0].deref()};
-                if(a1r.is_undefined()) {
-                    a1r.become_array();
-                }
                 if(a1r.is_array()) {
 #ifndef DFI_ARRAY_USE_STL_DEQUE
                     a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
@@ -646,9 +645,6 @@ namespace dfi {
             add_function("prepend", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
                 valbox &a1r{args[0].deref()};
-                if(a1r.is_undefined()) {
-                    a1r.become_array();
-                }
                 if(a1r.is_array()) {
 #ifndef DFI_ARRAY_USE_STL_DEQUE
                     a1r.as_array().insert(a1r.as_array().begin(), args[1].clone());
@@ -1380,7 +1376,7 @@ namespace dfi {
                                     have_undefineds = true;
                                     break;
                                 } else {
-                                    exctx->set_local_value(ai.argname, vb);
+                                    exctx->set_local_value(ai.argname, vb, valbox::mem_placement::global);
                                 }
                             } else {
                                 if(ai.cell_ptr == nullptr) {
@@ -1411,7 +1407,7 @@ namespace dfi {
                                     have_undefineds = true;
                                     break;
                                 } else {
-                                    exctx->set_local_value(ai.argname, stack_var);
+                                    exctx->set_local_value(ai.argname, stack_var, valbox::mem_placement::global);
                                 }
                             }
                         }
@@ -1622,11 +1618,12 @@ namespace dfi {
                                                 ai.expr_val = ai.expr->eval(exctx_ptr, eval_caller_type::no_matter, nullptr);
                                                 ai.expr_val.set_global_placement_no_alloc_undefined();
                                                 valbox vb{ai.expr_val};
+                                                vb.set_global_placement_no_alloc_undefined();
                                                 if(vb.is_undefined() && !undefined_inputs_enabled()) {
                                                     have_undefineds = true;
                                                     break;
                                                 } else {
-                                                    exctx_ptr->set_local_value(ai.argname, vb);
+                                                    exctx_ptr->set_local_value(ai.argname, vb, valbox::mem_placement::global);
                                                 }
                                             } else {
                                                 if(ai.cell_ptr == nullptr) {
@@ -1653,11 +1650,12 @@ namespace dfi {
                                                     }
                                                 }
                                                 valbox stack_var{ai.cell_ptr->value()};
+                                                stack_var.set_global_placement_no_alloc_undefined();
                                                 if(stack_var.is_undefined() && !undefined_inputs_enabled()) {
                                                     have_undefineds = true;
                                                     break;
                                                 } else {
-                                                    exctx_ptr->set_local_value(ai.argname, stack_var);
+                                                    exctx_ptr->set_local_value(ai.argname, stack_var, valbox::mem_placement::global);
                                                 }
                                             }
                                         }

@@ -120,7 +120,7 @@ function arr_vals_0_5(a) {
     try {
         a[0].println();
         a[5].println();
-    } catch(e) {
+    } catch(...) {
     }
 }
 
@@ -128,7 +128,7 @@ function obj_vals_c_f(o) {
     try {
         o["c"].println();
         o["f"].println();
-    } catch(e) {
+    } catch(...) {
     }
 }
 
@@ -721,9 +721,9 @@ my_drafts(host_data) {
     k = undefine;
     s = "123";
     println("s = ", s);
-    try k(s); catch();
+    try k(s); catch(...);
     println("s = ", s);
-    try k(k); catch();
+    try k(k); catch(...);
     println("k = ", k);
     s = "123";
     try
@@ -790,7 +790,7 @@ delay_test(val, period) {
                             delay(period);
                             p.println();
                         }
-                        i = 3 / 0;
+                        inf = 3 / 0;
                     } catch(errr) {
                         println("caught: ", errr);
                         delay(period);

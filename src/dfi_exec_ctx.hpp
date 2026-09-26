@@ -210,11 +210,11 @@ namespace dfi {
             return function_depth_ > 0;
         }
 
-        void set_local_value(std::string const &name, valbox &val) {
+        void set_local_value(std::string const &name, valbox &val, valbox::mem_placement plx = valbox::mem_placement::stack) {
             if(stack_ptr_ < 0 || static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
                 throw std::runtime_error{"stack operation error"};
             }
-            val.set_stack_placement();
+            val.set_placement(plx);
             stack_[stack_ptr_].put(name, val);
         }
 
@@ -256,6 +256,7 @@ namespace dfi {
                 if(static_cast<int64_t>(stack_.size()) <= stack_ptr_) {
                     throw std::runtime_error{"stack operation error"};
                 }
+                res.set_stack_placement();
                 stack_[stack_ptr_].put(name, res);
                 return res;
             }
@@ -435,9 +436,6 @@ namespace dfi {
             }
 
             void put(std::string const &name, valbox &value) {
-                if(!value.is_stack_placement()) {
-                    value.set_stack_placement();
-                }
                 m_[name] = value;
             }
 

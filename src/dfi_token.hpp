@@ -81,6 +81,7 @@ namespace dfi {
             TYPECAST,
             ENDOFFILE,
             COMMENT,
+            ELLIPSIS,                    // ...
         };
 
         static inline num_map_t<type, std::string> const type_names {
@@ -153,6 +154,7 @@ namespace dfi {
             {type::FUNCCALL, "FUNCCALL"},
             {type::ENDOFFILE, "ENDOFFILE"},
             {type::COMMENT, "COMMENT"},
+            {type::ELLIPSIS, "ELLIPSIS"},
         };
 
         token() = default;

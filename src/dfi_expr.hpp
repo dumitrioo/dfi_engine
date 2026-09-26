@@ -253,7 +253,7 @@ namespace dfi {
         }
 
         valbox eval(execution_context *ctx, eval_caller_type, valbox *) override {
-            static std::array<valbox(*)(prefix_unop_expression *, execution_context *), 69> const ops{
+            static std::array<valbox(*)(prefix_unop_expression *, execution_context *), 70> const ops{
                 /* NONE */ nullptr,
                 /* INT_LITERAL */ nullptr,
                 /* HEX_LITERAL */ nullptr,
@@ -618,6 +618,7 @@ namespace dfi {
                     return res;
                 },
                 /* ENDOFFILE */ nullptr,
+                /* ELLIPSIS */ nullptr,
             };
             if(primary()) {
                 return primary_val_;
@@ -776,7 +777,7 @@ namespace dfi {
         }
 
         valbox eval(execution_context *ctx, eval_caller_type caller_type, valbox *dotlptr) override {
-            static std::array<valbox(*)(binop_expression *, execution_context *, eval_caller_type, valbox *), 69> const ops{
+            static std::array<valbox(*)(binop_expression *, execution_context *, eval_caller_type, valbox *), 70> const ops{
                 /* NONE */ nullptr,
                 /* INT_LITERAL */ nullptr,
                 /* HEX_LITERAL */ nullptr,
@@ -2403,6 +2404,7 @@ namespace dfi {
                 /* FUNCCALL */ nullptr,
                 /* TYPECAST */ nullptr,
                 /* ENDOFFILE */ nullptr,
+                /* ELLIPSIS */ nullptr,
             };
             if(primary()) {
                 return primary_val_;
