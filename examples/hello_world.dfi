@@ -1,0 +1,19 @@
+// concatenation function (just for example)
+function concat(a, b) { try return a + b; catch(...); }
+
+// node descriptors
+hello_node(h) { return h != undefined ? h : "hello"; }
+space_node() { return " "; }
+world_node() { return "world"; }
+helloworld_node(h, s, w) { return concat(concat(h, s), w); }
+print_node(value) { return println(value); }
+
+// node instances
+//--- input from host ---
+'hello' hello;
+//--- workers ---
+hello_node hn(hello);
+space_node sn();
+world_node wn();
+helloworld_node hwn(hn, sn, wn);
+print_node pn(hwn);

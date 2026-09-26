@@ -126,6 +126,7 @@ QMAKE_CFLAGS_RELEASE += -O3
 LIBS += -lpthread -ldl
 
 DISTFILES += \
+    ../hello_world.dfi \
     ../../README.md \
     ../alu74181.dfi \
     ../alu74181_model.dfi \
