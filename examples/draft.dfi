@@ -217,7 +217,7 @@ function matmul(w) {
     return m3;
 }
 
-my_drafts(host_data) {
+my_drafts(host_data) try {
     emit 3;
 
     if(!this.init) {
@@ -721,9 +721,9 @@ my_drafts(host_data) {
     k = undefine;
     s = "123";
     println("s = ", s);
-    try k(s); catch(...);
+    try k(s); catch(…);
     println("s = ", s);
-    try k(k); catch(...);
+    try k(k); catch(…);
     println("k = ", k);
     s = "123";
     try
@@ -767,6 +767,8 @@ my_drafts(host_data) {
     delay(0.1);
     exit();
     return 0;
+} catch(e) {
+    console.error(e);
 }
 
 my_drafts drf(host_provided_data);
