@@ -86,6 +86,7 @@ namespace dfi {
                 } else if(is_ident_start(c)) { buff_ += c; state_ = "iden";
                 } else if(c == DQUO) { state_ = "str";
                 } else if(c == APOS) { state_ = "sc_str";
+                } else if(c == 0x2026) { report_token(token::type::ELLIPSIS);
                 } else if(c == '=') { buff_ += c; state_ = "=";
                 } else if(c == '*') { buff_ += c; state_ = "*";
                 } else if(c == '/') { buff_ += c; state_ = "/";
