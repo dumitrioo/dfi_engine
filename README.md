@@ -19,7 +19,12 @@ This hybrid topology allows your R&D teams to stop wrestling with memory managem
 
 ## DFI Engine
 
-The DFI Engine name stands for "Data-Flow & Imperative Engine". It is a header-only C++ library implementing a component (a C++ class named "runtime") that is instantiated by the host application and fed the script source code. 
+The DFI Engine name stands for "Data-flow and Imperative Engine". It is a header-only C++ library implementing a component (a C++ class named "runtime") that is instantiated by the host application and fed the script source code.
+
+The engine is built as a compiler that converts source code into a native selectors tree, working with a stack structure built on standard C++ containers. The main advantages of this approach are:
+* platform independence - can run on any system that supports C++17.
+* the ability to extend the engine's functionality using native C++ code without using platform-specific instructions or intrinsics.
+
 A script is a text-based program in a programming language that has no entry point; instead, it contains a description of a multitude of compute nodes. Each node has an arbitrary number of inputs (from zero to infinity) and strictly one output (resembling a neuron, except here it is programmable). The outputs of some nodes are connected to the inputs of others. All nodes are executed in parallel, and before the execution of each node, fresh values from the outputs of the other elements to which this node is connected are fed to its inputs. The body of each node is a program that acts as a function: it receives input values (the very outputs of other nodes), performs some computations, and returns a result, which becomes the output value of that node. As soon as a node completes its execution, it is immediately relaunched with the updated values of its input parameters. And so on until the system is shut down.
 
 > [!NOTE]
