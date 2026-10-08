@@ -43,6 +43,7 @@
 #include "ext/persistence_ext.hpp"
 #include "ext/socket_ext.hpp"
 #include "ext/strings_ext.hpp"
+#include "ext/synchro_ext.hpp"
 
 #ifdef PLATFORM_WINDOWS
 #define	EPERM		 1	/* Operation not permitted */
@@ -178,6 +179,7 @@ namespace dfi {
             pid_ext_.register_runtime(this);
             strings_ext_.register_runtime(this);
             math_ext_.register_runtime(this);
+            synchro_ext_.register_runtime(this);
             time_ext_.register_runtime(this);
             geo_ext_.register_runtime(this);
             crypt_.register_runtime(this);
@@ -1103,6 +1105,7 @@ namespace dfi {
             time_ext_.unregister_runtime();
             geo_ext_.unregister_runtime();
             math_ext_.unregister_runtime();
+            synchro_ext_.unregister_runtime();
             strings_ext_.unregister_runtime();
             pid_ext_.unregister_runtime();
             persistence_ext_.unregister_runtime();
@@ -2204,6 +2207,7 @@ namespace dfi {
         geo_ext geo_ext_{};
         strings_ext strings_ext_{};
         math_ext math_ext_{};
+        syncro_ext synchro_ext_{};
         persistence_ext persistence_ext_{};
         pid_ext pid_ext_{};
         time_ext time_ext_{};

@@ -153,9 +153,10 @@ and4  alu_62(alu_58, alu_59, alu_60, alu_61)          'EQ';
 ///////////////////////// display
 syncobj() {
     if(this.ob == undefined) {
-        this.ob = 0;
+        this.ob = shared_mutex();
+        return this.ob;
     }
-    return this.ob;
+    delay(0.1);
 }
 syncobj synob();
 
@@ -175,10 +176,14 @@ ray_window(synob) {
             exit(0);
         } else {
             if(ray_get_key_pressed() == 300) ray_toggle_full_screen();
-            synob = 1;
-            ray_end_drawing();
-            ray_begin_drawing();
-            synob = 0;
+            if(synob != undefined) {
+                synob.lock();
+                try {
+                    ray_end_drawing();
+                    ray_begin_drawing();
+                } catch(...);
+                synob.unlock();
+            }
         }
     }
     return this.tid;
@@ -192,17 +197,19 @@ draw_bool(t, v, x, y, f, lbl, crcclr, synob) {
     if(t == thread_id()) {
         if(ray_window_should_close()) { ray_close_window(); exit(0); return 0; }
         if(ray_get_key_pressed() == 300) { ray_toggle_full_screen(); }
-        if(synob == 0) {
-            rctclr = Color(64, 64, 64, 255);
-            rcdclr = Color(32, 32, 32, 255);
-            ray_draw_text(lbl, (x - 9) * f, (y + 11) * f, 15 * f, Color(80, 200, 100, 255));
-            ray_draw_line((x - 10.5) * f, (y - 10) * f, (x + 10) * f, (y - 10) * f, rctclr);
-            ray_draw_line((x - 10) * f, (y - 10) * f, (x - 10) * f, (y + 10) * f, rctclr);
-            ray_draw_line((x + 10.5) * f, (y + 10) * f, (x + 10) * f, (y - 10) * f, rcdclr);
-            ray_draw_line((x + 10) * f, (y + 10) * f, (x - 10) * f, (y + 10) * f, rcdclr);
-            ray_draw_circle(x * f, y * f, 7 * f, v ? crcclr : Color(0, 0, 0, 255));
-        } else {
-            println("nodraw");
+        if(synob != undefined) {
+            synob.lock_shared();
+            try {
+                rctclr = Color(64, 64, 64, 255);
+                rcdclr = Color(32, 32, 32, 255);
+                ray_draw_text(lbl, (x - 9) * f, (y + 11) * f, 15 * f, Color(80, 200, 100, 255));
+                ray_draw_line((x - 10.5) * f, (y - 10) * f, (x + 10) * f, (y - 10) * f, rctclr);
+                ray_draw_line((x - 10) * f, (y - 10) * f, (x - 10) * f, (y + 10) * f, rctclr);
+                ray_draw_line((x + 10.5) * f, (y + 10) * f, (x + 10) * f, (y - 10) * f, rcdclr);
+                ray_draw_line((x + 10) * f, (y + 10) * f, (x - 10) * f, (y + 10) * f, rcdclr);
+                ray_draw_circle(x * f, y * f, 7 * f, v ? crcclr : Color(0, 0, 0, 255));
+            } catch(...);
+            synob.unlock_shared();
         }
     }
     return 0;

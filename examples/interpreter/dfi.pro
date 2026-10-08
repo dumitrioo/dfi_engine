@@ -31,6 +31,7 @@ HEADERS += \
     ../../src/ext/eigen_ext.hpp \
     ../../src/ext/socket_ext.hpp \
     ../../src/ext/geo_ext.hpp \
+    ../../src/ext/synchro_ext.hpp \
     ../../src/inc/any.hpp \
     ../../src/inc/base16.hpp \
     ../../src/inc/base64.hpp \
