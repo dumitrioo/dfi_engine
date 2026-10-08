@@ -392,7 +392,7 @@ namespace dfi {
         std::size_t get_resume_index() {
             ++resume_stack_ptr_;
             while(static_cast<int64_t>(resume_stack_.size()) <= resume_stack_ptr_) {
-                resume_stack_.emplace_back(0, /*str_map_t<valbox>*/std::map<std::string, valbox>{});
+                resume_stack_.emplace_back(0, str_map_t<valbox>{});
             }
             return resume_stack_[resume_stack_ptr_].first;
         }
@@ -406,7 +406,7 @@ namespace dfi {
         }
 
         valbox get_resume_stack_value(std::string const &name) {
-            /*str_map_t<valbox>*/std::map<std::string, valbox> &m{resume_stack_[resume_stack_ptr_].second};
+            str_map_t<valbox> &m{resume_stack_[resume_stack_ptr_].second};
             auto it{m.find(name)};
             if(it == m.end()) { return {}; }
             return it->second;
@@ -483,7 +483,7 @@ namespace dfi {
         str_map_t<valbox> *self_fields_{nullptr};
         std::uint64_t create_if_not_exists_{0};
         runtime_error rte_{0, 0, ""};
-        std::vector<std::pair<std::size_t, /*str_map_t*/std::map<std::string, valbox>>> resume_stack_{};
+        std::vector<std::pair<std::size_t, str_map_t<valbox>>> resume_stack_{};
         int64_t resume_stack_ptr_{-1};
     };
 
