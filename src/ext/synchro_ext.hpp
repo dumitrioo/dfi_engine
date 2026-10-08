@@ -33,6 +33,25 @@ namespace dfi {
                 return;
             }
 
+            rt->add_function("mutex", DFIFUN() {
+                return dfi::valbox{std::make_shared<dfi::mt::atomic_spin_mutex>(), "mutex"};
+            });
+            rt->add_method("mutex", "lock", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                DFITHIS(args, std::shared_ptr<dfi::mt::atomic_spin_mutex>)->lock();
+                return true;
+            });
+            rt->add_method("mutex", "unlock", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                DFITHIS(args, std::shared_ptr<dfi::mt::atomic_spin_mutex>)->unlock();
+                return true;
+            });
+            rt->add_method("mutex", "try_lock", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
+                return DFITHIS(args, std::shared_ptr<dfi::mt::atomic_spin_mutex>)->try_lock();
+            });
+
+
             rt->add_function("shared_mutex", DFIFUN() {
                 return dfi::valbox{std::make_shared<dfi::mt::atomic_rw_spin_mutex>(), "shared_mutex"};
             });
@@ -78,6 +97,11 @@ namespace dfi {
             rt_->remove_method("shared_mutex", "lock");
             rt_->remove_method("shared_mutex", "unlock");
             rt_->remove_method("shared_mutex", "try_lock");
+
+            rt_->remove_function("mutex");
+            rt_->remove_method("mutex", "lock");
+            rt_->remove_method("mutex", "unlock");
+            rt_->remove_method("mutex", "try_lock");
             rt_ = nullptr;
         }
 
