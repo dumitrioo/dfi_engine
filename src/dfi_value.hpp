@@ -8468,7 +8468,7 @@ namespace dfi {
                     } else {
                         json const &v{jv["value"]};
                         vr.box_->value_ = v.as_boolean();
-                        vr.box_->type_ = type::CHAR;
+                        vr.box_->type_ = type::BOOL;
                         vr.box_->pointed_type_ = type::UNDEFINED;
                         vr.box_->class_.clear();
                         vr.box_->func_name_.clear();

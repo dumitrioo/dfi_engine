@@ -972,7 +972,7 @@ namespace dfi {
                 long double stale_connections_removal_timeout{0};
                 if(args.size() > 0) { bind_addr = args[0].cast_to_string(); }
                 if(args.size() > 1) { port = args[1].cast_to_u16(); }
-                if(args.size() > 2) { port = args[2].cast_to_long_double(); }
+                if(args.size() > 2) { stale_connections_removal_timeout = args[2].cast_to_long_double(); }
                 return start_net_server(network_address_family::inet4, bind_addr, port, stale_connections_removal_timeout);
             });
 
@@ -1901,12 +1901,12 @@ namespace dfi {
                     ppserver_->set_on_data_arrived([this](net::conn_id_t conn_id, bytevec const &data) {
                         json requ{json::bdeserialize(data)};
                         auto act{requ["act"].as_string()};
-                        json resp{};
+                        // json resp{};
                         if(act == "sub") {
                             auto nme{requ["name"].as_string()};
                             auto ali{requ["alias"].as_string()};
-                            resp["act"] = "sub";
-                            resp["name"] = ali;
+                            // resp["act"] = "sub";
+                            // resp["name"] = ali;
                             pp_subscribe(conn_id, nme, ali);
                         }
                     });
@@ -2269,7 +2269,7 @@ namespace dfi {
                     if(steady_time_sec() > last_sub_time_ + 5) {
                         last_sub_time_ = steady_time_sec();
                         std::shared_lock l{extern_cells_mtp_};
-                        for(auto cp: extern_cells_) {
+                        for(auto &cp: extern_cells_) {
                             json requ{};
                             requ["act"] = "sub";
                             requ["name"] = cp.second->remote_var_name();
