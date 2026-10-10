@@ -1317,12 +1317,9 @@ namespace dfi {
             bool cont{true};
             while(cont) {
                 cont = false;
-
                 token const &tk{get_token(0)};
-                if(
-                    tk.type_is(token::type::INCREMENT) ||
-                    tk.type_is(token::type::DECREMENT)
-                ) {
+                if(tk.type_is(token::type::INCREMENT) || tk.type_is(token::type::DECREMENT)) {
+                    cont = true;
                     json over_res{};
                     over_res["loc"]["line"] = get_token(0).line();
                     over_res["loc"]["col"] = get_token(0).col();
