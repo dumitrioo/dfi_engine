@@ -140,7 +140,7 @@ untab() {
     if(file_exists(dir_or_filename)) {
         try {
             console.print("processing file ", dir_or_filename);
-            save_to_file(dir_or_filename, dir_or_filename.load_from_file().replace_substr("\t", " " * 4));
+            dir_or_filename.load_from_file().replace_substr("\t", " " * 4).save_to_file(dir_or_filename);
         } catch(e) {
             console.error(e);
         }
@@ -150,7 +150,7 @@ untab() {
             if(file_exists(dir_list[i])) {
                 try {
                     console.print("processing file ", dir_list[i]);
-                    save_to_file(dir_list[i], dir_list[i].load_from_file().replace_substr("\t", " " * 4));
+                    dir_list[i].load_from_file().replace_substr("\t", " " * 4).save_to_file(dir_list[i]);
                 } catch(e) {
                     console.error(e);
                 }
@@ -171,7 +171,7 @@ finddupes() {
             curr_fname = dir_list[i];
             if(file_exists(curr_fname)) {
                 try {
-                    hsh = crc64(load_from_file(curr_fname)).utoa();
+                    hsh = crc64(curr_fname.load_from_file()).utoa();
                     dupes[hsh].append(curr_fname);
                 } catch(e)
                     console.error(e);

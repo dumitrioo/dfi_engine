@@ -166,7 +166,7 @@ namespace dfi {
             });
             rt->add_function("save_to_file", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
-                return file_util::save_to_file(args[0].cast_to_string(), args[1].cast_to_string());
+                return file_util::save_to_file(args[1].cast_to_string(), args[0].cast_to_string());
             });
             rt->add_function("delete_filesystem_entry", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)

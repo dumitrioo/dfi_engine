@@ -217,8 +217,21 @@ function matmul(w) {
     return m3;
 }
 
+function text_file_single_line(fname) {
+    lines = fname.load_from_file().split("\n");
+    res = "";
+    splitter = "";
+    for(l: lines) {
+        res += splitter + l;
+        splitter = " ";
+    }
+    return res;
+}
+
 my_drafts(host_data) try {
     emit 3;
+
+    try "/etc/passwd".text_file_single_line().println(); catch(e) e.println();
 
     if(!this.init) {
         this.init = true;
@@ -809,8 +822,8 @@ delay_test(val, period) {
     }
 }
 
-delay_test dt1(["s1",4,2,6,], 0.25);
-delay_test dt2(345, 0.01);
+// delay_test dt1(["s1",4,2,6,], 0.25);
+// delay_test dt2(345, 0.01);
 
 
 

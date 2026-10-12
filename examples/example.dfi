@@ -248,14 +248,16 @@ example4() {
     }
     return 0;
 }
+
 example4 ex4();
 
 
 example3() {
     if (!this.initialized) {
-        console.fixed(); console.setprecision(0);
-        this.n = 0;
         this.initialized = true;
+        console.fixed();
+        console.setprecision(0);
+        this.n = 0;
         this.n1 = f128(0);
         this.n2 = f128(1);
         console.println(this.n1);
@@ -272,41 +274,28 @@ example3 ex3();
 
 
 example2() {
-    if (this.a == undefined) {
-        this.rule = 30;
-        // this.rule = 153;
-        // this.rule = 106;
-        // this.rule = 204; // identity
-        // this.rule = 58;
-        // this.rule = 225;
-        // this.rule = 216;
-        // this.rule = 210;
-        // this.rule = 135;
-        // this.rule = 75;
-        // this.rule = 147;
-        // this.rule = 45;
-        // this.rule = 89;
-        // this.rule = 105;
-        // this.rule = 169;
-        // this.rule = 54;
-        // this.rule = 86;
-        // this.rule = 150;
-        // this.rule = 120;
-        // this.rule = 232; // sharpen
-        // this.rule = 240;
+    if (!this.initialized || this.ctr++ > 50) {
+        this.initialized = true;
+        this.ctr = 0;
+        rules = [
+            22, 30, 118, 153, 106, 204, 58, 225, 216, 210, 135, 75, 147, 45, 89,
+            149, 105, 165, 169, 54, 86, 150, 120, 232, 240, 90, 189, 18, 25, 26,
+            60, 73, 82, 97, 101, 102, 107, 110, 121, 122, 124, 126, 129, 137, 146,
+            151, 161, 167, 181, 182, 183, 193, 195
+        ];
+        this.rule = rules[hwrand() % rules.size()];
         this.a = array();
-        for (i = 0; i < 64; ++i) {
+        for (i = 0; i < 128; ++i) {
             this.a[i] = (hwrand() & 1).u8();
         }
-        this.c = 0;
     }
     CN = this.a.size();
     s = "";
     s.reserve(CN);
     for (i = 0; i < CN; ++i) {
-        s += this.a[i] ? "." : " ";
+        s += this.a[i] ? "·" : " ";
     }
-    console.println(s);
+    println(s);
     a = array();
     a[0] = u8();
     for (i = 1; i <= CN; ++i) {
@@ -314,7 +303,7 @@ example2() {
         a[i % CN] = u8((this.rule >> indx) & 1);
     }
     this.a = a;
-    return this.a;
+    return 0;
 }
 
 example2 ex2();
@@ -337,4 +326,4 @@ example1() {
     return this.cur;
 }
 
-example1 ex1() 'out';
+example1 ex1();
