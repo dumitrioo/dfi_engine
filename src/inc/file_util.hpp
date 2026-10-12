@@ -414,9 +414,14 @@ namespace dfi::file_util {
 
     static std::vector<std::uint8_t> load_from_file(const std::string &fn, std::uint64_t how_much = 0) {
         std::ifstream file(fn, std::ios::binary | std::ios::ate);
-        if (!file) { throw std::runtime_error("file opening error: " + fn); }
+        if (!file) {
+            throw std::runtime_error{std::string{"error opening file \""} + fn + "\": " +
+                                     detail::error_str(detail::last_error())};
+        }
         std::streampos const end_pos{file.tellg()};
-        if (end_pos < 0) { throw std::runtime_error("failed to get file size"); }
+        if (end_pos < 0) {
+            throw std::runtime_error(std::string{"failed to get file size: "} + detail::error_str(detail::last_error()));
+        }
         const auto file_size{static_cast<std::uintmax_t>(end_pos)};
         const std::uintmax_t bytes_to_read {how_much == 0 ? file_size : std::min<std::uintmax_t>(file_size, how_much)};
         std::vector<std::uint8_t> result{};
@@ -425,7 +430,7 @@ namespace dfi::file_util {
             file.seekg(0, std::ios::beg);
             if (bytes_to_read > 0) {
                 file.read(reinterpret_cast<std::ifstream::char_type *>(result.data()), static_cast<std::streamsize>(bytes_to_read));
-                if (!file && !file.eof()) { throw std::runtime_error("file reading error"); }
+                if (!file && !file.eof()) { throw std::runtime_error(std::string{"file reading error: "} + detail::error_str(detail::last_error())); }
                 auto gcnt{static_cast<std::size_t>(file.gcount())};
                 if(gcnt != result.size()) { result.resize(gcnt); }
             }
@@ -435,9 +440,12 @@ namespace dfi::file_util {
 
     std::string load_str_from_file(std::string const &fileName, std::size_t maxBytes = 0) {
         std::ifstream file(fileName, std::ios::binary | std::ios::ate);
-        if (!file) { throw std::runtime_error("file opening error: " + fileName); }
+        if (!file) {
+            throw std::runtime_error{std::string{"error opening file \""} + fileName + "\": " +
+                                     detail::error_str(detail::last_error())};
+        }
         std::streampos const end_pos{file.tellg()};
-        if (end_pos < 0) { throw std::runtime_error("failed to get file size"); }
+        if (end_pos < 0) { throw std::runtime_error(std::string{"failed to get file size: "} + detail::error_str(detail::last_error())); }
         const auto file_size{static_cast<std::uintmax_t>(end_pos)};
         const std::uintmax_t bytes_to_read { (maxBytes == 0) ? file_size : std::min<std::uintmax_t>(file_size, maxBytes) };
         std::string result{};
@@ -446,7 +454,7 @@ namespace dfi::file_util {
             file.seekg(0, std::ios::beg);
             if (bytes_to_read > 0) {
                 file.read(result.data(), static_cast<std::streamsize>(bytes_to_read));
-                if (!file && !file.eof()) { throw std::runtime_error("file reading error"); }
+                if (!file && !file.eof()) { throw std::runtime_error(std::string{"file reading error: "} + detail::error_str(detail::last_error())); }
                 auto gcnt{static_cast<std::size_t>(file.gcount())};
                 if(gcnt != result.size()) { result.resize(gcnt); }
             }
