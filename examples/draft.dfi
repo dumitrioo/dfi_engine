@@ -222,566 +222,570 @@ function text_file_single_line(fname) {
     res = "";
     splitter = "";
     for(l: lines) {
-        res += splitter + l;
+        res += splitter + l.trim();
         splitter = " ";
     }
     return res;
 }
 
-my_drafts(host_data) try {
-    emit 3;
-
-    try "/etc/passwd".text_file_single_line().println(); catch(e) e.println();
-
-    if(!this.init) {
-        this.init = true;
-        set_cycle_sleep_seconds(0.01);
-        set_inactive_sleep_seconds(0.1);
-        console.fixed();
-        console.enable_colors(true);
-        console.setprecision(9);
-        console.set_gmt_timestamp(false);
-        console.set_timestamp_prec(9);
-    }
-
-    a1 = [2,4,6];
-    a2 = [33,233,0];
-    (a1 + a2).println();
-
-    x = matrix([1,2,3]);
-    y = matrix([1,2,3]);
-    z = matrix([[1],[2],[3]]);
-    x.println();
-    y.println();
-    z.println();
-
-    cpu_info().serialize5(2).println();
-
-    medge = 100;
-    mr = matmul(medge);
-
-    obj = { potential: this.init, glutamate: 1.0, electrical: 1.0, };
-    obj.println();
-
-    timestamps = [];
-    timestamps.reserve(500);
-    for(i = 0; i < 500; ++i) {
-        timestamps.push_back(steady_clock());
-    }
-    timestamps.apply_func(println);
-    println("-------------");
-    timestamps.sort_r().apply_func(println);
-
-    awepo = [];
-    for(i = 0; i < 10; ++i) {
-        awepo.push_front(i);
-    }
-    awepo.apply_func(println);
-
-    ++uuu;
-    uuu.println();
-
-    {
-        mindist = -10000;
-        maxdist = 10000;
-        dist_range = [vec4(mindist, mindist, mindist), vec4(maxdist, maxdist, maxdist)];
-        mass_range = [1, 10];
-
-        masses = [];
-        array_size = 10000;
-        masses.reserve(array_size + 100);
-        println("creating masses array...");
-        btime = steady_clock();
-        for(i = 0; i < array_size; ++i) {
-            masses.push_back(rand_body(mass_range, dist_range));
-        }
-        etime = steady_clock();
-        println("masses array created in ", etime - btime, " sec.");
-
-        println("calculating baricenter...");
-        bc = construct_body(0, 0, 0, 0);
-        btime = steady_clock();
-        for(p: masses) {
-            bc = baricenter(bc, p);
-        }
-        etime = steady_clock();
-        println("baricenter calculated: ", bc, " in ", etime - btime, " sec.");
-    }
-
-
-    u = {o:1,a:1,s:1,x:1,z:1,c:1,};
-    u.println();
-    for(c: u) { c.print(); c[1] = 5; }
-    println();
-    u.println();
-
-    arrra = [1,2,3,4];
-    arrra.println();
-    for(c: arrra) { c.print(); c = 5; }
-    println();
-    arrra.println();
-
-    strin = "123qweasdzxc";
-    strin.println();
-    sidx = 0;
-    sep = "";
-    for(c: strin) {
-        print(sep, "c[", sidx, "] = '", c, "'");
-        if(c == 'e') c = 'A';
-        ++sidx;
-        sep = ", ";
-    }
-    println();
-    strin.println();
-
-
-    test_lla = LLA("5°45′20.88″N, 7°33′36.015″W, 25m");
-    println("test_lla: ", test_lla);
-
-    orgLLA = LLA(5.7558, -7.6173, 150.0);
-    // println("orgLLA Lat: ", orgLLA.latitude(), " Lon: ", orgLLA.longitude(), " Alt: ", orgLLA.altitude());
-    println("orgLLA: ", orgLLA.to_string_iso_6709());
-
-    // 1. LLA -> ECEF
-    orgECEF = LLAtoECEF(orgLLA);
-    // println("orgECEF X:", orgECEF.x(), " Y:", orgECEF.y(), " Z:", orgECEF.z());
-    println("orgECEF: ", orgECEF);
-
-    println("------------------------");
-
-    // 2. ECEF -> LLA
-    calculatedLLA = ECEFtoLLA(orgECEF);
-    println("calculatedLLA Lat: ", calculatedLLA.latitude(), " Lon: ", calculatedLLA.longitude(), " Alt: ", calculatedLLA.altitude());
-    // println("calculatedLLA: ", calculatedLLA);
-
-    println("------------------------");
-
-    targetLLA = LLA(orgLLA.latitude(), orgLLA.longitude() + rad2deg(0.001), orgLLA.altitude() + 100.0);
-    println("targetLLA: ", targetLLA);
-    targetECEF = LLAtoECEF(targetLLA);
-    // println("targetECEF X:", targetECEF.x(), " Y:", targetECEF.y(), " Z:", targetECEF.z());
-    println("targetECEF: ", targetECEF);
-    targetENU = ECEFtoENU(targetECEF, orgLLA);
-
-    // println("targetENU East:", targetENU.east(), " North:", targetENU.north(), " Up:", targetENU.up());
-    println("targetENU: ", targetENU);
-
-
-
-    bigstr = "ouououiffdguouououhergeiououourerhjytgouououhewfealwqliefouououarg";
-    substr = "ououou";
-    for(oij = bigstr.find_substr(substr, 0); oij >= 0; oij = bigstr.find_substr(substr, oij + 1)) {
-        oij.println();
-    }
-
-    {
-        i = 0;
-        do {
-            i++;
-            if (i == 3) {
-                continue; // Skip the rest of the loop when i is 3
-            }
-            println("Value of i: ", i); // This will not print when i is 3
-        } while (i < 5);
-    }
-
-    v4a = [];
-    v4a.push_back(vec4(1,1,0));
-    v4a.push_back(vec4(1,1,0));
-    v4a.push_back(vec4(1,1,0));
-    v4a.push_back(vec4(1,1,0));
-    array_avg(v4a).println();
-
-    wewerwer = rnd_str(64);
-    wewerwer.println();
-    wewerwer.sort();
-    wewerwer.println();
-
-    b = "Hello, World!";
-    println(b.py_slice(-5, -2));
-
-    sqrt(273).println();
-    square_root(273).println();
-
-    fibonacci(7).println();
-    fibonaccir(7).println();
-
-    d = 3 / 2.0;
-    d.println();
-    d = this.p;
-    println(d);
-    d = undefined;
+my_drafts(host_data) {
     try {
+        emit 3;
+
+        try
+            "/etc/passwd".text_file_single_line().println();
+        catch(e)
+            console.error(e);
+
+        if(!this.init) {
+            this.init = true;
+            set_cycle_sleep_seconds(0.01);
+            set_inactive_sleep_seconds(0.1);
+            console.fixed();
+            console.enable_colors(true);
+            console.setprecision(9);
+            console.set_gmt_timestamp(false);
+            console.set_timestamp_prec(9);
+        }
+
+        a1 = [2,4,6];
+        a2 = [33,233,0];
+        (a1 + a2).println();
+
+        x = matrix([1,2,3]);
+        y = matrix([1,2,3]);
+        z = matrix([[1],[2],[3]]);
+        x.println();
+        y.println();
+        z.println();
+
+        cpu_info().serialize5(2).println();
+
+        medge = 100;
+        mr = matmul(medge);
+
+        obj = { potential: this.init, glutamate: 1.0, electrical: 1.0, };
+        obj.println();
+
+        timestamps = [];
+        timestamps.reserve(500);
+        for(i = 0; i < 500; ++i) {
+            timestamps.push_back(steady_clock());
+        }
+        timestamps.apply_func(println);
+        println("-------------");
+        timestamps.sort_r().apply_func(println);
+
+        awepo = [];
+        for(i = 0; i < 10; ++i) {
+            awepo.push_front(i);
+        }
+        awepo.apply_func(println);
+
+        ++uuu;
+        uuu.println();
+
+        {
+            mindist = -10000;
+            maxdist = 10000;
+            dist_range = [vec4(mindist, mindist, mindist), vec4(maxdist, maxdist, maxdist)];
+            mass_range = [1, 10];
+
+            masses = [];
+            array_size = 10000;
+            masses.reserve(array_size + 100);
+            println("creating masses array...");
+            btime = steady_clock();
+            for(i = 0; i < array_size; ++i) {
+                masses.push_back(rand_body(mass_range, dist_range));
+            }
+            etime = steady_clock();
+            println("masses array created in ", etime - btime, " sec.");
+
+            println("calculating baricenter...");
+            bc = construct_body(0, 0, 0, 0);
+            btime = steady_clock();
+            for(p: masses) {
+                bc = baricenter(bc, p);
+            }
+            etime = steady_clock();
+            println("baricenter calculated: ", bc, " in ", etime - btime, " sec.");
+        }
+
+
+        u = {o:1,a:1,s:1,x:1,z:1,c:1,};
+        u.println();
+        for(c: u) { c.print(); c[1] = 5; }
+        println();
+        u.println();
+
+        arrra = [1,2,3,4];
+        arrra.println();
+        for(c: arrra) { c.print(); c = 5; }
+        println();
+        arrra.println();
+
+        strin = "123qweasdzxc";
+        strin.println();
+        sidx = 0;
+        sep = "";
+        for(c: strin) {
+            print(sep, "c[", sidx, "] = '", c, "'");
+            if(c == 'e') c = 'A';
+            ++sidx;
+            sep = ", ";
+        }
+        println();
+        strin.println();
+
+
+        test_lla = LLA("5°45′20.88″N, 7°33′36.015″W, 25m");
+        println("test_lla: ", test_lla);
+
+        orgLLA = LLA(5.7558, -7.6173, 150.0);
+        // println("orgLLA Lat: ", orgLLA.latitude(), " Lon: ", orgLLA.longitude(), " Alt: ", orgLLA.altitude());
+        println("orgLLA: ", orgLLA.to_string_iso_6709());
+
+        // 1. LLA -> ECEF
+        orgECEF = LLAtoECEF(orgLLA);
+        // println("orgECEF X:", orgECEF.x(), " Y:", orgECEF.y(), " Z:", orgECEF.z());
+        println("orgECEF: ", orgECEF);
+
+        println("------------------------");
+
+        // 2. ECEF -> LLA
+        calculatedLLA = ECEFtoLLA(orgECEF);
+        println("calculatedLLA Lat: ", calculatedLLA.latitude(), " Lon: ", calculatedLLA.longitude(), " Alt: ", calculatedLLA.altitude());
+        // println("calculatedLLA: ", calculatedLLA);
+
+        println("------------------------");
+
+        targetLLA = LLA(orgLLA.latitude(), orgLLA.longitude() + rad2deg(0.001), orgLLA.altitude() + 100.0);
+        println("targetLLA: ", targetLLA);
+        targetECEF = LLAtoECEF(targetLLA);
+        // println("targetECEF X:", targetECEF.x(), " Y:", targetECEF.y(), " Z:", targetECEF.z());
+        println("targetECEF: ", targetECEF);
+        targetENU = ECEFtoENU(targetECEF, orgLLA);
+
+        // println("targetENU East:", targetENU.east(), " North:", targetENU.north(), " Up:", targetENU.up());
+        println("targetENU: ", targetENU);
+
+
+
+        bigstr = "ouououiffdguouououhergeiououourerhjytgouououhewfealwqliefouououarg";
+        substr = "ououou";
+        for(oij = bigstr.find_substr(substr, 0); oij >= 0; oij = bigstr.find_substr(substr, oij + 1)) {
+            oij.println();
+        }
+
+        {
+            i = 0;
+            do {
+                i++;
+                if (i == 3) {
+                    continue; // Skip the rest of the loop when i is 3
+                }
+                println("Value of i: ", i); // This will not print when i is 3
+            } while (i < 5);
+        }
+
+        v4a = [];
+        v4a.push_back(vec4(1,1,0));
+        v4a.push_back(vec4(1,1,0));
+        v4a.push_back(vec4(1,1,0));
+        v4a.push_back(vec4(1,1,0));
+        array_avg(v4a).println();
+
+        wewerwer = rnd_str(64);
+        wewerwer.println();
+        wewerwer.sort();
+        wewerwer.println();
+
+        b = "Hello, World!";
+        println(b.py_slice(-5, -2));
+
+        sqrt(273).println();
+        square_root(273).println();
+
+        fibonacci(7).println();
+        fibonaccir(7).println();
+
+        d = 3 / 2.0;
         d.println();
-    } catch(e) {
-        e.println(", exception caught");
-    }
+        d = this.p;
+        println(d);
+        d = undefined;
+        try {
+            d.println();
+        } catch(e) {
+            e.println(", exception caught");
+        }
 
-    this.trur = true;
-    this.trur.println();
-    this.trur = undefined;
-    println(this.trur);
+        this.trur = true;
+        this.trur.println();
+        this.trur = undefined;
+        println(this.trur);
 
-    k = {t:100};
-    k.t++;
-    k.println();
+        k = {t:100};
+        k.t++;
+        k.println();
 
-    this.wert = 10;
-    ++this.wert;
-    this.wert.println();
+        this.wert = 10;
+        ++this.wert;
+        this.wert.println();
 
-    this.o = {j: 98};
-    this.o.println();
-    astr = "udutrdutrdturdutrd";
-    astr.println();
-    astr[0] = '5';
-    astr.println();
-    ko = astr[0];
-    ko.println();
+        this.o = {j: 98};
+        this.o.println();
+        astr = "udutrdutrdturdutrd";
+        astr.println();
+        astr[0] = '5';
+        astr.println();
+        ko = astr[0];
+        ko.println();
 
-    ctr = 0;
-    if(persistence_enabled()) {
-        ctr = persistence.get("ctr");
-    }
-    ctr_top = ctr + 10;
-    for(; ctr < ctr_top; ++ctr) {
-        ctr.println();
-    }
-    if(persistence_enabled()) {
-        persistence.put("ctr", ctr);
-    }
+        ctr = 0;
+        if(persistence_enabled()) {
+            ctr = persistence.get("ctr");
+        }
+        ctr_top = ctr + 10;
+        for(; ctr < ctr_top; ++ctr) {
+            ctr.println();
+        }
+        if(persistence_enabled()) {
+            persistence.put("ctr", ctr);
+        }
 
-    println((f64)"qwerty"[1]);
+        println((f64)"qwerty"[1]);
 
-    wewerwer = [4,26,3,6,1,8,6,3,5,98,43,76,24,82];
-    wewerwer.println();
-    wewerwer.sort();
-    wewerwer.println();
+        wewerwer = [4,26,3,6,1,8,6,3,5,98,43,76,24,82];
+        wewerwer.println();
+        wewerwer.sort();
+        wewerwer.println();
 
-    obj = {d: "d", c: 0xc};
-    obj_vals_c_f(obj);
-    arr_vals_0_5(obj);
+        obj = {d: "d", c: 0xc};
+        obj_vals_c_f(obj);
+        arr_vals_0_5(obj);
 
-    s = "123123123";
-    s[0]++;
-    s.println();
-
-    "12345".reverse().println();
-
-    "asdasdasdasdkdsadsadsadsa".palindrome().println();
-
-    uruy[5] = 789;
-    uruy.println();
-    uruy[0] = 789;
-    uruy.println();
-    uruy.size().println();
-    uruy.resize(2);
-    uruy.println();
-
-    k["r"] = "1";
-    t["d"] = "d";
-    o = k + t;
-    o.println();
-
-    pi = M_PI;
-    pi.println();
-    M_PI.placement().println();
-    pi.placement().println();
-
-    this.instvar = 2;
-    this.instvar.placement().println();
-
-    kkk = 0;
-    while kkk++ < 5 println("kkk = ", kkk);
-    version_string().println();
-
-    for(;;) if kkk++ > 10 break; else println("kkk 2 = ", kkk);
-
-    obj = {"1": 2};
-    k = [[1,2,3], [1,2,3], [obj]];
-    k.apply_func(assert);
-    assert(k.typeof() == "array").println();
-
-    this.k = timestamp();
-
-    for(v = matrix([[10], [0], [0], [0]]); v; v.at(0) -= 1) {
-        v.println();
-    }
-
-    m = identity_matrix(4);
-    println(m);
-    m *= 5;
-    println(m);
-    m.at(0) = 10;
-    println(m);
-
-    v = matrix([[1], [2], [3], [4]]);
-    println(v);
-    mr = m * v;
-    println(m);
-    println(v);
-    println(mr);
-
-    v = matrix([
-        [1, 2, 3, 4, 1, 2, 3, 4],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0]
-    ]);
-    v.println();
-
-    mr.at(2) = 2124;
-    println(mr);
-
-    "--------------------".println();
-    t = matrix([
-        [ 1, 2, 3, 4],
-        [ 5, 6, 7, 8],
-        [ 9,10,11,12],
-        [13,14,15,16]
-    ]);
-    t.println();
-    t.transposed().println();
-    t.println();
-    t.inversed().println();
-    t.println();
-
-    u = t - m;
-    println(u);
-    u.inverse();
-    println(u);
-    u.inverse();
-    println(u);
-
-    if(t) {
-        println("t!");
-    }
-
-    arr = 3 + [12, undefined, '2', "122", 9090.9090, [],];
-    arr.println();
-
-    // index_mem_size = (u64)(1024 * 1024);
-    // index_num_entries = index_mem_size / 8;
-    index_num_entries = (f128)(u64)0x1f'ff'ff'ff'ff;
-    index_mem_size = index_num_entries * 8;
-    page_size = (f128)16384;
-    paged_size = page_size * index_num_entries;
-    println("index_num_entries: ", index_num_entries);
-    println("paged_size: ", paged_size);
-    println("index_mem_size: ", index_mem_size);
-    println("total_mem_size: ", paged_size + index_mem_size);
-
-    // (8 * (256 * 1024 * 1024 * 1024 * 1024 / 4096)).println();
-
-    kf.predict = k_predict;
-    kf.update = k_update;
-    kf.x = 0.0;  // state estimate
-    kf.P = 1.0;  // estimate covariance
-    kf.A = 1.0;  // state transition (1D)
-    kf.B = 0.0;  // control (1D)
-    kf.H = 1.0;  // measurement map (1D)
-    kf.Q = 1e-4; // process noise variance
-    kf.R = 0.1;  // measurement noise variance
-
-    measurements = [0.39, 0.50, 0.48, 0.29, 0.25, 0.32];
-    print("k\tmeas\test\tP\n");
-    for(k = 0; k < measurements.size(); ++k) {
-        kf.predict(0);
-        // kf["predict"](0);
-        kf.update(measurements[k]);
-        print(k, "\t", measurements[k], "\t", kf.x, "\t", kf.P, "\n");
-    }
-
-    if(host_data != undefined) host_data.serialize5(4).println();
-
-    timestamp().to_string().println();
-
-    println(false, " && ", false, " = ", false && false);
-    println(false, " && ", true, " = ", false && true);
-    println(true, " && ", false, " = ", true && false);
-    println(true, " && ", true, " = ", true && true);
-    println();
-    println(false, " || ", false, " = ", false || false);
-    println(false, " || ", true, " = ", false || true);
-    println(true, " || ", false, " = ", true || false);
-    println(true, " || ", true, " = ", true || true);
-
-    ++k;
-    k.println();
-
-    a[0].name = "string";
-    println(a.push_back(string(3)));
-
-    console.enable_colors(true);
-    console.fixed();
-    console.setprecision(16);
-
-    /////////////////////////////////////////////////////////////////////
-
-    (1.0 / Q_rsqrt(900)).println();
-    sqrt(900).println();
-
-    /////////////////////////////////////////////////////////////////////
-
-    println("1 <=> 2: ", 1 <=> 2 == LESS ? "LESS" : 1 <=> 2 == GREATER ? "GREATER" : "EQUAL");
-
-    /////////////////////////////////////////////////////////////////////
-
-    k = M_E;
-    k.println();
-    x(vec4(43434,43434,343434,4443434)).println();
-
-    /////////////////////////////////////////////////////////////////////
-
-    s = "123123123123";
-    s[0] = '0';
-    println(s);
-
-    /////////////////////////////////////////////////////////////////////
-
-    println(integral(sin, 0.0, M_PI, 0.001));
-    println(integral(sinus, -M_PI, M_PI, 0.001));
-
-    {
-        v = vec4(1,2,3,4);
-        v.println();
-        a = [];
-        o = {};
-        a.assign(v);
-        a.println();
-        o.assign(v);
-        o.println();
-
-        s = "";
-        s.assign(o);
+        s = "123123123";
+        s[0]++;
         s.println();
 
-        v1 = vec4();
-        v1.assign(o);
-        v1.println();
-    }
+        "12345".reverse().println();
 
-    {
-        m = mat4(11,12,13,14, 21,22,23,24, 31,32,33,34, 41,42,43,44);
-        m.println();
-        a = [];
-        o = {};
-        a.assign(m);
-        a.println();
-        o.assign(m);
+        "asdasdasdasdkdsadsadsadsa".palindrome().println();
+
+        uruy[5] = 789;
+        uruy.println();
+        uruy[0] = 789;
+        uruy.println();
+        uruy.size().println();
+        uruy.resize(2);
+        uruy.println();
+
+        k["r"] = "1";
+        t["d"] = "d";
+        o = k + t;
         o.println();
 
-        m1 = mat4();
-        m1.assign(o);
-        m1.println();
-    }
+        pi = M_PI;
+        pi.println();
+        M_PI.placement().println();
+        pi.placement().println();
 
-    /////////////////////////////////////////////////////////////////////
+        this.instvar = 2;
+        this.instvar.placement().println();
 
-    println("string" + [48,49,50] + 1 + vec4());
+        kkk = 0;
+        while kkk++ < 5 println("kkk = ", kkk);
+        version_string().println();
 
-    /////////////////////////////////////////////////////////////////////
+        for(;;) if kkk++ > 10 break; else println("kkk 2 = ", kkk);
 
-    if !(this.ctr % 5)
-        this.res = randf() > 0.5;
-    ++this.ctr;
+        obj = {"1": 2};
+        k = [[1,2,3], [1,2,3], [obj]];
+        k.apply_func(assert);
+        assert(k.typeof() == "array").println();
 
-    /////////////////////////////////////////////////////////////////////
+        this.k = timestamp();
 
-    sdsd = 3 * undefined;
-    sdsd.println();
-    (1 << 33).println();
-
-    k = 3 + undefined;
-    k = undefined - 3;
-    k.println();
-
-    /////////////////////////////////////////////////////////////////////
-
-    undef_test();
-    f = undef_test;
-    f();
-    undefine(f);
-    try
-        f();
-    catch(e)
-        e.println(" (caught)");
-    undef_test();
-    f = undef_test;
-    f();
-
-    /////////////////////////////////////////////////////////////////////
-
-    this.k = [];
-    this.k[0] = [];
-    this.k[1] = [];
-    this.k[2] = [];
-    this.k[3] = [];
-    this.k[4] = [];
-    this.k[4].resize(100);
-    this.k.typeof().println();
-    this.k.sizeof().println();
-    this.k.println();
-
-    /////////////////////////////////////////////////////////////////////
-
-    k = undefine;
-    s = "123";
-    println("s = ", s);
-    try k(s); catch(…);
-    println("s = ", s);
-    try k(k); catch(…);
-    println("k = ", k);
-    s = "123";
-    try
-        k(s);
-    catch(e)
-        e.println(" (caught)");
-    println("s = ", s);
-    undefine(s);
-    println("s = ", s);
-
-    /////////////////////////////////////////////////////////////////////
-
-    s = string();
-    tot_num = 100;
-    s.reserve(tot_num * 17);
-    b = steady_clock();
-    for(i = 0; i < tot_num; ++i) {
-        s += "0123456789abcdef";
-    }
-    e = steady_clock();
-    s.println();
-    (e - b).println();
-
-    /////////////////////////////////////////////////////////////////////
-
-    for(i = 0; i < 256; ++i) {
-        print(i, " (", itoa(i, 16), "): ", isspace(i) ? "space" : "");
-    }
-    println();
-
-    sum = 0;
-    for(i = 1; i < 10000; ++i) {
-        s = i.itoa();
-        sum += s.size();
-        if(sum >= 1095) {
-            println(i, " (", sum, ")");
-            break;
+        for(v = matrix([[10], [0], [0], [0]]); v; v.at(0) -= 1) {
+            v.println();
         }
-    }
 
-    delay(0.1);
+        m = identity_matrix(4);
+        println(m);
+        m *= 5;
+        println(m);
+        m.at(0) = 10;
+        println(m);
+
+        v = matrix([[1], [2], [3], [4]]);
+        println(v);
+        mr = m * v;
+        println(m);
+        println(v);
+        println(mr);
+
+        v = matrix([
+            [1, 2, 3, 4, 1, 2, 3, 4],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0]
+        ]);
+        v.println();
+
+        mr.at(2) = 2124;
+        println(mr);
+
+        "--------------------".println();
+        t = matrix([
+            [ 1, 2, 3, 4],
+            [ 5, 6, 7, 8],
+            [ 9,10,11,12],
+            [13,14,15,16]
+        ]);
+        t.println();
+        t.transposed().println();
+        t.println();
+        t.inversed().println();
+        t.println();
+
+        u = t - m;
+        println(u);
+        u.inverse();
+        println(u);
+        u.inverse();
+        println(u);
+
+        if(t) {
+            println("t!");
+        }
+
+        arr = 3 + [12, undefined, '2', "122", 9090.9090, [],];
+        arr.println();
+
+        // index_mem_size = (u64)(1024 * 1024);
+        // index_num_entries = index_mem_size / 8;
+        index_num_entries = (f128)(u64)0x1f'ff'ff'ff'ff;
+        index_mem_size = index_num_entries * 8;
+        page_size = (f128)16384;
+        paged_size = page_size * index_num_entries;
+        println("index_num_entries: ", index_num_entries);
+        println("paged_size: ", paged_size);
+        println("index_mem_size: ", index_mem_size);
+        println("total_mem_size: ", paged_size + index_mem_size);
+
+        // (8 * (256 * 1024 * 1024 * 1024 * 1024 / 4096)).println();
+
+        kf.predict = k_predict;
+        kf.update = k_update;
+        kf.x = 0.0;  // state estimate
+        kf.P = 1.0;  // estimate covariance
+        kf.A = 1.0;  // state transition (1D)
+        kf.B = 0.0;  // control (1D)
+        kf.H = 1.0;  // measurement map (1D)
+        kf.Q = 1e-4; // process noise variance
+        kf.R = 0.1;  // measurement noise variance
+
+        measurements = [0.39, 0.50, 0.48, 0.29, 0.25, 0.32];
+        print("k\tmeas\test\tP\n");
+        for(k = 0; k < measurements.size(); ++k) {
+            kf.predict(0);
+            // kf["predict"](0);
+            kf.update(measurements[k]);
+            print(k, "\t", measurements[k], "\t", kf.x, "\t", kf.P, "\n");
+        }
+
+        if(host_data != undefined) host_data.serialize5(4).println();
+
+        timestamp().to_string().println();
+
+        println(false, " && ", false, " = ", false && false);
+        println(false, " && ", true, " = ", false && true);
+        println(true, " && ", false, " = ", true && false);
+        println(true, " && ", true, " = ", true && true);
+        println();
+        println(false, " || ", false, " = ", false || false);
+        println(false, " || ", true, " = ", false || true);
+        println(true, " || ", false, " = ", true || false);
+        println(true, " || ", true, " = ", true || true);
+
+        ++k;
+        k.println();
+
+        a[0].name = "string";
+        println(a.push_back(string(3)));
+
+        console.enable_colors(true);
+        console.fixed();
+        console.setprecision(16);
+
+        /////////////////////////////////////////////////////////////////////
+
+        (1.0 / Q_rsqrt(900)).println();
+        sqrt(900).println();
+
+        /////////////////////////////////////////////////////////////////////
+
+        println("1 <=> 2: ", 1 <=> 2 == LESS ? "LESS" : 1 <=> 2 == GREATER ? "GREATER" : "EQUAL");
+
+        /////////////////////////////////////////////////////////////////////
+
+        k = M_E;
+        k.println();
+        x(vec4(43434,43434,343434,4443434)).println();
+
+        /////////////////////////////////////////////////////////////////////
+
+        s = "123123123123";
+        s[0] = '0';
+        println(s);
+
+        /////////////////////////////////////////////////////////////////////
+
+        println(integral(sin, 0.0, M_PI, 0.001));
+        println(integral(sinus, -M_PI, M_PI, 0.001));
+
+        {
+            v = vec4(1,2,3,4);
+            v.println();
+            a = [];
+            o = {};
+            a.assign(v);
+            a.println();
+            o.assign(v);
+            o.println();
+
+            s = "";
+            s.assign(o);
+            s.println();
+
+            v1 = vec4();
+            v1.assign(o);
+            v1.println();
+        }
+
+        {
+            m = mat4(11,12,13,14, 21,22,23,24, 31,32,33,34, 41,42,43,44);
+            m.println();
+            a = [];
+            o = {};
+            a.assign(m);
+            a.println();
+            o.assign(m);
+            o.println();
+
+            m1 = mat4();
+            m1.assign(o);
+            m1.println();
+        }
+
+        /////////////////////////////////////////////////////////////////////
+
+        println("string" + [48,49,50] + 1 + vec4());
+
+        /////////////////////////////////////////////////////////////////////
+
+        if !(this.ctr % 5)
+            this.res = randf() > 0.5;
+        ++this.ctr;
+
+        /////////////////////////////////////////////////////////////////////
+
+        sdsd = 3 * undefined;
+        sdsd.println();
+        (1 << 33).println();
+
+        k = 3 + undefined;
+        k = undefined - 3;
+        k.println();
+
+        /////////////////////////////////////////////////////////////////////
+
+        undef_test();
+        f = undef_test;
+        f();
+        undefine(f);
+        try
+            f();
+        catch(e)
+            e.println(" (caught)");
+        undef_test();
+        f = undef_test;
+        f();
+
+        /////////////////////////////////////////////////////////////////////
+
+        this.k = [];
+        this.k[0] = [];
+        this.k[1] = [];
+        this.k[2] = [];
+        this.k[3] = [];
+        this.k[4] = [];
+        this.k[4].resize(100);
+        this.k.typeof().println();
+        this.k.sizeof().println();
+        this.k.println();
+
+        /////////////////////////////////////////////////////////////////////
+
+        k = undefine;
+        s = "123";
+        println("s = ", s);
+        try k(s); catch(…);
+        println("s = ", s);
+        try k(k); catch(…);
+        println("k = ", k);
+        s = "123";
+        try
+            k(s);
+        catch(e)
+            e.println(" (caught)");
+        println("s = ", s);
+        undefine(s);
+        println("s = ", s);
+
+        /////////////////////////////////////////////////////////////////////
+
+        s = string();
+        tot_num = 100;
+        s.reserve(tot_num * 17);
+        b = steady_clock();
+        for(i = 0; i < tot_num; ++i) {
+            s += "0123456789abcdef";
+        }
+        e = steady_clock();
+        s.println();
+        (e - b).println();
+
+        /////////////////////////////////////////////////////////////////////
+
+        for(i = 0; i < 256; ++i) {
+            print(i, " (", itoa(i, 16), "): ", isspace(i) ? "space" : "");
+        }
+        println();
+
+        sum = 0;
+        for(i = 1; i < 10000; ++i) {
+            s = i.itoa();
+            sum += s.size();
+            if(sum >= 1095) {
+                println(i, " (", sum, ")");
+                break;
+            }
+        }
+        delay(0.1);
+    } catch(e) {
+        console.error(e);
+    }
     exit();
     return 0;
-} catch(e) {
-    console.error(e);
 }
 
 my_drafts drf(host_provided_data);
