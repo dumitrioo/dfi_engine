@@ -168,7 +168,7 @@ public:
         rt->add_function("ray_close_window", DFIFUN() { CloseWindow(); return dfi::valbox{}; });
         rt->add_function("ray_clear_background", DFIFUN(args) {
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)
-            ClearBackground(DFITHIS(args, Color));
+            ClearBackground(DFICLASSARG(args, 0, Color));
             return dfi::valbox{};
         });
 
@@ -188,7 +188,7 @@ public:
         });
         rt->add_function("ray_draw_pixel_v", DFIFUN(args) {
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2)
-            DrawPixelV(DFITHIS(args, Vector2), DFICLASSARG(args, 1, Color)); return dfi::valbox{};
+            DrawPixelV(DFICLASSARG(args, 0, Vector2), DFICLASSARG(args, 1, Color)); return dfi::valbox{};
         });
 
         rt->add_function("ray_draw_line", DFIFUN(args) {
@@ -197,11 +197,15 @@ public:
         });
         rt->add_function("ray_draw_line_v", DFIFUN(args) {
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 3)
-            DrawLineV(DFITHIS(args, Vector2), DFICLASSARG(args, 1, Vector2), DFICLASSARG(args, 2, Color)); return dfi::valbox{};
+            DrawLineV(DFICLASSARG(args, 0, Vector2), DFICLASSARG(args, 1, Vector2), DFICLASSARG(args, 2, Color)); return dfi::valbox{};
         });
         rt->add_function("ray_draw_line_ex", DFIFUN(args) {
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 4)
-            DrawLineEx(DFITHIS(args, Vector2), DFICLASSARG(args, 1, Vector2), DFINUMARG(args, 2, float), DFICLASSARG(args, 3, Color)); return dfi::valbox{};
+            DrawLineEx(DFICLASSARG(args, 0, Vector2), DFICLASSARG(args, 1, Vector2), DFINUMARG(args, 2, float), DFICLASSARG(args, 3, Color)); return dfi::valbox{};
+        });
+        rt->add_function("ray_draw_line_dashed", DFIFUN(args) {
+            DFI_CHCK_FUN_PARMS_NUM_EQ(args, 5)
+            DrawLineDashed( DFICLASSARG(args, 0, Vector2), DFICLASSARG(args, 1, Vector2), DFINUMARG(args, 2, int), DFINUMARG(args, 3, int), DFICLASSARG(args, 4, Color)); return dfi::valbox{};
         });
 
         rt->add_function("ray_draw_line_strip", DFIFUN(args) {
@@ -219,7 +223,7 @@ public:
 
         rt->add_function("ray_draw_line_bezier", DFIFUN(args) {
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 4)
-            DrawLineBezier(DFITHIS(args, Vector2), DFICLASSARG(args, 1, Vector2), DFINUMARG(args, 2, int), DFICLASSARG(args, 3, Color)); return dfi::valbox{};
+            DrawLineBezier(DFICLASSARG(args, 0, Vector2), DFICLASSARG(args, 1, Vector2), DFINUMARG(args, 2, int), DFICLASSARG(args, 3, Color)); return dfi::valbox{};
         });
         rt->add_function("ray_draw_circle", DFIFUN(args) {
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 4)
@@ -241,6 +245,117 @@ public:
             DFI_CHCK_FUN_PARMS_NUM_EQ(args, 5)
             DrawRectangle(DFINUMARG(args, 0, int), DFINUMARG(args, 1, int), DFINUMARG(args, 2, int), DFINUMARG(args, 3, int), DFICLASSARG(args, 4, Color)); return dfi::valbox{};
         });
+
+        rt->add_var("RAY_KEY_NULL", KEY_NULL);
+        rt->add_var("RAY_KEY_APOSTROPHE", KEY_APOSTROPHE);
+        rt->add_var("RAY_KEY_COMMA", KEY_COMMA);
+        rt->add_var("RAY_KEY_MINUS", KEY_MINUS);
+        rt->add_var("RAY_KEY_PERIOD", KEY_PERIOD);
+        rt->add_var("RAY_KEY_SLASH", KEY_SLASH);
+        rt->add_var("RAY_KEY_ZERO", KEY_ZERO);
+        rt->add_var("RAY_KEY_ONE", KEY_ONE);
+        rt->add_var("RAY_KEY_TWO", KEY_TWO);
+        rt->add_var("RAY_KEY_THREE", KEY_THREE);
+        rt->add_var("RAY_KEY_FOUR", KEY_FOUR);
+        rt->add_var("RAY_KEY_FIVE", KEY_FIVE);
+        rt->add_var("RAY_KEY_SIX", KEY_SIX);
+        rt->add_var("RAY_KEY_SEVEN", KEY_SEVEN);
+        rt->add_var("RAY_KEY_EIGHT", KEY_EIGHT);
+        rt->add_var("RAY_KEY_NINE", KEY_NINE);
+        rt->add_var("RAY_KEY_SEMICOLON", KEY_SEMICOLON);
+        rt->add_var("RAY_KEY_EQUAL", KEY_EQUAL);
+        rt->add_var("RAY_KEY_A", KEY_A);
+        rt->add_var("RAY_KEY_B", KEY_B);
+        rt->add_var("RAY_KEY_C", KEY_C);
+        rt->add_var("RAY_KEY_D", KEY_D);
+        rt->add_var("RAY_KEY_E", KEY_E);
+        rt->add_var("RAY_KEY_F", KEY_F);
+        rt->add_var("RAY_KEY_G", KEY_G);
+        rt->add_var("RAY_KEY_H", KEY_H);
+        rt->add_var("RAY_KEY_I", KEY_I);
+        rt->add_var("RAY_KEY_J", KEY_J);
+        rt->add_var("RAY_KEY_K", KEY_K);
+        rt->add_var("RAY_KEY_L", KEY_L);
+        rt->add_var("RAY_KEY_M", KEY_M);
+        rt->add_var("RAY_KEY_N", KEY_N);
+        rt->add_var("RAY_KEY_O", KEY_O);
+        rt->add_var("RAY_KEY_P", KEY_P);
+        rt->add_var("RAY_KEY_Q", KEY_Q);
+        rt->add_var("RAY_KEY_R", KEY_R);
+        rt->add_var("RAY_KEY_S", KEY_S);
+        rt->add_var("RAY_KEY_T", KEY_T);
+        rt->add_var("RAY_KEY_U", KEY_U);
+        rt->add_var("RAY_KEY_V", KEY_V);
+        rt->add_var("RAY_KEY_W", KEY_W);
+        rt->add_var("RAY_KEY_X", KEY_X);
+        rt->add_var("RAY_KEY_Y", KEY_Y);
+        rt->add_var("RAY_KEY_Z", KEY_Z);
+        rt->add_var("RAY_KEY_LEFT_BRACKET", KEY_LEFT_BRACKET);
+        rt->add_var("RAY_KEY_BACKSLASH", KEY_BACKSLASH);
+        rt->add_var("RAY_KEY_RIGHT_BRACKET", KEY_RIGHT_BRACKET);
+        rt->add_var("RAY_KEY_GRAVE", KEY_GRAVE);
+        rt->add_var("RAY_KEY_SPACE", KEY_SPACE);
+        rt->add_var("RAY_KEY_ESCAPE", KEY_ESCAPE);
+        rt->add_var("RAY_KEY_ENTER", KEY_ENTER);
+        rt->add_var("RAY_KEY_TAB", KEY_TAB);
+        rt->add_var("RAY_KEY_BACKSPACE", KEY_BACKSPACE);
+        rt->add_var("RAY_KEY_INSERT", KEY_INSERT);
+        rt->add_var("RAY_KEY_DELETE", KEY_DELETE);
+        rt->add_var("RAY_KEY_RIGHT", KEY_RIGHT);
+        rt->add_var("RAY_KEY_LEFT", KEY_LEFT);
+        rt->add_var("RAY_KEY_DOWN", KEY_DOWN);
+        rt->add_var("RAY_KEY_UP", KEY_UP);
+        rt->add_var("RAY_KEY_PAGE_UP", KEY_PAGE_UP);
+        rt->add_var("RAY_KEY_PAGE_DOWN", KEY_PAGE_DOWN);
+        rt->add_var("RAY_KEY_HOME", KEY_HOME);
+        rt->add_var("RAY_KEY_END", KEY_END);
+        rt->add_var("RAY_KEY_CAPS_LOCK", KEY_CAPS_LOCK);
+        rt->add_var("RAY_KEY_SCROLL_LOCK", KEY_SCROLL_LOCK);
+        rt->add_var("RAY_KEY_NUM_LOCK", KEY_NUM_LOCK);
+        rt->add_var("RAY_KEY_PRINT_SCREEN", KEY_PRINT_SCREEN);
+        rt->add_var("RAY_KEY_PAUSE", KEY_PAUSE);
+        rt->add_var("RAY_KEY_F1", KEY_F1);
+        rt->add_var("RAY_KEY_F2", KEY_F2);
+        rt->add_var("RAY_KEY_F3", KEY_F3);
+        rt->add_var("RAY_KEY_F4", KEY_F4);
+        rt->add_var("RAY_KEY_F5", KEY_F5);
+        rt->add_var("RAY_KEY_F6", KEY_F6);
+        rt->add_var("RAY_KEY_F7", KEY_F7);
+        rt->add_var("RAY_KEY_F8", KEY_F8);
+        rt->add_var("RAY_KEY_F9", KEY_F9);
+        rt->add_var("RAY_KEY_F10", KEY_F10);
+        rt->add_var("RAY_KEY_F11", KEY_F11);
+        rt->add_var("RAY_KEY_F12", KEY_F12);
+        rt->add_var("RAY_KEY_LEFT_SHIFT", KEY_LEFT_SHIFT);
+        rt->add_var("RAY_KEY_LEFT_CONTROL", KEY_LEFT_CONTROL);
+        rt->add_var("RAY_KEY_LEFT_ALT", KEY_LEFT_ALT);
+        rt->add_var("RAY_KEY_LEFT_SUPER", KEY_LEFT_SUPER);
+        rt->add_var("RAY_KEY_RIGHT_SHIFT", KEY_RIGHT_SHIFT);
+        rt->add_var("RAY_KEY_RIGHT_CONTROL", KEY_RIGHT_CONTROL);
+        rt->add_var("RAY_KEY_RIGHT_ALT", KEY_RIGHT_ALT);
+        rt->add_var("RAY_KEY_RIGHT_SUPER", KEY_RIGHT_SUPER);
+        rt->add_var("RAY_KEY_KB_MENU", KEY_KB_MENU);
+        rt->add_var("RAY_KEY_KP_0", KEY_KP_0);
+        rt->add_var("RAY_KEY_KP_1", KEY_KP_1);
+        rt->add_var("RAY_KEY_KP_2", KEY_KP_2);
+        rt->add_var("RAY_KEY_KP_3", KEY_KP_3);
+        rt->add_var("RAY_KEY_KP_4", KEY_KP_4);
+        rt->add_var("RAY_KEY_KP_5", KEY_KP_5);
+        rt->add_var("RAY_KEY_KP_6", KEY_KP_6);
+        rt->add_var("RAY_KEY_KP_7", KEY_KP_7);
+        rt->add_var("RAY_KEY_KP_8", KEY_KP_8);
+        rt->add_var("RAY_KEY_KP_9", KEY_KP_9);
+        rt->add_var("RAY_KEY_KP_DECIMAL", KEY_KP_DECIMAL);
+        rt->add_var("RAY_KEY_KP_DIVIDE", KEY_KP_DIVIDE);
+        rt->add_var("RAY_KEY_KP_MULTIPLY", KEY_KP_MULTIPLY);
+        rt->add_var("RAY_KEY_KP_SUBTRACT", KEY_KP_SUBTRACT);
+        rt->add_var("RAY_KEY_KP_ADD", KEY_KP_ADD);
+        rt->add_var("RAY_KEY_KP_ENTER", KEY_KP_ENTER);
+        rt->add_var("RAY_KEY_KP_EQUAL", KEY_KP_EQUAL);
+        rt->add_var("RAY_KEY_BACK", KEY_BACK);
+        rt->add_var("RAY_KEY_MENU", KEY_MENU);
+        rt->add_var("RAY_KEY_VOLUME_UP", KEY_VOLUME_UP);
+        rt->add_var("RAY_KEY_VOLUME_DOWN", KEY_VOLUME_DOWN);
 
         rt->add_function("ray_is_key_pressed", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) return IsKeyPressed(DFINUMARG(args, 0, int)); });
         rt->add_function("ray_is_key_pressed_repeat", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) return IsKeyPressedRepeat(DFINUMARG(args, 0, int)); });
