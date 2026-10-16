@@ -152,6 +152,7 @@ DISTFILES += \
     ../one_second_limit.dfi \
     ../perf_limit.dfi \
     ../pid_regulator.dfi \
+    ../pingpong.dfi \
     ../pwm.dfi \
     ../quad_eq.dfi \
     ../sockets_server.dfi \
