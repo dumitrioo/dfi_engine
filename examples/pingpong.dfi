@@ -6,26 +6,27 @@ ppng() {
         this.NEW_WIDTH = 1280.;
         this.WIDTH = 1280.;
         this.HEIGHT = this.WIDTH / 1.77777777;
+        this.NEW_HEIGHT = this.HEIGHT;
         this.PADDLE_SPACE = this.WIDTH / 180.;
-        this.PADDLE_W = this.WIDTH / 120.;
+        this.PADDLE_W = this.WIDTH / 180.;
         this.PADDLE_H = this.HEIGHT / 6.;
         this.PADDLE_SPEED = this.HEIGHT * 1.9;
-        this.BALL_SIZE = this.HEIGHT / 20.;
-        this.BALL_RADIUS = this.BALL_SIZE * .5;
+        this.BALL_DIAMEDER = this.HEIGHT / 20.;
+        this.BALL_RADIUS = this.BALL_DIAMEDER * .5;
         this.SPEED = this.HEIGHT * .9;
 
         this.left_paddle = {pos: {x: this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2}, size: {w: this.PADDLE_W, h: this.PADDLE_H}, };
         this.right_paddle = {pos: { x: this.WIDTH - this.PADDLE_W - this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2, }, size: {w: this.PADDLE_W, h: this.PADDLE_H}, };
         this.lose = false;
         this.lose_start = 0;
-        this.LOSE_DURATION = 0.2;
+        this.LOSE_DURATION = .55;
         this.left_score = 0;
         this.right_score = 0;
         this.feed_side = randf() < 0.5 ? -1 : 1;
         do {
             this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
             this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
-        } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || sign((i64)this.ball.speed.x()) != this.feed_side);
+        } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || (sign(this.ball.speed.x()) < 0 ? -1 : 1) != this.feed_side);
 
         this.last_time = steady_clock();
         this.last_ctrl_time = this.last_time;
@@ -40,15 +41,15 @@ ppng() {
     }
 
     // resize
-    if(this.WIDTH != this.NEW_WIDTH) {
+    if(this.WIDTH != this.NEW_WIDTH || this.HEIGHT != this.NEW_HEIGHT) {
         this.WIDTH = (f64)ray_get_screen_width();
         this.HEIGHT = (f64)ray_get_screen_height();
         this.PADDLE_SPACE = this.WIDTH / 180.;
         this.PADDLE_W = this.WIDTH / 180.;
         this.PADDLE_H = this.HEIGHT / 6.;
         this.PADDLE_SPEED = this.HEIGHT * 1.9;
-        this.BALL_SIZE = this.HEIGHT / 20.;
-        this.BALL_RADIUS = this.BALL_SIZE * .5;
+        this.BALL_DIAMEDER = this.HEIGHT / 20.;
+        this.BALL_RADIUS = this.BALL_DIAMEDER * .5;
         this.SPEED = this.HEIGHT * .9;
 
         this.left_paddle = {
@@ -67,14 +68,14 @@ ppng() {
             this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
         } while(
             abs(this.ball.speed.x()) < abs(this.ball.speed.y()) ||
-            sign((i64)this.ball.speed.x()) != this.feed_side
+            (sign(this.ball.speed.x()) < 0 ? -1 : 1) != this.feed_side
         );
     }
 
     // recalc
     t = steady_clock();
     dt = t - this.last_time;
-    if(dt > 0.25) {
+    if(dt > 0.1) {
         this.last_time = steady_clock();
         return 0;
     }
@@ -96,10 +97,18 @@ ppng() {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(.5 * M_PI * (bp.y() - lp.pos.y) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
+                if(bs.x() < 0) {
+                    this.ball.speed = vec4(-bs.x(), bs.y());
+                    bl = this.ball; bp = bl.pos; bs = bl.speed;
+                }
             } else if(bp.y() > lp.pos.y + lp.size.h) {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(.5 * M_PI * (bp.y() - (lp.pos.y + lp.size.h)) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
+                if(bs.x() < 0) {
+                    this.ball.speed = vec4(-bs.x(), bs.y());
+                    bl = this.ball; bp = bl.pos; bs = bl.speed;
+                }
             } else {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
@@ -115,10 +124,18 @@ ppng() {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(-.5 * M_PI * (bp.y() - rp.pos.y) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
+                if(bs.x() > 0) {
+                    this.ball.speed = vec4(-bs.x(), bs.y());
+                    bl = this.ball; bp = bl.pos; bs = bl.speed;
+                }
             } else if(bp.y() > rp.pos.y + rp.size.h) {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(-.5 * M_PI * (bp.y() - (rp.pos.y + rp.size.h)) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
+                if(bs.x() > 0) {
+                    this.ball.speed = vec4(-bs.x(), bs.y());
+                    bl = this.ball; bp = bl.pos; bs = bl.speed;
+                }
             } else {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
@@ -141,9 +158,9 @@ ppng() {
     if(new_serve) {
         this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
         do {
-            this.ball.speed = rotation_z(randf() * M_PI * 2) * bs;
+            this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
             bl = this.ball; bp = bl.pos; bs = bl.speed;
-        } while(abs(bs.x()) < abs(bs.y()) || sign((i64)bs.x()) != this.feed_side);
+        } while(abs(bs.x()) < abs(bs.y()) || (sign(bs.x()) < 0 ? -1 : 1) != this.feed_side);
     }
     if(bp.y() >= this.HEIGHT - this.BALL_RADIUS && bs.y() > 0) {
         this.ball.speed = vec4(bs.x(), -bs.y());
@@ -196,16 +213,18 @@ ppng() {
                 this.right_score = 0;
                 this.feed_side = randf() < 0.5 ? -1 : 1;
                 this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
+                this.lose = false;
                 do {
                     this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
-                } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || sign((i64)this.ball.speed.x()) != this.feed_side);
+                } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || (sign(this.ball.speed.x()) < 0 ? -1 : 1) != this.feed_side);
             }
-            if(ray_get_key_pressed() == RAY_KEY_F11) {
+            if(ray_is_key_pressed(RAY_KEY_F11)) {
                 ray_toggle_full_screen();
             }
 
             // may be resized
             this.NEW_WIDTH = (f64)ray_get_screen_width();
+            this.NEW_HEIGHT = (f64)ray_get_screen_height();
 
             // drawing
             // ray_clear_background(Color(0x20, 0x1e, 0x18, 255));
@@ -234,11 +253,10 @@ ppng() {
             ray_draw_text("UP = \"A\"", 15 * this.WIDTH / 100, this.HEIGHT * .45, this.HEIGHT * .04, Color(255,255,255,30));
             ray_draw_text("DOWN = \"Z\"", 15 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
             ray_draw_text("UP = \"Up Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .45, this.HEIGHT * .04, Color(255,255,255,30));
-            ray_draw_text("DOWN = \"Downn Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
+            ray_draw_text("DOWN = \"Down Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
 
             ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
             ray_draw_rectangle(rp.pos.x, rp.pos.y, rp.size.w, rp.size.h, WHITE);
-            ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
             ray_draw_circle(bp.x(), bp.y(), this.BALL_RADIUS, WHITE);
 
             ray_end_drawing();
