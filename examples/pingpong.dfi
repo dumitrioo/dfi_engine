@@ -225,6 +225,16 @@ ppng() {
             ray_draw_line_dashed(Vector2(this.WIDTH / 2, 0), Vector2(this.WIDTH / 2, this.HEIGHT), this.HEIGHT * 0.05, this.HEIGHT * 0.05, WHITE);
             ray_draw_text(string(this.left_score), this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, DARKGRAY);
             ray_draw_text(string(this.right_score), 3 * this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, DARKGRAY);
+
+            ray_draw_text("RESET = \"R\"", 45 * this.WIDTH / 100, this.HEIGHT * .056, this.HEIGHT * .04, Color(255,255,255,40));
+            ray_draw_text("TOGGLE FULLSCREEN = \"F11\"", 35 * this.WIDTH / 100, this.HEIGHT * .95, this.HEIGHT * .04, Color(255,255,255,20));
+
+            ray_draw_text("UP = \"A\"", 15 * this.WIDTH / 100, this.HEIGHT * .45, this.HEIGHT * .04, Color(255,255,255,30));
+            ray_draw_text("DOWN = \"Z\"", 15 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
+
+            ray_draw_text("UP = \"Up Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .45, this.HEIGHT * .04, Color(255,255,255,30));
+            ray_draw_text("DOWN = \"Downn Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
+
             ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
             ray_draw_rectangle(rp.pos.x, rp.pos.y, rp.size.w, rp.size.h, WHITE);
             ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
