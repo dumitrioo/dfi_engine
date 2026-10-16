@@ -143,7 +143,7 @@ ppng() {
         do {
             this.ball.speed = rotation_z(randf() * M_PI * 2) * bs;
             bl = this.ball; bp = bl.pos; bs = bl.speed;
-        } while(abs(bp.x()) < abs(bs.y()) || sign((i64)bs.x()) != this.feed_side);
+        } while(abs(bs.x()) < abs(bs.y()) || sign((i64)bs.x()) != this.feed_side);
     }
     if(bp.y() >= this.HEIGHT - this.BALL_RADIUS && bs.y() > 0) {
         this.ball.speed = vec4(bs.x(), -bs.y());
