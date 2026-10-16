@@ -172,7 +172,8 @@ ppng() {
                     this.right_paddle.pos.y -= padspd * dt;
                     rp = this.right_paddle;
                 }
-            } else if(ray_is_key_down(RAY_KEY_DOWN)) {
+            }
+            if(ray_is_key_down(RAY_KEY_DOWN)) {
                 if(this.right_paddle.pos.y + this.right_paddle.size.h < this.HEIGHT) {
                     this.right_paddle.pos.y += padspd * dt;
                     rp = this.right_paddle;
@@ -183,7 +184,8 @@ ppng() {
                     this.left_paddle.pos.y -= padspd * dt;
                     lp = this.left_paddle;
                 }
-            } else if(ray_is_key_down(RAY_KEY_Z)) {
+            }
+            if(ray_is_key_down(RAY_KEY_Z)) {
                 if(this.left_paddle.pos.y + this.left_paddle.size.h < this.HEIGHT) {
                     this.left_paddle.pos.y += padspd * dt;
                     lp = this.left_paddle;
@@ -206,7 +208,8 @@ ppng() {
             this.NEW_WIDTH = (f64)ray_get_screen_width();
 
             // drawing
-            ray_clear_background(BLACK);
+            // ray_clear_background(Color(0x20, 0x1e, 0x18, 255));
+            ray_clear_background(Color(0, 20, 50, 255));
 
             if(this.lose) {
                 lt = steady_clock() - this.lose_start;
@@ -222,16 +225,14 @@ ppng() {
                 }
             }
 
-            ray_draw_line_dashed(Vector2(this.WIDTH / 2, 0), Vector2(this.WIDTH / 2, this.HEIGHT), this.HEIGHT * 0.05, this.HEIGHT * 0.05, WHITE);
-            ray_draw_text(string(this.left_score), this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, DARKGRAY);
-            ray_draw_text(string(this.right_score), 3 * this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, DARKGRAY);
+            ray_draw_line_dashed(Vector2(this.WIDTH / 2, 0), Vector2(this.WIDTH / 2, this.HEIGHT), this.HEIGHT * 0.05, this.HEIGHT * 0.05, Color(255,255,255,100));
+            ray_draw_text(string(this.left_score), this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, Color(255,255,255,90));
+            ray_draw_text(string(this.right_score), 3 * this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, Color(255,255,255,90));
 
             ray_draw_text("RESET = \"R\"", 45 * this.WIDTH / 100, this.HEIGHT * .056, this.HEIGHT * .04, Color(255,255,255,40));
             ray_draw_text("TOGGLE FULLSCREEN = \"F11\"", 35 * this.WIDTH / 100, this.HEIGHT * .95, this.HEIGHT * .04, Color(255,255,255,20));
-
             ray_draw_text("UP = \"A\"", 15 * this.WIDTH / 100, this.HEIGHT * .45, this.HEIGHT * .04, Color(255,255,255,30));
             ray_draw_text("DOWN = \"Z\"", 15 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
-
             ray_draw_text("UP = \"Up Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .45, this.HEIGHT * .04, Color(255,255,255,30));
             ray_draw_text("DOWN = \"Downn Arrow\"", 67 * this.WIDTH / 100, this.HEIGHT * .5, this.HEIGHT * .04, Color(255,255,255,30));
 
