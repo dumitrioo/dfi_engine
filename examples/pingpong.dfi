@@ -239,12 +239,12 @@ ppng() {
             }
 
             ray_draw_line_dashed(Vector2(this.WIDTH / 2, 0), Vector2(this.WIDTH / 2, this.HEIGHT), this.HEIGHT * 0.05, this.HEIGHT * 0.05, WHITE);
-            ray_draw_circle(bp.x(), bp.y(), this.BALL_RADIUS, WHITE);
+            ray_draw_text(string(this.left_score), this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, DARKGRAY);
+            ray_draw_text(string(this.right_score), 3 * this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, DARKGRAY);
             ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
             ray_draw_rectangle(rp.pos.x, rp.pos.y, rp.size.w, rp.size.h, WHITE);
             ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
-            ray_draw_text(string(this.left_score), this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, WHITE);
-            ray_draw_text(string(this.right_score), 3 * this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, WHITE);
+            ray_draw_circle(bp.x(), bp.y(), this.BALL_RADIUS, WHITE);
 
             ray_end_drawing();
         }
