@@ -14,17 +14,8 @@ ppng() {
         this.BALL_RADIUS = this.BALL_SIZE * .5;
         this.SPEED = this.HEIGHT * .9;
 
-        this.left_paddle = {
-            pos: {x: this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2},
-            size: {w: this.PADDLE_W, h: this.PADDLE_H}
-        };
-        this.right_paddle = {
-            pos: {
-                x: this.WIDTH - this.PADDLE_W - this.PADDLE_SPACE,
-                y: this.HEIGHT / 2 - this.PADDLE_H / 2
-            },
-            size: {w: this.PADDLE_W, h: this.PADDLE_H}
-        };
+        this.left_paddle = {pos: {x: this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2}, size: {w: this.PADDLE_W, h: this.PADDLE_H}, };
+        this.right_paddle = {pos: { x: this.WIDTH - this.PADDLE_W - this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2, }, size: {w: this.PADDLE_W, h: this.PADDLE_H}, };
         this.lose = false;
         this.lose_start = 0;
         this.LOSE_DURATION = 0.2;
@@ -32,12 +23,9 @@ ppng() {
         this.right_score = 0;
         this.feed_side = randf() < 0.5 ? -1 : 1;
         do {
-            this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0)};
+            this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
             this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
-        } while(
-            abs(this.ball.speed.x()) < abs(this.ball.speed.y()) ||
-            sign((i64)this.ball.speed.x()) != this.feed_side
-        );
+        } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || sign((i64)this.ball.speed.x()) != this.feed_side);
 
         this.last_time = steady_clock();
         this.last_ctrl_time = this.last_time;
@@ -65,14 +53,14 @@ ppng() {
 
         this.left_paddle = {
             pos: {x: this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2, },
-            size: {w: this.PADDLE_W, h: this.PADDLE_H, }
+            size: {w: this.PADDLE_W, h: this.PADDLE_H, },
         };
         this.right_paddle = {
             pos: {
                 x: this.WIDTH - this.PADDLE_W - this.PADDLE_SPACE,
-                y: this.HEIGHT / 2 - this.PADDLE_H / 2
+                y: this.HEIGHT / 2 - this.PADDLE_H / 2,
             },
-            size: {w: this.PADDLE_W, h: this.PADDLE_H}
+            size: {w: this.PADDLE_W, h: this.PADDLE_H},
         };
         this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
         do {
@@ -205,15 +193,12 @@ ppng() {
                 this.left_score = 0;
                 this.right_score = 0;
                 this.feed_side = randf() < 0.5 ? -1 : 1;
-                this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0)};
+                this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
                 do {
                     this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
-                } while(
-                    abs(this.ball.speed.x()) < abs(this.ball.speed.y()) ||
-                    sign((i64)this.ball.speed.x()) != this.feed_side
-                );
+                } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || sign((i64)this.ball.speed.x()) != this.feed_side);
             }
-            if(ray_get_key_pressed() == 300) {
+            if(ray_get_key_pressed() == RAY_KEY_F11) {
                 ray_toggle_full_screen();
             }
 
@@ -232,7 +217,6 @@ ppng() {
                         x = this.WIDTH - this.WIDTH * .001 * .5;
                     }
                     ray_draw_line_ex(Vector2(x, 0), Vector2(x, this.HEIGHT), this.WIDTH * .01, Color(255, 0, 0, alpha * 255));
-                    --this.lose;
                 } else {
                     this.lose = false;
                 }
