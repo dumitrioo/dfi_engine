@@ -2,6 +2,9 @@
 
 #include "../inc/commondefs.hpp"
 #include "../inc/math/math_util.hpp"
+#include "../inc/2d/point.hpp"
+#include "../inc/2d/line.hpp"
+#include "../inc/2d/rectangle.hpp"
 
 #include "../dfi_value.hpp"
 #include "../dfi_util.hpp"
@@ -1721,6 +1724,69 @@ namespace dfi {
                     args[8].cast_to_double()  // upZ
                 );
             });
+
+            rt->add_function("rectangle", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 0, 4)
+                if(args.size() == 0) {
+                    return valbox{dfi::rectangle<double>{}, "rectangle"};
+                } else if(args.size() == 2) {
+                    if(args[0].is_array() && args[1].is_array()) {
+                        return valbox{dfi::rectangle<double>{
+                                dfi::rectangle<double>::point_type{args[0].as_array()[0].cast_to_double(), args[0].as_array()[1].cast_to_double()},
+                                dfi::rectangle<double>::size_type{args[1].as_array()[0].cast_to_double(), args[1].as_array()[1].cast_to_double()}
+                            },
+                            "rectangle"
+                        };
+                    } else if(args[0].is_numeric() && args[1].is_numeric()) {
+                        return valbox{dfi::rectangle<double>{
+                                args[0].cast_to_double(), args[1].cast_to_double()
+                            },
+                            "rectangle"
+                        };
+                    }
+                } else if(args.size() == 3) {
+                    return valbox{dfi::rectangle<double>{
+                            args[0].cast_to_double(), args[1].cast_to_double(), args[2].cast_to_double()
+                        },
+                        "rectangle"
+                    };
+                } else if(args.size() == 4) {
+                    return valbox{dfi::rectangle<double>{
+                            args[0].cast_to_double(), args[1].cast_to_double(), args[2].cast_to_double(), args[3].cast_to_double()
+                        },
+                        "rectangle"
+                    };
+                }
+                return valbox{dfi::rectangle<double>{}, "rectangle"};
+            });
+
+            rt->add_method("rectangle", "set_pos", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 3)
+                if(args.size() == 2) {
+                    DFITHIS(args, dfi::rectangle<double>).set_pos(args[1].cast_to_double(), args[1].cast_to_double());
+                } else if(args.size() == 1) {
+                    DFITHIS(args, dfi::rectangle<double>).set_pos(
+                        dfi::rectangle<double>::point_type{
+                            args[1].as_array()[0].cast_to_double(), args[1].as_array()[1].cast_to_double()
+                        }
+                    );
+                }
+                return dfi::valbox{};
+            });
+            rt->add_method("rectangle", "move_by", DFIFUN(args) {
+                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 2, 3)
+                if(args.size() == 3) {
+                    DFITHIS(args, dfi::rectangle<double>).move_by(args[1].cast_to_double(), args[2].cast_to_double());
+                } else if(args.size() == 2) {
+                    DFITHIS(args, dfi::rectangle<double>).move_by(
+                        dfi::rectangle<double>::point_type{
+                            args[1].as_array()[0].cast_to_double(), args[1].as_array()[1].cast_to_double()
+                        }
+                    );
+                }
+                return dfi::valbox{};
+            });
+
 
         }
 
