@@ -1,0 +1,255 @@
+ppng() {
+    // init
+    if(!this.win_created) {
+        this.FPS = 60;
+
+        this.NEW_WIDTH = 1280.;
+        this.WIDTH = 1280.;
+        this.HEIGHT = this.WIDTH / 1.77777777;
+        this.PADDLE_SPACE = this.WIDTH / 180.;
+        this.PADDLE_W = this.WIDTH / 120.;
+        this.PADDLE_H = this.HEIGHT / 6.;
+        this.PADDLE_SPEED = this.HEIGHT * 1.9;
+        this.BALL_SIZE = this.HEIGHT / 20.;
+        this.BALL_RADIUS = this.BALL_SIZE * .5;
+        this.SPEED = this.HEIGHT * .9;
+
+        this.left_paddle = {
+            pos: {x: this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2},
+            size: {w: this.PADDLE_W, h: this.PADDLE_H}
+        };
+        this.right_paddle = {
+            pos: {
+                x: this.WIDTH - this.PADDLE_W - this.PADDLE_SPACE,
+                y: this.HEIGHT / 2 - this.PADDLE_H / 2
+            },
+            size: {w: this.PADDLE_W, h: this.PADDLE_H}
+        };
+        this.lose = false;
+        this.lose_start = 0;
+        this.LOSE_DURATION = 0.2;
+        this.left_score = 0;
+        this.right_score = 0;
+        this.feed_side = randf() < 0.5 ? -1 : 1;
+        do {
+            this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0)};
+            this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
+        } while(
+            abs(this.ball.speed.x()) < abs(this.ball.speed.y()) ||
+            sign((i64)this.ball.speed.x()) != this.feed_side
+        );
+
+        this.last_time = steady_clock();
+        this.last_ctrl_time = this.last_time;
+
+        ray_init_window(this.WIDTH, this.HEIGHT, "Ping-Pong");
+        ray_set_target_fps(this.FPS);
+        ray_begin_drawing();
+        ray_clear_background(BLACK);
+        ray_end_drawing();
+        this.win_created = true;
+        this.tid = thread_id();
+    }
+
+    // resize
+    if(this.WIDTH != this.NEW_WIDTH) {
+        this.WIDTH = (f64)ray_get_screen_width();
+        this.HEIGHT = (f64)ray_get_screen_height();
+        this.PADDLE_SPACE = this.WIDTH / 180.;
+        this.PADDLE_W = this.WIDTH / 180.;
+        this.PADDLE_H = this.HEIGHT / 6.;
+        this.PADDLE_SPEED = this.HEIGHT * 1.9;
+        this.BALL_SIZE = this.HEIGHT / 20.;
+        this.BALL_RADIUS = this.BALL_SIZE * .5;
+        this.SPEED = this.HEIGHT * .9;
+
+        this.left_paddle = {
+            pos: {x: this.PADDLE_SPACE, y: this.HEIGHT / 2 - this.PADDLE_H / 2, },
+            size: {w: this.PADDLE_W, h: this.PADDLE_H, }
+        };
+        this.right_paddle = {
+            pos: {
+                x: this.WIDTH - this.PADDLE_W - this.PADDLE_SPACE,
+                y: this.HEIGHT / 2 - this.PADDLE_H / 2
+            },
+            size: {w: this.PADDLE_W, h: this.PADDLE_H}
+        };
+        this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
+        do {
+            this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
+        } while(
+            abs(this.ball.speed.x()) < abs(this.ball.speed.y()) ||
+            sign((i64)this.ball.speed.x()) != this.feed_side
+        );
+    }
+
+    // recalc
+    t = steady_clock();
+    dt = t - this.last_time;
+    if(dt > 0.25) {
+        this.last_time = steady_clock();
+        return 0;
+    }
+    this.last_time = t;
+    this.ball.pos += this.ball.speed * dt;
+
+    lp = this.left_paddle;
+    rp = this.right_paddle;
+    bl = this.ball; bp = bl.pos; bs = bl.speed;
+
+    new_serve = false;
+    if(
+        bp.x() <= lp.pos.x + lp.size.w + this.BALL_RADIUS &&
+        bp.y() >= lp.pos.y - this.BALL_RADIUS &&
+        bp.y() <= lp.pos.y + lp.size.h + this.BALL_RADIUS
+    ) {
+        if(bs.x() < 0) {
+            if(bp.y() < lp.pos.y) {
+                this.ball.speed = vec4(-bs.x(), bs.y());
+                this.ball.speed = rotation_z(.5 * M_PI * (bp.y() - lp.pos.y) / this.BALL_RADIUS) * this.ball.speed;
+                bl = this.ball; bp = bl.pos; bs = bl.speed;
+            } else if(bp.y() > lp.pos.y + lp.size.h) {
+                this.ball.speed = vec4(-bs.x(), bs.y());
+                this.ball.speed = rotation_z(.5 * M_PI * (bp.y() - (lp.pos.y + lp.size.h)) / this.BALL_RADIUS) * this.ball.speed;
+                bl = this.ball; bp = bl.pos; bs = bl.speed;
+            } else {
+                this.ball.speed = vec4(-bs.x(), bs.y());
+                bl = this.ball; bp = bl.pos; bs = bl.speed;
+            }
+        }
+    } else if(
+        bp.x() >= rp.pos.x - this.BALL_RADIUS &&
+        bp.y() >= rp.pos.y - this.BALL_RADIUS &&
+        bp.y() <= rp.pos.y + rp.size.h + this.BALL_RADIUS
+    ) {
+        if(bs.x() > 0) {
+            if(bp.y() < rp.pos.y) {
+                this.ball.speed = vec4(-bs.x(), bs.y());
+                this.ball.speed = rotation_z(-.5 * M_PI * (bp.y() - rp.pos.y) / this.BALL_RADIUS) * this.ball.speed;
+                bl = this.ball; bp = bl.pos; bs = bl.speed;
+            } else if(bp.y() > rp.pos.y + rp.size.h) {
+                this.ball.speed = vec4(-bs.x(), bs.y());
+                this.ball.speed = rotation_z(-.5 * M_PI * (bp.y() - (rp.pos.y + rp.size.h)) / this.BALL_RADIUS) * this.ball.speed;
+                bl = this.ball; bp = bl.pos; bs = bl.speed;
+            } else {
+                this.ball.speed = vec4(-bs.x(), bs.y());
+                bl = this.ball; bp = bl.pos; bs = bl.speed;
+            }
+        }
+    }
+    if(bp.x() >= this.WIDTH - this.BALL_RADIUS) {
+        ++this.left_score;
+        this.feed_side = 1;
+        this.lose = true;
+        this.lose_start = steady_clock();
+        new_serve = true;
+    } else if(bp.x() <= this.BALL_RADIUS) {
+        ++this.right_score;
+        this.feed_side = -1;
+        this.lose = true;
+        this.lose_start = steady_clock();
+        new_serve = true;
+    }
+    if(new_serve) {
+        this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0), };
+        do {
+            this.ball.speed = rotation_z(randf() * M_PI * 2) * bs;
+            bl = this.ball; bp = bl.pos; bs = bl.speed;
+        } while(abs(bp.x()) < abs(bs.y()) || sign((i64)bs.x()) != this.feed_side);
+    }
+    if(bp.y() >= this.HEIGHT - this.BALL_RADIUS && bs.y() > 0) {
+        this.ball.speed = vec4(bs.x(), -bs.y());
+        bl = this.ball; bp = bl.pos; bs = bl.speed;
+    } else if(bp.y() <= this.BALL_RADIUS && bs.y() < 0) {
+        this.ball.speed = vec4(bs.x(), -bs.y());
+        bl = this.ball; bp = bl.pos; bs = bl.speed;
+    }
+
+    // window processing
+    if(this.tid == thread_id()) {
+        ctrl_time = steady_clock();
+        dt = ctrl_time - this.last_ctrl_time;
+        this.last_ctrl_time = ctrl_time;
+
+        if(ray_window_should_close()) {
+            ray_close_window();
+            exit(0);
+        } else {
+            ray_begin_drawing();
+
+            // controls
+            padspd = this.PADDLE_SPEED;
+            if(ray_is_key_down(RAY_KEY_UP)) {
+                if(this.right_paddle.pos.y > 0) {
+                    this.right_paddle.pos.y -= padspd * dt;
+                    rp = this.right_paddle;
+                }
+            } else if(ray_is_key_down(RAY_KEY_DOWN)) {
+                if(this.right_paddle.pos.y + this.right_paddle.size.h < this.HEIGHT) {
+                    this.right_paddle.pos.y += padspd * dt;
+                    rp = this.right_paddle;
+                }
+            }
+            if(ray_is_key_down(RAY_KEY_A)) {
+                if(this.left_paddle.pos.y > 0) {
+                    this.left_paddle.pos.y -= padspd * dt;
+                    lp = this.left_paddle;
+                }
+            } else if(ray_is_key_down(RAY_KEY_Z)) {
+                if(this.left_paddle.pos.y + this.left_paddle.size.h < this.HEIGHT) {
+                    this.left_paddle.pos.y += padspd * dt;
+                    lp = this.left_paddle;
+                }
+            }
+            if(ray_is_key_pressed(RAY_KEY_R)) {
+                this.left_score = 0;
+                this.right_score = 0;
+                this.feed_side = randf() < 0.5 ? -1 : 1;
+                this.ball = {pos: vec4(this.WIDTH / 2, this.HEIGHT / 2), speed: vec4(this.SPEED, 0)};
+                do {
+                    this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
+                } while(
+                    abs(this.ball.speed.x()) < abs(this.ball.speed.y()) ||
+                    sign((i64)this.ball.speed.x()) != this.feed_side
+                );
+            }
+            if(ray_get_key_pressed() == 300) {
+                ray_toggle_full_screen();
+            }
+
+            // may be resized
+            this.NEW_WIDTH = (f64)ray_get_screen_width();
+
+            // drawing
+            ray_clear_background(BLACK);
+
+            if(this.lose) {
+                lt = steady_clock() - this.lose_start;
+                alpha = 1 - lt / this.LOSE_DURATION;
+                if(lt < this.LOSE_DURATION) {
+                    x = this.WIDTH * .001 * .5;
+                    if(this.feed_side > 0) {
+                        x = this.WIDTH - this.WIDTH * .001 * .5;
+                    }
+                    ray_draw_line_ex(Vector2(x, 0), Vector2(x, this.HEIGHT), this.WIDTH * .01, Color(255, 0, 0, alpha * 255));
+                    --this.lose;
+                } else {
+                    this.lose = false;
+                }
+            }
+
+            ray_draw_line_dashed(Vector2(this.WIDTH / 2, 0), Vector2(this.WIDTH / 2, this.HEIGHT), this.HEIGHT * 0.05, this.HEIGHT * 0.05, WHITE);
+            ray_draw_circle(bp.x(), bp.y(), this.BALL_RADIUS, WHITE);
+            ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
+            ray_draw_rectangle(rp.pos.x, rp.pos.y, rp.size.w, rp.size.h, WHITE);
+            ray_draw_rectangle(lp.pos.x, lp.pos.y, lp.size.w, lp.size.h, WHITE);
+            ray_draw_text(string(this.left_score), this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, WHITE);
+            ray_draw_text(string(this.right_score), 3 * this.WIDTH / 4, this.HEIGHT * .05, this.HEIGHT * .1, WHITE);
+
+            ray_end_drawing();
+        }
+    }
+    return 0;
+}
+
+ppng main();
