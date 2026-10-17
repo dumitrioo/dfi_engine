@@ -94,16 +94,28 @@ public:
         rt->add_method("Vector4", "set_w", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) DFITHIS(args, Vector2 &).y = DFINUMARG(args, 1, float); return {}; });
 
         rt->add_function("Color", DFIFUN(args) {
-            DFI_CHCK_FUN_PARMS_NUM_EQ(args, 4)
-            return dfi::valbox{
-                Color{
-                    args.size() > 0 ? DFINUMARG(args, 0, uint8_t) : (uint8_t)0,
-                    args.size() > 1 ? DFINUMARG(args, 1, uint8_t) : (uint8_t)0,
-                    args.size() > 2 ? DFINUMARG(args, 2, uint8_t) : (uint8_t)0,
-                    args.size() > 3 ? DFINUMARG(args, 3, uint8_t) : (uint8_t)255
-                },
-                "Color"
-            };
+            DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 3, 4)
+            if(args.size() == 4) {
+                return dfi::valbox{
+                    Color{
+                        DFINUMARG(args, 0, uint8_t),
+                        DFINUMARG(args, 1, uint8_t),
+                        DFINUMARG(args, 2, uint8_t),
+                        DFINUMARG(args, 3, uint8_t)
+                    },
+                    "Color"
+                };
+            } else {
+                return dfi::valbox{
+                    Color{
+                        DFINUMARG(args, 0, uint8_t),
+                        DFINUMARG(args, 1, uint8_t),
+                        DFINUMARG(args, 2, uint8_t),
+                        255
+                    },
+                    "Color"
+                };
+            }
         });
         rt->add_method("Color", "r", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) return DFITHIS(args, Color).r; });
         rt->add_method("Color", "g", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1) return DFITHIS(args, Color).g; });
