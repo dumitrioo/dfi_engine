@@ -11,7 +11,7 @@ win() {
     if(!this.up) {
         set_cycle_sleep_seconds(0.001);
         set_inactive_sleep_seconds(0.01);
-        ray_init_window(1280, 720, "Ping Pong");
+        ray_init_window(1280, 720, "Pong");
         ray_set_target_fps(120);
         ray_begin_drawing();
         ray_clear_background(Color(0, 20, 50));

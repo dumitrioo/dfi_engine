@@ -1,4 +1,4 @@
-pingpong() {
+pong() {
     // init
     if(!this.win_created) {
         set_cycle_sleep_seconds(0.001);
@@ -33,7 +33,7 @@ pingpong() {
         this.last_time = steady_clock();
         this.last_ctrl_time = this.last_time;
 
-        ray_init_window(this.WIDTH, this.HEIGHT, "Ping Pong");
+        ray_init_window(this.WIDTH, this.HEIGHT, "Pong");
         ray_set_target_fps(this.FPS);
         ray_begin_drawing();
         ray_clear_background(BLACK);
@@ -272,4 +272,4 @@ pingpong() {
     return 0;
 }
 
-pingpong pong();
+pong png();
