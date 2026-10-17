@@ -1,6 +1,8 @@
-ppng() {
+pingpong() {
     // init
     if(!this.win_created) {
+        set_cycle_sleep_seconds(0.001);
+        set_inactive_sleep_seconds(0.01);
         this.FPS = 60;
 
         this.NEW_WIDTH = 1280.;
@@ -31,7 +33,7 @@ ppng() {
         this.last_time = steady_clock();
         this.last_ctrl_time = this.last_time;
 
-        ray_init_window(this.WIDTH, this.HEIGHT, "Ping-Pong");
+        ray_init_window(this.WIDTH, this.HEIGHT, "Ping Pong");
         ray_set_target_fps(this.FPS);
         ray_begin_drawing();
         ray_clear_background(BLACK);
@@ -97,18 +99,10 @@ ppng() {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(.5 * M_PI * (bp.y() - lp.pos.y) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
-                if(bs.x() < 0) {
-                    this.ball.speed = vec4(-bs.x(), bs.y());
-                    bl = this.ball; bp = bl.pos; bs = bl.speed;
-                }
             } else if(bp.y() > lp.pos.y + lp.size.h) {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(.5 * M_PI * (bp.y() - (lp.pos.y + lp.size.h)) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
-                if(bs.x() < 0) {
-                    this.ball.speed = vec4(-bs.x(), bs.y());
-                    bl = this.ball; bp = bl.pos; bs = bl.speed;
-                }
             } else {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
@@ -124,18 +118,10 @@ ppng() {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(-.5 * M_PI * (bp.y() - rp.pos.y) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
-                if(bs.x() > 0) {
-                    this.ball.speed = vec4(-bs.x(), bs.y());
-                    bl = this.ball; bp = bl.pos; bs = bl.speed;
-                }
             } else if(bp.y() > rp.pos.y + rp.size.h) {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 this.ball.speed = rotation_z(-.5 * M_PI * (bp.y() - (rp.pos.y + rp.size.h)) / this.BALL_RADIUS) * this.ball.speed;
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
-                if(bs.x() > 0) {
-                    this.ball.speed = vec4(-bs.x(), bs.y());
-                    bl = this.ball; bp = bl.pos; bs = bl.speed;
-                }
             } else {
                 this.ball.speed = vec4(-bs.x(), bs.y());
                 bl = this.ball; bp = bl.pos; bs = bl.speed;
@@ -190,24 +176,44 @@ ppng() {
                     rp = this.right_paddle;
                 }
             }
+            if(this.right_paddle.pos.y < 0) {
+                this.right_paddle.pos.y = 0.0;
+                rp = this.right_paddle;
+            }
+
             if(ray_is_key_down(RAY_KEY_DOWN)) {
                 if(this.right_paddle.pos.y + this.right_paddle.size.h < this.HEIGHT) {
                     this.right_paddle.pos.y += padspd * dt;
                     rp = this.right_paddle;
                 }
             }
+            if(this.right_paddle.pos.y + this.right_paddle.size.h > this.HEIGHT) {
+                this.right_paddle.pos.y = this.HEIGHT - this.right_paddle.size.h;
+                rp = this.right_paddle;
+            }
+
             if(ray_is_key_down(RAY_KEY_A)) {
                 if(this.left_paddle.pos.y > 0) {
                     this.left_paddle.pos.y -= padspd * dt;
                     lp = this.left_paddle;
                 }
             }
+            if(this.left_paddle.pos.y < 0) {
+                this.left_paddle.pos.y = 0;
+                lp = this.left_paddle;
+            }
+
             if(ray_is_key_down(RAY_KEY_Z)) {
                 if(this.left_paddle.pos.y + this.left_paddle.size.h < this.HEIGHT) {
                     this.left_paddle.pos.y += padspd * dt;
                     lp = this.left_paddle;
                 }
             }
+            if(this.left_paddle.pos.y + this.left_paddle.size.h > this.HEIGHT) {
+                this.left_paddle.pos.y = this.HEIGHT - this.left_paddle.size.h;
+                rp = this.left_paddle;
+            }
+
             if(ray_is_key_pressed(RAY_KEY_R)) {
                 this.left_score = 0;
                 this.right_score = 0;
@@ -216,6 +222,7 @@ ppng() {
                 this.lose = false;
                 do {
                     this.ball.speed = rotation_z(randf() * M_PI * 2) * this.ball.speed;
+                    bl = this.ball; bp = bl.pos; bs = bl.speed;
                 } while(abs(this.ball.speed.x()) < abs(this.ball.speed.y()) || (sign(this.ball.speed.x()) < 0 ? -1 : 1) != this.feed_side);
             }
             if(ray_is_key_pressed(RAY_KEY_F11)) {
@@ -227,8 +234,8 @@ ppng() {
             this.NEW_HEIGHT = (f64)ray_get_screen_height();
 
             // drawing
-            // ray_clear_background(Color(0x20, 0x1e, 0x18, 255));
-            ray_clear_background(Color(0, 20, 50, 255));
+            // ray_clear_background(Color(0x20, 0x1e, 0x18));
+            ray_clear_background(Color(0, 20, 50));
 
             if(this.lose) {
                 lt = steady_clock() - this.lose_start;
@@ -265,4 +272,4 @@ ppng() {
     return 0;
 }
 
-ppng main();
+pingpong pong();

@@ -11,7 +11,7 @@ win() {
     if(!this.up) {
         set_cycle_sleep_seconds(0.001);
         set_inactive_sleep_seconds(0.01);
-        ray_init_window(1280, 720, "Ping-Pong");
+        ray_init_window(1280, 720, "Ping Pong");
         ray_set_target_fps(120);
         ray_begin_drawing();
         ray_clear_background(Color(0, 20, 50));
@@ -30,7 +30,7 @@ win() {
 
 ///////////////////////// physics: ball, score, flash timestamp (any thread)
 game(pads, scr) {
-    delay(0.01);
+    // delay(0.01);
     if(pads != undefined && scr != undefined) {
         r = scr.h / 40;
         if(this.bx == undefined) {
@@ -75,7 +75,7 @@ game(pads, scr) {
         } else {
             now = steady_clock();
             dt = now - this.t;
-            if(dt > 0.05) dt = 0.05;
+            // if(dt > 0.05) dt = 0.05;
             this.t = now;
             this.bx += this.vx * dt;
             this.by += this.vy * dt;
@@ -159,7 +159,7 @@ paddles(scr) {
             now = steady_clock();
             dt = now - this.t;
             this.t = now;
-            if(dt > 0.05) dt = 0.05;
+            // if(dt > 0.05) dt = 0.05;
             sp = scr.h * 1.9;
             if(ray_is_key_down(RAY_KEY_A)) this.l.y -= sp * dt;
             if(ray_is_key_down(RAY_KEY_Z)) this.l.y += sp * dt;
