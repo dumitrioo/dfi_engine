@@ -3109,9 +3109,45 @@ namespace dfi {
                 }
             } else {
                 if(lt == type::UNDEFINED) {
-                    return true;
+                    switch(rt) {
+                        case type::S64: return 0 <= rr.as_s64();
+                        case type::U64: return 0 <= rr.as_u64();
+                        case type::CHAR: return 0 <= rr.as_char();
+                        case type::U8: return 0 <= rr.as_u8();
+                        case type::S8: return 0 <= rr.as_s8();
+                        case type::U16: return 0 <= rr.as_u16();
+                        case type::S16: return 0 <= rr.as_s16();
+                        case type::U32: return 0 <= rr.as_u32();
+                        case type::S32: return 0 <= rr.as_s32();
+                        case type::FLOAT: return 0 <= rr.as_float();
+                        case type::DOUBLE: return 0 <= rr.as_double();
+                        case type::LONG_DOUBLE: return 0 <= rr.as_long_double();
+                        case type::BOOL: return false <= rr.as_bool();
+                        case type::WCHAR: return 0 <= rr.as_wchar();
+                        case type::STRING: return std::string{} <= rr.as_string();
+                        case type::WSTRING: return std::wstring{} <= rr.as_wstring();
+                        default: break;
+                    }
                 } else if(rt == type::UNDEFINED) {
-                    return false;
+                    switch(lt) {
+                        case type::S64: return lr.as_s64() <= 0;
+                        case type::U64: return lr.as_u64() <= 0;
+                        case type::CHAR: return lr.as_char() <= 0;
+                        case type::U8: return lr.as_u8() <= 0;
+                        case type::S8: return lr.as_s8() <= 0;
+                        case type::U16: return lr.as_u16() <= 0;
+                        case type::S16: return lr.as_s16() <= 0;
+                        case type::U32: return lr.as_u32() <= 0;
+                        case type::S32: return lr.as_s32() <= 0;
+                        case type::FLOAT: return lr.as_float() <= 0;
+                        case type::DOUBLE: return lr.as_double() <= 0;
+                        case type::LONG_DOUBLE: return lr.as_long_double() <= 0;
+                        case type::BOOL: return lr.as_bool() <= false;
+                        case type::WCHAR: return lr.as_wchar() <= 0;
+                        case type::STRING: return lr.as_string() <= std::string{};
+                        case type::WSTRING: return lr.as_wstring() <= std::wstring{};
+                        default: break;
+                    }
                 }
                 if(is_numeric_type(lt) && is_numeric_type(rt)) {
                     if(static_cast<int>(lt) > static_cast<int>(rt)) {
@@ -3190,11 +3226,47 @@ namespace dfi {
                     case type::UNDEFINED: return false;
                     default: break;
                 }
-            } else {
+            } else {                
                 if(lt == type::UNDEFINED) {
-                    return true;
+                    switch(rt) {
+                        case type::S64: return 0 < rr.as_s64();
+                        case type::U64: return 0 < rr.as_u64();
+                        case type::CHAR: return 0 < rr.as_char();
+                        case type::U8: return 0 < rr.as_u8();
+                        case type::S8: return 0 < rr.as_s8();
+                        case type::U16: return 0 < rr.as_u16();
+                        case type::S16: return 0 < rr.as_s16();
+                        case type::U32: return 0 < rr.as_u32();
+                        case type::S32: return 0 < rr.as_s32();
+                        case type::FLOAT: return 0 < rr.as_float();
+                        case type::DOUBLE: return 0 < rr.as_double();
+                        case type::LONG_DOUBLE: return 0 < rr.as_long_double();
+                        case type::BOOL: return false < rr.as_bool();
+                        case type::WCHAR: return 0 < rr.as_wchar();
+                        case type::STRING: return std::string{} < rr.as_string();
+                        case type::WSTRING: return std::wstring{} < rr.as_wstring();
+                        default: break;
+                    }
                 } else if(rt == type::UNDEFINED) {
-                    return false;
+                    switch(lt) {
+                        case type::S64: return lr.as_s64() < 0;
+                        case type::U64: return lr.as_u64() < 0;
+                        case type::CHAR: return lr.as_char() < 0;
+                        case type::U8: return lr.as_u8() < 0;
+                        case type::S8: return lr.as_s8() < 0;
+                        case type::U16: return lr.as_u16() < 0;
+                        case type::S16: return lr.as_s16() < 0;
+                        case type::U32: return lr.as_u32() < 0;
+                        case type::S32: return lr.as_s32() < 0;
+                        case type::FLOAT: return lr.as_float() < 0;
+                        case type::DOUBLE: return lr.as_double() < 0;
+                        case type::LONG_DOUBLE: return lr.as_long_double() < 0;
+                        case type::BOOL: return lr.as_bool() < false;
+                        case type::WCHAR: return lr.as_wchar() < 0;
+                        case type::STRING: return lr.as_string() < std::string{};
+                        case type::WSTRING: return lr.as_wstring() < std::wstring{};
+                        default: break;
+                    }
                 }
                 if(is_numeric_type(lt) && is_numeric_type(rt)) {
                     if(static_cast<int>(lt) > static_cast<int>(rt)) {
@@ -5218,7 +5290,14 @@ namespace dfi {
                         if(rr.cast_to_u64() == 0) { throw std::runtime_error{"integer division by zero"}; }
                         lr.become_type(rt); return *this;
                     } else if(is_any_fp_number_type(rt)) {
-                        lr.become_type(rt); return *this;
+                        lr.become_type(rt);
+                        switch(rt) {
+                            case type::FLOAT: lr.as_float() /= rr.as_float(); break;
+                            case type::DOUBLE: lr.as_double() /= rr.as_double(); break;
+                            case type::LONG_DOUBLE: lr.as_long_double() /= rr.as_long_double(); break;
+                            default: break;
+                        }
+                        return *this;
                     }
                     break;
                 default:
@@ -5256,7 +5335,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5286,7 +5365,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5316,7 +5395,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5346,7 +5425,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5376,7 +5455,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5406,7 +5485,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5436,7 +5515,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5466,7 +5545,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5496,7 +5575,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5526,7 +5605,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5556,24 +5635,24 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: throw std::runtime_error{"integer divizion by zero"};
                         case type::VALBOX: break;
                         default: break;
                     }
                     break;
                 case type::FLOAT:
                     switch(rt) {
-                        case type::BOOL: { auto dvzr{rr.as_bool()}; if(!dvzr) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::CHAR: { auto dvzr{rr.as_char()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::S8: { auto dvzr{rr.as_s8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::U8: { auto dvzr{rr.as_u8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::S16: { auto dvzr{rr.as_s16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::U16: { auto dvzr{rr.as_u16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::WCHAR: { auto dvzr{rr.as_wchar()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::S32: { auto dvzr{rr.as_s32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::U32: { auto dvzr{rr.as_u32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::S64: { auto dvzr{rr.as_s64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
-                        case type::U64: { auto dvzr{rr.as_u64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_float() / dvzr; }
+                        case type::BOOL:
+                        case type::CHAR:
+                        case type::S8:
+                        case type::U8:
+                        case type::S16:
+                        case type::U16:
+                        case type::WCHAR:
+                        case type::S32:
+                        case type::U32:
+                        case type::S64:
+                        case type::U64:   { return lr.as_float() / rr.cast_to_float(); }
                         case type::FLOAT: { auto dvzr{rr.as_float()}; return lr.as_float() / dvzr; }
                         case type::DOUBLE: { auto dvzr{rr.as_double()}; return lr.as_float() / dvzr; }
                         case type::LONG_DOUBLE: { auto dvzr{rr.as_long_double()}; return lr.as_float() / dvzr; }
@@ -5593,17 +5672,17 @@ namespace dfi {
                     break;
                 case type::DOUBLE:
                     switch(rt) {
-                        case type::BOOL: { auto dvzr{rr.as_bool()}; if(!dvzr) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::CHAR: { auto dvzr{rr.as_char()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::S8: { auto dvzr{rr.as_s8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::U8: { auto dvzr{rr.as_u8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::S16: { auto dvzr{rr.as_s16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::U16: { auto dvzr{rr.as_u16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::WCHAR: { auto dvzr{rr.as_wchar()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::S32: { auto dvzr{rr.as_s32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::U32: { auto dvzr{rr.as_u32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::S64: { auto dvzr{rr.as_s64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
-                        case type::U64: { auto dvzr{rr.as_u64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_double() / dvzr; }
+                        case type::BOOL:
+                        case type::CHAR:
+                        case type::S8:
+                        case type::U8:
+                        case type::S16:
+                        case type::U16:
+                        case type::WCHAR:
+                        case type::S32:
+                        case type::U32:
+                        case type::S64:
+                        case type::U64: return lr.as_double() / rr.cast_to_double();
                         case type::FLOAT: { auto dvzr{rr.as_float()}; return lr.as_double() / dvzr; }
                         case type::DOUBLE: { auto dvzr{rr.as_double()}; return lr.as_double() / dvzr; }
                         case type::LONG_DOUBLE: { auto dvzr{rr.as_long_double()}; return lr.as_double() / dvzr; }
@@ -5623,17 +5702,17 @@ namespace dfi {
                     break;
                 case type::LONG_DOUBLE:
                     switch(rt) {
-                        case type::BOOL: { auto dvzr{rr.as_bool()}; if(!dvzr) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::CHAR: { auto dvzr{rr.as_char()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::S8: { auto dvzr{rr.as_s8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::U8: { auto dvzr{rr.as_u8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::S16: { auto dvzr{rr.as_s16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::U16: { auto dvzr{rr.as_u16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::WCHAR: { auto dvzr{rr.as_wchar()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::S32: { auto dvzr{rr.as_s32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::U32: { auto dvzr{rr.as_u32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::S64: { auto dvzr{rr.as_s64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
-                        case type::U64: { auto dvzr{rr.as_u64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_long_double() / dvzr; }
+                        case type::BOOL:
+                        case type::CHAR:
+                        case type::S8:
+                        case type::U8:
+                        case type::S16:
+                        case type::U16:
+                        case type::WCHAR:
+                        case type::S32:
+                        case type::U32:
+                        case type::S64:
+                        case type::U64: return lr.as_long_double() / rr.cast_to_long_double();
                         case type::FLOAT: { auto dvzr{rr.as_float()}; return lr.as_long_double() / dvzr; }
                         case type::DOUBLE: { auto dvzr{rr.as_double()}; return lr.as_long_double() / dvzr; }
                         case type::LONG_DOUBLE: { auto dvzr{rr.as_long_double()}; return lr.as_long_double() / dvzr; }
@@ -5676,7 +5755,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: return lr.as_vec4() / 0.0;
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5706,7 +5785,7 @@ namespace dfi {
                         case type::OBJECT: break;
                         case type::STRING: break;
                         case type::WSTRING: break;
-                        case type::UNDEFINED: return valbox{};
+                        case type::UNDEFINED: return lr.as_mat4() / 0.0;
                         case type::VALBOX: break;
                         default: break;
                     }
@@ -5726,7 +5805,34 @@ namespace dfi {
                 case type::WSTRING:
                     break;
                 case type::UNDEFINED:
-                    return valbox{};
+                    switch(rt) {
+                        case type::BOOL: { auto dvzr{rr.as_bool()}; if(!dvzr) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::CHAR: { auto dvzr{rr.as_char()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::S8: { auto dvzr{rr.as_s8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::U8: { auto dvzr{rr.as_u8()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::S16: { auto dvzr{rr.as_s16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::U16: { auto dvzr{rr.as_u16()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::WCHAR: { auto dvzr{rr.as_wchar()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::S32: { auto dvzr{rr.as_s32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::U32: { auto dvzr{rr.as_u32()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::S64: { auto dvzr{rr.as_s64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::U64: { auto dvzr{rr.as_u64()}; if(dvzr == 0) { throw std::runtime_error{"integer divizion by zero"}; } return lr.as_u64() / dvzr; }
+                        case type::FLOAT: return 0.0f / rr.as_float();
+                        case type::DOUBLE: return 0.0 / rr.as_double();
+                        case type::LONG_DOUBLE: return 0.0L / rr.as_long_double();
+                        case type::VEC4: break;
+                        case type::MAT4: break;
+                        case type::POINTER: break;
+                        case type::CLASS: break;
+                        case type::FUNC: break;
+                        case type::ARRAY: break;
+                        case type::OBJECT: break;
+                        case type::STRING: break;
+                        case type::WSTRING: break;
+                        case type::UNDEFINED: return valbox{};
+                        case type::VALBOX: break;
+                        default: break;
+                    }
                     break;
                 case type::VALBOX:
                     break;
