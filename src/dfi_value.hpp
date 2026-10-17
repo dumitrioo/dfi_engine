@@ -331,6 +331,17 @@ namespace dfi {
                      any{std::forward<T>(v)}, type::CLASS, type::UNDEFINED, classname)}
         {
         }
+        template<typename T>
+        valbox(T const &v, std::string const &classname):
+            box_{std::make_shared<box_data>(
+#if defined(DFI_USE_CUSTOM_ANY)
+                     dfi::
+#else
+                     std::
+#endif
+                     any{v}, type::CLASS, type::UNDEFINED, classname)}
+        {
+        }
         valbox(std::function<valbox(std::vector<valbox> &)> const &v, std::string const &func_name, bool user_func):
             box_{
                 std::make_shared<box_data>(
