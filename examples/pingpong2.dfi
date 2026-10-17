@@ -75,7 +75,6 @@ game(pads, scr) {
         } else {
             now = steady_clock();
             dt = now - this.t;
-            // if(dt > 0.05) dt = 0.05;
             this.t = now;
             this.bx += this.vx * dt;
             this.by += this.vy * dt;
@@ -159,7 +158,6 @@ paddles(scr) {
             now = steady_clock();
             dt = now - this.t;
             this.t = now;
-            // if(dt > 0.05) dt = 0.05;
             sp = scr.h * 1.9;
             if(ray_is_key_down(RAY_KEY_A)) this.l.y -= sp * dt;
             if(ray_is_key_down(RAY_KEY_Z)) this.l.y += sp * dt;
