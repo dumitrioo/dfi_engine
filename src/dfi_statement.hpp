@@ -231,7 +231,7 @@ namespace dfi {
             }};
             std::size_t resume_index{ctx->get_resume_index()};
             shut_on_destroy resume_index_restore{[ctx]() {
-                if(ctx->delay_requested()) {
+                if(!ctx->delay_requested()) {
                     ctx->clear_resume_stack_values();
                     ctx->set_resume_index(0);
                 }
