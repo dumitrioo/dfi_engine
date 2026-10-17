@@ -360,7 +360,7 @@ namespace dfi {
                                     throw compilation_error{
                                         get_token(0).line(),
                                         get_token(0).col(),
-                                        "invalid \"catch\": \")\" expected"
+                                        "invalid \"catch\" statement: \")\" expected"
                                     };
                                 }
                             }
@@ -382,21 +382,21 @@ namespace dfi {
                                         throw compilation_error{
                                             get_token(0).line(),
                                             get_token(0).col(),
-                                            "invalid \"try\": \")\" expected"
+                                            "invalid \"try\" statement: \")\" expected"
                                         };
                                     }
                                 } else {
                                     throw compilation_error{
                                         get_token(0).line(),
                                         get_token(0).col(),
-                                        "invalid \"try\": invalid catch expression, identifier expected"
+                                        "invalid \"try\" statement: invalid catch expression, identifier expected"
                                     };
                                 }
                             } else {
                                 throw compilation_error{
                                     get_token(0).line(),
                                     get_token(0).col(),
-                                    "invalid \"try\": identifier expected"
+                                    "invalid \"try\" statement: identifier expected"
                                 };
                             }
                             json catchstat{get_statement()};
@@ -410,28 +410,28 @@ namespace dfi {
                                 throw compilation_error{
                                     get_token(0).line(),
                                     get_token(0).col(),
-                                    "invalid \"try\": catch statement expected"
+                                    "invalid \"try\" statement: catch statement expected"
                                 };
                             }
                         } else {
                             throw compilation_error{
                                 get_token(0).line(),
                                 get_token(0).col(),
-                                "invalid \"try\": \"(\" expected"
+                                "invalid \"try\" statement: \"(\" expected"
                             };
                         }
                     } else {
                         throw compilation_error{
                             get_token(0).line(),
                             get_token(0).col(),
-                            "invalid \"try\": \"catch\" expected"
+                            "invalid \"try\" statement: \"catch\" expected"
                         };
                     }
                 } else {
                     throw compilation_error{
                         get_token(0).line(),
                         get_token(0).col(),
-                        "invalid \"try\": expected statement"
+                        "invalid \"try\" statement: expected statement"
                     };
                 }
             }
@@ -444,33 +444,53 @@ namespace dfi {
                 res["loc"]["line"] = get_token(0).line();
                 res["loc"]["col"] = get_token(0).col();
                 increment_pos();
-                json ifexpr{get_expr()};
-                if(ifexpr.is_object()) {
-                    json ifstat{get_statement()};
-                    json elsestat{};
-                    if(ifstat.is_object()) {
+                check_eof();
+                if(get_token(0).type_is(token::type::LPAREN)) {
+                    increment_pos();
+                    json ifexpr{get_expr()};
+                    if(ifexpr.is_object()) {
                         check_eof();
-                        if(get_token(0).is_id() && get_token(0).lexem() == L"else") {
+                        if(get_token(0).type_is(token::type::RPAREN)) {
                             increment_pos();
-                            elsestat = get_statement();
+                            json ifstat{get_statement()};
+                            json elsestat{};
+                            if(ifstat.is_object()) {
+                                check_eof();
+                                if(get_token(0).is_id() && get_token(0).lexem() == L"else") {
+                                    increment_pos();
+                                    elsestat = get_statement();
+                                }
+                                res["type"] = "statement";
+                                res["subtype"] = "if";
+                                res["content"]["cond"] = ifexpr;
+                                res["content"]["then_statement"] = ifstat;
+                                res["content"]["else_statement"] = elsestat;
+                            } else {
+                                throw compilation_error{
+                                    get_token(0).line(),
+                                    get_token(0).col(),
+                                    "invalid \"if\" statement: true-branch statement expected"
+                                };
+                            }
+                        } else {
+                            throw compilation_error{
+                                get_token(0).line(),
+                                get_token(0).col(),
+                                "invalid \"if\" statement: ')' expected"
+                            };
                         }
-                        res["type"] = "statement";
-                        res["subtype"] = "if";
-                        res["content"]["cond"] = ifexpr;
-                        res["content"]["then_statement"] = ifstat;
-                        res["content"]["else_statement"] = elsestat;
                     } else {
                         throw compilation_error{
                             get_token(0).line(),
                             get_token(0).col(),
-                            "invalid \"if\": true-branch statement expected"
+                            "invalid \"if\" statement: condition expected"
                         };
                     }
                 } else {
                     throw compilation_error{
                         get_token(0).line(),
                         get_token(0).col(),
-                        "invalid \"if\": condition expected"
+                        "invalid \"if\" statement: '(' expected"
                     };
                 }
             }
@@ -488,27 +508,45 @@ namespace dfi {
                 };
                 increment_pos();
                 check_eof();
-                json expr{get_expr()};
-                if(expr.is_object()) {
-                    check_eof();
-                    auto stmt{get_statement()};
-                    if(stmt.is_object()) {
-                        res["type"] = "statement";
-                        res["subtype"] = "while";
-                        res["content"]["cond"] = expr;
-                        res["content"]["statement"] = stmt;
+                if(get_token(0).type_is(token::type::LPAREN)) {
+                    increment_pos();
+                    json expr{get_expr()};
+                    if(expr.is_object()) {
+                        check_eof();
+                        if(get_token(0).type_is(token::type::RPAREN)) {
+                            increment_pos();
+                            auto stmt{get_statement()};
+                            if(stmt.is_object()) {
+                                res["type"] = "statement";
+                                res["subtype"] = "while";
+                                res["content"]["cond"] = expr;
+                                res["content"]["statement"] = stmt;
+                            } else {
+                                throw compilation_error{
+                                    get_token(0).line(),
+                                    get_token(0).col(),
+                                    "invalid \"while\" statement: statement expected"
+                                };
+                            }
+                        } else {
+                            throw compilation_error{
+                                get_token(0).line(),
+                                get_token(0).col(),
+                                "invalid \"while\" statement: ')' expected"
+                            };
+                        }
                     } else {
                         throw compilation_error{
                             get_token(0).line(),
                             get_token(0).col(),
-                            "invalid \"while\": statement expected"
+                            "invalid \"while\" statement: condition expected"
                         };
                     }
                 } else {
                     throw compilation_error{
                         get_token(0).line(),
                         get_token(0).col(),
-                        "invalid \"while\": condition expected"
+                        "invalid \"while\" statement: '(' expected"
                     };
                 }
             }
@@ -533,26 +571,45 @@ namespace dfi {
                         res["loc"]["col"] = get_token(0).col();
                         increment_pos();
                         check_eof();
-                        json expr{get_expr()};
-                        if(expr.is_object()) {
-                            res["type"] = "statement";
-                            res["subtype"] = "dowhile";
-                            res["content"]["cond"] = std::move(expr);
-                            res["content"]["statement"] = std::move(stmt);
-                            check_eof();
-                            if(get_token(0).type_is_not(token::type::SEMICOLON)) {
+                        if(get_token(0).type_is(token::type::LPAREN)) {
+                            increment_pos();
+                            json expr{get_expr()};
+                            if(expr.is_object()) {
+                                check_eof();
+                                if(get_token(0).type_is(token::type::RPAREN)) {
+                                    increment_pos();
+                                    res["type"] = "statement";
+                                    res["subtype"] = "dowhile";
+                                    res["content"]["cond"] = std::move(expr);
+                                    res["content"]["statement"] = std::move(stmt);
+                                    check_eof();
+                                    if(get_token(0).type_is_not(token::type::SEMICOLON)) {
+                                        throw compilation_error{
+                                            get_token(0).line(),
+                                            get_token(0).col(),
+                                            "\";\" expected"
+                                        };
+                                    }
+                                    increment_pos();
+                                } else {
+                                    throw compilation_error{
+                                        get_token(0).line(),
+                                        get_token(0).col(),
+                                        "invalid \"if\" statement: ')' expected"
+                                    };
+                                }
+                            } else {
                                 throw compilation_error{
                                     get_token(0).line(),
                                     get_token(0).col(),
-                                    "\";\" expected"
+                                    "invalid \"do-while\" statement: condition expected"
                                 };
                             }
-                            increment_pos();
                         } else {
                             throw compilation_error{
                                 get_token(0).line(),
                                 get_token(0).col(),
-                                "invalid \"while\": condition expected"
+                                "invalid \"do-while\" statement: '(' expected"
                             };
                         }
                     }
@@ -560,7 +617,7 @@ namespace dfi {
                     throw compilation_error{
                         get_token(0).line(),
                         get_token(0).col(),
-                        "invalid \"while\": statement expected"
+                        "invalid \"do-while\" statement: statement expected"
                     };
                 }
             }
@@ -606,21 +663,21 @@ namespace dfi {
                             throw compilation_error{
                                 get_token(0).line(),
                                 get_token(0).col(),
-                                "invalid \"range for\": loop body expected"
+                                "invalid \"range for\" statement: loop body expected"
                             };
                         }
                     } else {
                         throw compilation_error{
                             get_token(0).line(),
                             get_token(0).col(),
-                            "invalid \"range for\": ')' expected"
+                            "invalid \"range for\" statement: ')' expected"
                         };
                     }
                 } else {
                     throw compilation_error{
                         get_token(0).line(),
                         get_token(0).col(),
-                        "invalid \"range for\": expression expected"
+                        "invalid \"range for\" statement: expression expected"
                     };
                 }
             }
@@ -700,56 +757,56 @@ namespace dfi {
                                                 throw compilation_error{
                                                     get_token(0).line(),
                                                     get_token(0).col(),
-                                                    "invalid \"for\": statement expected"
+                                                    "invalid \"for\" statement: loop statement expected"
                                                 };
                                             }
                                         } else {
                                             throw compilation_error{
                                                 get_token(0).line(),
                                                 get_token(0).col(),
-                                                "invalid \"for\": ')' expected"
+                                                "invalid \"for\" statement: ')' expected"
                                             };
                                         }
                                     } else {
                                         throw compilation_error{
                                             get_token(0).line(),
                                             get_token(0).col(),
-                                            "invalid \"for\": expression expected"
+                                            "invalid \"for\" statement: expression expected"
                                         };
                                     }
                                 } else {
                                     throw compilation_error{
                                         get_token(0).line(),
                                         get_token(0).col(),
-                                        "invalid \"for\": ';' expected"
+                                        "invalid \"for\" statement: ';' expected"
                                     };
                                 }
                             } else {
                                 throw compilation_error{
                                     get_token(0).line(),
                                     get_token(0).col(),
-                                    "invalid \"for\": expression expected"
+                                    "invalid \"for\" statement: expression expected"
                                 };
                             }
                         } else {
                             throw compilation_error{
                                 get_token(0).line(),
                                 get_token(0).col(),
-                                "invalid \"for\": ';' expected"
+                                "invalid \"for\" statement: ';' expected"
                             };
                         }
                     } else {
                         throw compilation_error{
                             get_token(0).line(),
                             get_token(0).col(),
-                            "invalid \"for\": expression expected"
+                            "invalid \"for\" statement: expression expected"
                         };
                     }
                 } else {
                     throw compilation_error{
                         get_token(0).line(),
                         get_token(0).col(),
-                        "invalid \"for\": '(' expected"
+                        "invalid \"for\" statement: '(' expected"
                     };
                 }
             }
