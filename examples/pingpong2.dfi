@@ -1,0 +1,229 @@
+///////////////////////// helpers
+function serve_ball(scr, side) {
+    sp = scr.h * .9;
+    v = rotation_z((randf() - .5) * M_PI * .5) * vec4(sp, 0);
+    if(side < 0) v = vec4(-v.x(), v.y());
+    return {x: scr.w * .5, y: scr.h * .5, vx: v.x(), vy: v.y(), s: sp};
+}
+
+///////////////////////// window owner: resource + lifecycle
+win() {
+    if(!this.up) {
+        set_cycle_sleep_seconds(0.001);
+        set_inactive_sleep_seconds(0.01);
+        ray_init_window(1280, 720, "Ping-Pong");
+        ray_set_target_fps(120);
+        ray_begin_drawing();
+        ray_clear_background(Color(0, 20, 50));
+        ray_end_drawing();
+        this.up = true;
+        this.tid = thread_id();
+        this.w = 1280.;
+        this.h = 720.;
+    }
+    if(this.tid == thread_id()) {
+        this.w = (f64)ray_get_screen_width();
+        this.h = (f64)ray_get_screen_height();
+        return {t: this.tid, w: this.w, h: this.h};
+    }
+}
+
+///////////////////////// physics: ball, score, flash timestamp (any thread)
+game(pads, scr) {
+    delay(0.01);
+    if(pads != undefined && scr != undefined) {
+        r = scr.h / 40;
+        if(this.bx == undefined) {
+            this.rst_seen = pads.rst;
+            this.ls = 0;
+            this.rs = 0;
+            this.lw = scr.w;
+            this.lh = scr.h;
+            this.feed = randf() < 0.5 ? -1 : 1;
+            this.ft = -1.;
+            this.fs = 0.;
+            b = serve_ball(scr, this.feed);
+            this.bx = b.x;
+            this.by = b.y;
+            this.vx = b.vx;
+            this.vy = b.vy;
+            this.s = b.s;
+            this.t = steady_clock();
+        } else if(pads.rst != this.rst_seen) {
+            this.rst_seen = pads.rst;
+            this.ls = 0;
+            this.rs = 0;
+            this.feed = randf() < 0.5 ? -1 : 1;
+            this.ft = -1.;
+            b = serve_ball(scr, this.feed);
+            this.bx = b.x;
+            this.by = b.y;
+            this.vx = b.vx;
+            this.vy = b.vy;
+            this.s = b.s;
+            this.t = steady_clock();
+        } else if(this.lw != scr.w || this.lh != scr.h) {
+            this.lw = scr.w;
+            this.lh = scr.h;
+            b = serve_ball(scr, this.feed);
+            this.bx = b.x;
+            this.by = b.y;
+            this.vx = b.vx;
+            this.vy = b.vy;
+            this.s = b.s;
+            this.t = steady_clock();
+        } else {
+            now = steady_clock();
+            dt = now - this.t;
+            if(dt > 0.05) dt = 0.05;
+            this.t = now;
+            this.bx += this.vx * dt;
+            this.by += this.vy * dt;
+            if(this.by >= scr.h - r && this.vy > 0) { this.by = scr.h - r; this.vy = -this.vy; }
+            else if(this.by <= r && this.vy < 0) { this.by = r; this.vy = -this.vy; }
+            lp = pads.l;
+            rp = pads.r;
+            if(
+                this.vx < 0. &&
+                this.bx <= lp.x + lp.w + r && this.bx >= lp.x - r &&
+                this.by >= lp.y - r && this.by <= lp.y + lp.h + r
+            ) {
+                off = (this.by - (lp.y + lp.h * .5)) / (lp.h * .5 + r);
+                v = rotation_z(off * M_PI / 3) * vec4(this.s, 0.);
+                this.vx = v.x();
+                this.vy = v.y();
+            } else if(
+                this.vx > 0. &&
+                this.bx >= rp.x - r && this.bx <= rp.x + rp.w + r &&
+                this.by >= rp.y - r && this.by <= rp.y + rp.h + r
+            ) {
+                off = (this.by - (rp.y + rp.h * .5)) / (rp.h * .5 + r);
+                v = rotation_z(-off * M_PI / 3.) * vec4(-this.s, 0.);
+                this.vx = v.x();
+                this.vy = v.y();
+            }
+            if(this.bx >= scr.w + 2. * r) {
+                ++this.ls;
+                this.feed = 1;
+                this.ft = steady_clock();
+                this.fs = 1.;
+                b = serve_ball(scr, this.feed);
+                this.bx = b.x;
+                this.by = b.y;
+                this.vx = b.vx;
+                this.vy = b.vy;
+                this.s = b.s;
+            } else if(this.bx <= -2. * r) {
+                ++this.rs;
+                this.feed = -1;
+                this.ft = steady_clock();
+                this.fs = -1.;
+                b = serve_ball(scr, this.feed);
+                this.bx = b.x;
+                this.by = b.y;
+                this.vx = b.vx;
+                this.vy = b.vy;
+                this.s = b.s;
+            }
+        }
+        return {bx: this.bx, by: this.by, ls: this.ls, rs: this.rs, ft: this.ft, fs: this.fs, br: r};
+    }
+}
+
+///////////////////////// sensors: keys -> paddles + reset event
+paddles(scr) {
+    if(scr != undefined) {
+        if(this.l == undefined) {
+            this.lw = scr.w;
+            this.lh = scr.h;
+            this.l = {x: scr.w / 180., y: scr.h / 2. - scr.h / 12., w: scr.w / 180., h: scr.h / 6.};
+            this.r = {x: scr.w - 2. * scr.w / 180., y: scr.h / 2. - scr.h / 12., w: scr.w / 180., h: scr.h / 6.};
+            this.rst = 0;
+            this.pr = false;
+            this.pf = false;
+            this.t = steady_clock();
+        }
+        if(scr.t == thread_id()) {
+            if(this.lw != scr.w || this.lh != scr.h) {
+                this.lw = scr.w;
+                this.lh = scr.h;
+                this.l.x = scr.w / 180.;
+                this.r.x = scr.w - 2. * scr.w / 180.;
+                this.l.w = scr.w / 180.;
+                this.r.w = scr.w / 180.;
+                this.l.h = scr.h / 6.;
+                this.r.h = scr.h / 6.;
+                this.l.y = scr.h / 2. - this.l.h / 2.;
+                this.r.y = scr.h / 2. - this.r.h / 2.;
+            }
+            now = steady_clock();
+            dt = now - this.t;
+            this.t = now;
+            if(dt > 0.05) dt = 0.05;
+            sp = scr.h * 1.9;
+            if(ray_is_key_down(RAY_KEY_A)) this.l.y -= sp * dt;
+            if(ray_is_key_down(RAY_KEY_Z)) this.l.y += sp * dt;
+            if(ray_is_key_down(RAY_KEY_UP)) this.r.y -= sp * dt;
+            if(ray_is_key_down(RAY_KEY_DOWN)) this.r.y += sp * dt;
+            kr = ray_is_key_down(RAY_KEY_R);
+            if(kr && !this.pr) ++this.rst;
+            this.pr = kr;
+            kf = ray_is_key_down(RAY_KEY_F11);
+            if(kf && !this.pf) ray_toggle_full_screen();
+            this.pf = kf;
+            if(this.l.y < 0) this.l.y = 0.;
+            if(this.l.y + this.l.h > scr.h) this.l.y = scr.h - this.l.h;
+            if(this.r.y < 0) this.r.y = 0.;
+            if(this.r.y + this.r.h > scr.h) this.r.y = scr.h - this.r.h;
+            if(ray_window_should_close()) {
+                ray_close_window();
+                exit(0);
+            }
+            return {l: this.l, r: this.r, rst: this.rst};
+        }
+    }
+}
+
+///////////////////////// HMI: draws the world, window thread
+renderer(scr, pads, game) {
+    if(scr != undefined && scr.t == thread_id() && pads != undefined && game != undefined) {
+        ray_begin_drawing();
+        ray_clear_background(Color(0, 20, 50));
+        w = scr.w;
+        h = scr.h;
+        lp = pads.l;
+        rp = pads.r;
+        if(game.ft >= 0) {
+            alpha = 1 - (steady_clock() - game.ft) / .55;
+            if(alpha > 0) {
+                x = w * .0005;
+                if(game.fs > 0) x = w * (1. - .0005);
+                ray_draw_line_ex(Vector2(x, 0.), Vector2(x, h), w * .01, Color(255, 0, 0, alpha * 255));
+            }
+        }
+        ray_draw_line_dashed(Vector2(w * .5, 0.), Vector2(w * .5, h), h * .05, h * .05, Color(255, 255, 255, 100));
+        ray_draw_text(string(game.ls), 29. * w / 100., h * .05, h * .1, Color(255, 255, 255, 90));
+        ray_draw_text(string(game.rs), 69. * w / 100., h * .05, h * .1, Color(255, 255, 255, 90));
+        ray_draw_text("RESET = \"R\"", 45 * w / 100, h * .056, h * .04, Color(255, 255, 255, 40));
+        ray_draw_text("TOGLE FULLSCREEN = \"F11\"", 35 * w / 100, h * .95, h * .04, Color(255, 255, 255, 20));
+        ray_draw_text("UP = \"A\"", 15. * w / 100., h * .45, h * .04, Color(255, 255, 255, 30));
+        ray_draw_text("DOWN = \"Z\"", 15. * w / 100., h * .5, h * .04, Color(255, 255, 255, 30));
+        ray_draw_text("UP = \"Up Arrow\"", 67. * w / 100., h * .45, h * .04, Color(255, 255, 255, 30));
+        ray_draw_text("DOWN = \"Down Arrow\"", 67. * w / 100., h * .5, h * .04, Color(255, 255, 255, 30));
+        ray_draw_rectangle(lp.x, lp.y, lp.w, lp.h, WHITE);
+        ray_draw_rectangle(rp.x, rp.y, rp.w, rp.h, WHITE);
+        ray_draw_circle(game.bx, game.by, game.br, WHITE);
+
+        if(ray_window_should_close()) {
+            ray_end_drawing();
+            ray_close_window();
+            exit(0);
+        }
+        ray_end_drawing();
+    }
+}
+
+win      scr();              // window owner, exports tid + size
+paddles  ctl(scr);           // sensors (keys), window thread
+game     phy(ctl, scr);      // physics, any thread
+renderer gui(scr, ctl, phy); // HMI, window thread
