@@ -15,6 +15,7 @@
 #define DFIFUN(ARGS) [](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
 #define DFICLOSURE(ARGS) [&](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
 #define DFINUMARG(ARGS, INDX, TYPE) ARGS[INDX].cast_num_to_num<TYPE>()
+#define DFIBOOLARG(ARGS, INDX) ARGS[INDX].cast_to_bool()
 #define DFI_CHCK_FUN_PARMS_NUM_EQ(ARGS, NUM_ARGS) \
     if(ARGS.size() != (NUM_ARGS)) { \
         throw std::runtime_error{"wrong actual function arguments number"}; \
