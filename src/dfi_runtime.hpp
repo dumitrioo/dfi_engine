@@ -1128,7 +1128,9 @@ namespace dfi {
         }
 
         void load_file(std::string const &filename) {
-            if(!load_library(filename)) {
+            if(is_library(filename)) {
+                load_library(filename);
+            } else {
                 if(file_util::file_exists(filename)) {
                     std::string src{file_util::load_text_file(filename)};
                     load_source_string(src);
@@ -1979,24 +1981,33 @@ namespace dfi {
             start_extcell_processing();
         }
 
-        bool load_library(std::string const &fname) {
+        static bool is_library(std::string const &fname) {
             bool res{false};
             try {
                 std::shared_ptr<so> dll_ptr{std::make_shared<so>(fname)};
                 if(dll_ptr->ok()) {
-                    auto ld_fn{dll_ptr->symbol<extension_interface *(*)()>("create_dfi_extension")};
-                    auto unld_fn{dll_ptr->symbol<void (*)(extension_interface *)>("remove_dfi_extension")};
-                    if(ld_fn && unld_fn) {
-                        extension_interface *ext{ld_fn()};
-                        if(ext) {
-                            ext->register_runtime(this);
-                            std::unique_lock l{loaded_extensions_mtp_};
-                            loaded_extensions_.emplace_back(std::move(dll_ptr), ext);
-                            res = true;
-                        }
-                    }
+                    res = true;
                 }
             } catch(...) {
+            }
+            return res;
+        }
+
+        bool load_library(std::string const &fname) {
+            bool res{false};
+            std::shared_ptr<so> dll_ptr{std::make_shared<so>(fname)};
+            if(dll_ptr->ok()) {
+                auto ld_fn{dll_ptr->symbol<extension_interface *(*)()>("create_dfi_extension")};
+                auto unld_fn{dll_ptr->symbol<void (*)(extension_interface *)>("remove_dfi_extension")};
+                if(ld_fn && unld_fn) {
+                    extension_interface *ext{ld_fn()};
+                    if(ext) {
+                        ext->register_runtime(this);
+                        std::unique_lock l{loaded_extensions_mtp_};
+                        loaded_extensions_.emplace_back(std::move(dll_ptr), ext);
+                        res = true;
+                    }
+                }
             }
             return res;
         }
