@@ -26,7 +26,8 @@ namespace dfi {
             str_map_t<statement_ptr> &worker_bodies,
             str_map_t<function_definition> &user_functions,
             str_map_t<valbox> const &global_functions_dictionary,
-            str_map_t<std::shared_ptr<extern_cell>> &extern_cells
+            str_map_t<std::shared_ptr<extern_cell>> &extern_cells,
+            std::vector<std::string> &extension_names
         ) {
             for(std::size_t i = 0; i < ast.size(); ++i) {
                 json const &cur{ast[i]};
@@ -187,6 +188,10 @@ namespace dfi {
                         fn.set_arg_name(ai, cur_cnt["arg_names"][ai].as_string());
                     }
                     user_functions[func_name] = std::move(fn);
+                } else if(cur["subtype"].as_string() == "extension_load") {
+                    json const &cur_cnt{cur["content"]};
+                    std::string ext_name{cur_cnt["extension_name"].as_string()};
+                    extension_names.push_back(str_util::trim(ext_name));
                 }
             }
         }

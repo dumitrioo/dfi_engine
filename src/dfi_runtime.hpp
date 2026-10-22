@@ -1974,9 +1974,17 @@ namespace dfi {
             auto ast{prs.parse()};
 
             code_generator lj{};
+            std::vector<std::string> extension_names{};
             lj.chop(ast, input_cells_, input_names_to_instances_mapping_, worker_cells_templates_,
-                worker_cells_, worker_bodies_, user_functions_, global_functions_dictionary_, extern_cells_
+                worker_cells_, worker_bodies_, user_functions_, global_functions_dictionary_, extern_cells_,
+                extension_names
             );
+            for(auto &&en: extension_names) {
+                auto dlpath{locate_dynamic_library(en)};
+                if(dlpath && is_library(*dlpath)) {
+                    load_library(*dlpath);
+                }
+            }
             ext_cells_processor_needed_ = ext_cells_processor_needed_ || (extern_cells_.size() > 0);
             start_extcell_processing();
         }

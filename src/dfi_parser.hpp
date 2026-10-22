@@ -40,6 +40,8 @@ namespace dfi {
 
         json get_top_level_statement() {
             json res{};
+            res = get_ext_load_statement();
+            if(res.is_object()) { return res; }
             res = get_cell_instantiation_statement();
             if(res.is_object()) { return res; }
             res = get_cell_def_statement();
@@ -187,6 +189,23 @@ namespace dfi {
 
         json get_cell_def_body() {
             return get_statement();
+        }
+
+        json get_ext_load_statement() {
+            json res{};
+            if(
+                get_token(0).lexem() == L"extension" &&
+                get_token(1).type_is(token::type::STRING_LITERAL) &&
+                get_token(2).type_is(token::type::SEMICOLON)
+            ) {
+                res["loc"]["line"] = get_token(0).line();
+                res["loc"]["col"] = get_token(0).col();
+                res["type"] = "statement";
+                res["subtype"] = "extension_load";
+                res["content"]["extension_name"] = get_token(1).lexem();
+                increment_pos(3);
+            }
+            return res;
         }
 
         json get_cell_instantiation_statement() {

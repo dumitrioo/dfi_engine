@@ -12,6 +12,24 @@
 #include "inc/emhash/hash_table8.hpp"
 #endif
 
+#ifdef PLATFORM_WINDOWS
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#define NSTR(s) L##s
+#else
+#include <unistd.h>
+#include <cstring>
+#if defined(PLATFORM_APPLE)
+#include <mach-o/dyld.h>
+#elif defined(PLATFORM_FREEBSD)
+#include <sys/sysctl.h>
+#endif
+#include <glob.h>
+#define NSTR(s) s
+#endif
+
+
 #define DFIFUN(ARGS) [](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
 #define DFICLOSURE(ARGS) [&](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
 #define DFINUMARG(ARGS, INDX, TYPE) ARGS[INDX].cast_num_to_num<TYPE>()
@@ -368,5 +386,348 @@ namespace dfi {
         std::map<std::size_t, T> map_{};
         std::size_t size_{0};
     };
+
+    namespace dldetail {
+
+        namespace fs = std::filesystem;
+
+        using nstr = fs::path::string_type;
+        using nchar = fs::path::value_type;
+
+        static bool ends_ci(const nstr& s, const nstr& lower_ascii_suffix) {
+            if(s.size() < lower_ascii_suffix.size()) return false;
+            const nstr::size_type off = s.size() - lower_ascii_suffix.size();
+            for(nstr::size_type i = 0; i < lower_ascii_suffix.size(); ++i)
+                if(/*ascii_lower*/str_util::fltr<nstr>::islower(s[off + i]) != lower_ascii_suffix[i]) return false;
+            return true;
+        }
+
+        static std::optional<std::vector<unsigned long long>> parse_version(const nstr& s) {
+            if(s.empty()) return std::nullopt;
+            std::vector<unsigned long long> v;
+            nstr::size_type start = 0;
+            for(;;) {
+                const nstr::size_type dot = s.find(NSTR('.'), start);
+                const nstr comp = s.substr(start, dot == nstr::npos ? nstr::npos : dot - start);
+                if(!str_util::fltr<nstr>::all_digits(comp)) return std::nullopt;
+                v.push_back(str_util::atoui<nstr>(comp));
+                if(dot == nstr::npos) break;
+                start = dot + 1;
+                if(start == s.size()) return std::nullopt;
+            }
+            return v;
+        }
+
+        static bool has_so_ext(const nstr& name) {
+            nstr::size_type pos = name.rfind(NSTR(".so"));
+            while(pos != nstr::npos) {
+                const nstr tail = name.substr(pos + 3);
+                if(tail.empty()) return true;
+                if(tail[0] == NSTR('.') && parse_version(tail.substr(1))) return true;
+                if(pos == 0) break;
+                pos = name.rfind(NSTR(".so"), pos - 1);
+            }
+            return false;
+        }
+
+        static std::optional<fs::path> check(const fs::path& dir, const nstr& file) {
+            const fs::path p = dir / fs::path(file);
+            std::error_code ec;
+            if(fs::is_regular_file(p, ec)) return p;
+            return std::nullopt;
+        }
+
+        static std::optional<fs::path> best_versioned(const fs::path& dir, const nstr& so_name) {
+            const nstr prefix = so_name + NSTR(".");
+            bool found = false;
+            nstr best;
+            std::vector<unsigned long long> best_v;
+            std::error_code ec;
+            for(fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+                const nstr fn = it->path().filename().native();
+                if(fn.size() <= prefix.size()) continue;
+                if(fn.compare(0, prefix.size(), prefix) != 0) continue;
+                const auto v = parse_version(fn.substr(prefix.size()));
+                if(!v) continue;
+                std::error_code ec2;
+                if(!fs::is_regular_file(it->path(), ec2)) continue;
+                if(!found || *v > best_v) { found = true; best_v = *v; best = fn; }
+            }
+            if(!found) return std::nullopt;
+            return dir / fs::path(best);
+        }
+
+        static std::optional<fs::path> search_in_dir(const fs::path& dir, const nstr& name, bool win) {
+            std::vector<nstr> variants;
+            variants.push_back(name);
+            if(!win) variants.push_back(NSTR("lib") + name);
+
+            for(std::size_t vi = 0; vi < variants.size(); ++vi) {
+                const nstr& v = variants[vi];
+                const bool literal = (vi == 0);
+
+                if(win) {
+                    if(auto hit = check(dir, v)) return hit;
+                    if(!ends_ci(v, NSTR(".dll")))
+                        if(auto hit = check(dir, v + NSTR(".dll"))) return hit;
+                } else {
+                    const bool ext = has_so_ext(v);
+                    if(literal || ext)
+                        if(auto hit = check(dir, v)) return hit;
+                    if(ext) {
+                        if(auto hit = best_versioned(dir, v)) return hit;
+                    } else {
+                        const nstr with_so = v + NSTR(".so");
+                        if(auto hit = check(dir, with_so)) return hit;
+                        if(auto hit = best_versioned(dir, with_so)) return hit;
+                    }
+                }
+            }
+            return std::nullopt;
+        }
+
+        static fs::path input_to_path(std::string_view s) {
+            if(s.empty()) return {};
+#ifdef PLATFORM_WINDOWS
+            int need = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                           s.data(), (int)s.size(), nullptr, 0);
+            UINT cp = CP_UTF8; DWORD flags = MB_ERR_INVALID_CHARS;
+            if(need == 0) {
+                cp = CP_ACP; flags = 0;
+                need = MultiByteToWideChar(cp, flags, s.data(), (int)s.size(), nullptr, 0);
+                if(need == 0) return {};
+            }
+            std::wstring w((size_t)need, L'\0');
+            MultiByteToWideChar(cp, flags, s.data(), (int)s.size(), &w[0], need);
+            return fs::path(std::move(w));
+#else
+            return fs::path(std::string(s));
+#endif
+        }
+
+        static std::optional<fs::path> exe_path() {
+#if defined(PLATFORM_WINDOWS)
+            for(DWORD cap = 512; cap <= (1u << 16); cap *= 2) {
+                std::wstring buf(cap, L'\0');
+                const DWORD n = GetModuleFileNameW(nullptr, &buf[0], cap);
+                if(n != 0 && n < cap) { buf.resize(n); return fs::path(std::move(buf)); }
+                if(n == 0 && GetLastError() != ERROR_INSUFFICIENT_BUFFER) break;
+            }
+            return std::nullopt;
+#elif defined(PLATFORM_LINUX)
+            for(std::size_t cap = 512; cap <= (std::size_t)1 << 16; cap *= 2) {
+                std::string buf(cap, '\0');
+                const ssize_t n = ::readlink("/proc/self/exe", buf.data(), cap);
+                if(n < 0) break;
+                if((std::size_t)n < cap) { buf.resize((std::size_t)n); return fs::path(std::move(buf)); }
+            }
+            return std::nullopt;
+#elif defined(PLATFORM_APPLE)
+            uint32_t sz = 0;
+            if(_NSGetExecutablePath(nullptr, &sz) == -1 && sz > 0) {
+                std::string buf(sz, '\0');
+                if(_NSGetExecutablePath(&buf[0], &sz) == 0) {
+                    buf.resize(std::strlen(buf.c_str()));
+                    std::error_code ec;
+                    const fs::path raw(buf);
+                    const fs::path c = fs::canonical(raw, ec);
+                    return ec ? raw : c;
+                }
+            }
+            return std::nullopt;
+#elif defined(PLATFORM_BSD)
+            int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+            std::size_t len = 0;
+            if(sysctl(mib, 4, nullptr, &len, nullptr, 0) == 0 && len > 1) {
+                std::string buf(len, '\0');
+                if(sysctl(mib, 4, &buf[0], &len, nullptr, 0) == 0) {
+                    buf.resize(std::strlen(buf.c_str()));
+                    return fs::path(std::move(buf));
+                }
+            }
+            return std::nullopt;
+#else
+            return std::nullopt;
+#endif
+        }
+
+#ifdef PLATFORM_WINDOWS
+        static std::wstring get_env_w(const wchar_t* name) {
+            DWORD n = GetEnvironmentVariableW(name, nullptr, 0);
+            if(n == 0) return {};
+            std::wstring buf(n, L'\0');
+            const DWORD m = GetEnvironmentVariableW(name, &buf[0], n);
+            if(m == 0) return {};
+            buf.resize(m);
+            return buf;
+        }
+
+        static void append_env_win(std::vector<fs::path>& out, const std::wstring& val) {
+            std::size_t start = 0;
+            for(;;) {
+                const std::size_t sc = val.find(L';', start);
+                const std::wstring comp = val.substr(start, sc == std::wstring::npos ? std::wstring::npos : sc - start);
+                if(!comp.empty()) out.push_back(fs::path(comp));
+                if(sc == std::wstring::npos) break;
+                start = sc + 1;
+            }
+        }
+
+        static fs::path system_dir_w() {
+            std::wstring buf(1024, L'\0');
+            UINT n = GetSystemDirectoryW(&buf[0], (UINT)buf.size());
+            if(n == 0) return {};
+            if(n > buf.size()) {
+                buf.resize(n);
+                n = GetSystemDirectoryW(&buf[0], (UINT)buf.size());
+                if(n == 0 || n > buf.size()) return {};
+            }
+            return fs::path(buf.substr(0, n));
+        }
+
+        static fs::path windows_dir_w() {
+            std::wstring buf(1024, L'\0');
+            UINT n = GetWindowsDirectoryW(&buf[0], (UINT)buf.size());
+            if(n == 0) return {};
+            if(n > buf.size()) {
+                buf.resize(n);
+                n = GetWindowsDirectoryW(&buf[0], (UINT)buf.size());
+                if(n == 0 || n > buf.size()) return {};
+            }
+            return fs::path(buf.substr(0, n));
+        }
+#else
+        static void append_env_posix(std::vector<fs::path>& out, const char* val) {
+            if(!val) return;
+            const std::string s(val);
+            if(s.empty()) return;
+            std::size_t start = 0;
+            for(;;) {
+                const std::size_t colon = s.find(':', start);
+                std::string comp = s.substr(start, colon == std::string::npos ? std::string::npos : colon - start);
+                if(comp.empty()) comp = ".";
+                out.push_back(fs::path(comp));
+                if(colon == std::string::npos) break;
+                start = colon + 1;
+            }
+        }
+
+        static void add_conf_file(const std::string& file, int depth, std::vector<fs::path>& out);
+
+        static void expand_include_glob(const std::string& pattern, int depth, std::vector<fs::path>& out) {
+            glob_t g;
+            std::memset(&g, 0, sizeof g);
+            if(glob(pattern.c_str(), 0, nullptr, &g) == 0)
+                for(std::size_t i = 0; i < g.gl_pathc; ++i)
+                    add_conf_file(g.gl_pathv[i], depth, out);
+            globfree(&g);
+        }
+
+        static void add_conf_file(const std::string& file, int depth, std::vector<fs::path>& out) {
+            if(depth > 4) return;
+            std::ifstream in(file);
+            if(!in) return;
+            std::string line;
+            while(std::getline(in, line)) {
+                const std::size_t h = line.find('#');
+                if(h != std::string::npos) line.resize(h);
+                const auto sp = [](char c) { return c == ' ' || c == '\t' || c == '\r'; };
+                std::size_t b = 0, e = line.size();
+                while(b < e && sp(line[b])) ++b;
+                while(e > b && sp(line[e - 1])) --e;
+                line = line.substr(b, e - b);
+                if(line.empty()) continue;
+                if(line.compare(0, 7, "include") == 0 &&
+                    (line.size() == 7 || line[7] == ' ' || line[7] == '\t')) {
+                    std::size_t pb = 7;
+                    while(pb < line.size() && (line[pb] == ' ' || line[pb] == '\t')) ++pb;
+                    if(pb < line.size()) expand_include_glob(line.substr(pb), depth + 1, out);
+                    continue;
+                }
+                out.push_back(fs::path(line));
+            }
+        }
+#endif
+
+        static std::vector<fs::path> unique_existing_dirs(std::vector<fs::path> raw) {
+            std::vector<fs::path> out;
+            std::set<fs::path> seen;
+            for(fs::path& d : raw) {
+                if(d.empty()) continue;
+                std::error_code ec;
+                if(!fs::is_directory(d, ec)) continue;
+                fs::path c = fs::canonical(d, ec);
+                if(ec) c = fs::absolute(d, ec).lexically_normal();
+                if(ec) continue;
+                if(!seen.insert(c).second) continue;
+                out.push_back(std::move(c));
+            }
+            return out;
+        }
+
+        static std::vector<fs::path> build_search_dirs() {
+            std::vector<fs::path> raw;
+
+
+            if(auto exe = exe_path()) raw.push_back(exe->parent_path());
+
+#ifdef PLATFORM_WINDOWS
+            if(fs::path sd = system_dir_w(); !sd.empty()) raw.push_back(std::move(sd));
+            if(fs::path wd = windows_dir_w(); !wd.empty()) {
+                raw.push_back(wd / L"System");
+                raw.push_back(std::move(wd));
+            }
+#else
+            for(const char* d : {"/lib", "/usr/lib", "/lib64", "/usr/lib64", "/usr/local/lib"})
+                raw.push_back(fs::path(d));
+            add_conf_file("/etc/ld.so.conf", 1, raw);
+#endif
+            {
+                std::error_code ec;
+                fs::path c = fs::current_path(ec);
+                if(!ec) raw.push_back(std::move(c));
+            }
+#ifdef PLATFORM_WINDOWS
+            append_env_win(raw, get_env_w(L"PATH"));
+#else
+            append_env_posix(raw, std::getenv("LD_LIBRARY_PATH"));
+            append_env_posix(raw, std::getenv("PATH"));
+#endif
+            return unique_existing_dirs(std::move(raw));
+        }
+
+    }
+
+    static std::optional<std::string> locate_dynamic_library(std::string_view name) {
+        namespace fs = std::filesystem;
+
+        if(name.empty()) return std::nullopt;
+#if defined(PLATFORM_WINDOWS)
+        constexpr bool win = true;
+#else
+        constexpr bool win = false;
+#endif
+        using dldetail::nstr;
+
+        const fs::path in = dldetail::input_to_path(name);
+        const nstr   fname = in.filename().native();
+        const fs::path dirpart = in.parent_path();
+
+        if(fname.empty()) {
+            std::error_code ec;
+            if(fs::is_regular_file(in, ec)) { return in; }
+            return std::nullopt;
+        }
+
+        if(!dirpart.empty()) {
+            if(auto hit = dldetail::search_in_dir(dirpart, fname, win)) { return hit; }
+        }
+
+        for(const fs::path& d : dldetail::build_search_dirs()) {
+            if(auto hit = dldetail::search_in_dir(d, fname, win)) { return hit; }
+        }
+
+        return std::nullopt;
+    }
 
 }

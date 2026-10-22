@@ -1189,13 +1189,14 @@ namespace dfi::str_util {
 
     template<typename T>
     struct fltr {
-        static T cast(const T& v) { return v; }
+        static T cast(T const &v) { return v; }
         static bool isspace(char) { return false; }
         static bool isalpha(char) { return false; }
         static bool isdigit(char) { return false; }
         static bool isalnum(char) { return false; }
         static bool ispunct(char) { return false; }
         static bool iscntrl(char) { return false; }
+        static bool islower(char) { return false; }
         static bool ishexdigit(int) { return false; }
         static bool isoctdigit(int) { return false; }
         static bool isbindigit(int) { return false; }
@@ -1203,6 +1204,7 @@ namespace dfi::str_util {
         static typename T::value_type toupper(typename T::value_type v) { return v; }
         static T strtolower(T v) { return v; }
         static T strtoupper(T v) { return v; }
+        static bool all_digits(T const &) { return false; }
     };
 
     template<>
@@ -1217,6 +1219,7 @@ namespace dfi::str_util {
         static bool isalnum(std::wstring::value_type sym) { return dfi::str_util::iswalnum(sym) != 0; }
         static bool ispunct(std::wstring::value_type sym) { return dfi::str_util::iswpunct(sym) != 0; }
         static bool iscntrl(std::wstring::value_type sym) { return dfi::str_util::iswcntrl(sym) != 0; }
+        static bool islower(int c) { return str_util::iswlower(c); }
         static bool ishexdigit(int c) { return dfi::str_util::ishex(c) != 0; }
         static bool isoctdigit(int c) { return (c >= '0' && c <= '7'); }
         static bool isbindigit(int c) { return c == '0' || c == '1'; }
@@ -1230,6 +1233,11 @@ namespace dfi::str_util {
         }
         static wchar_t tolower(wchar_t v) { return dfi::str_util::towlower(v); }
         static wchar_t toupper(wchar_t v) { return dfi::str_util::towupper(v); }
+        static bool all_digits(std::wstring const &s) {
+            if(s.empty()) return false;
+            for(wchar_t c: s) if(!isdigit(c)) return false;
+            return true;
+        }
     };
 
     template<>
@@ -1244,6 +1252,7 @@ namespace dfi::str_util {
         static bool isalnum(std::string::value_type sym) { return dfi::str_util::isalnum(sym) != 0; }
         static bool ispunct(std::string::value_type sym) { return dfi::str_util::ispunct(sym) != 0; }
         static bool iscntrl(std::string::value_type sym) { return dfi::str_util::iscntrl(sym) != 0; }
+        static bool islower(int c) { return str_util::islower(c); }
         static bool ishexdigit(int c) { return dfi::str_util::ishex(c) != 0; }
         static bool isoctdigit(int c) { return (c >= '0' && c <= '7'); }
         static bool isbindigit(int c) { return c == '0' || c == '1'; }
@@ -1257,6 +1266,11 @@ namespace dfi::str_util {
         }
         static char tolower(char v) { return dfi::str_util::tolower(v); }
         static char toupper(char v) { return dfi::str_util::toupper(v); }
+        static bool all_digits(std::string const &s) {
+            if(s.empty()) return false;
+            for(char c: s) if(!isdigit(c)) return false;
+            return true;
+        }
     };
 
     template<typename STR_T>
