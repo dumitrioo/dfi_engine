@@ -111,7 +111,7 @@ function fibonacci(n) {
 }
 
 function fibonaccir(n)
-    if n <= 1
+    if (n <= 1)
         return (f128)n;
     else
         return fibonaccir((f128)n - (f128)1) + fibonaccir((f128)n - (f128)2);
@@ -496,10 +496,10 @@ my_drafts(host_data) {
         this.instvar.placement().println();
 
         kkk = 0;
-        while kkk++ < 5 println("kkk = ", kkk);
+        while (kkk++ < 5) println("kkk = ", kkk);
         version_string().println();
 
-        for(;;) if kkk++ > 10 break; else println("kkk 2 = ", kkk);
+        for(;;) if (kkk++ > 10) break; else println("kkk 2 = ", kkk);
 
         obj = {"1": 2};
         k = [[1,2,3], [1,2,3], [obj]];
@@ -692,7 +692,7 @@ my_drafts(host_data) {
 
         /////////////////////////////////////////////////////////////////////
 
-        if !(this.ctr % 5)
+        if (!(this.ctr % 5))
             this.res = randf() > 0.5;
         ++this.ctr;
 
@@ -788,7 +788,7 @@ my_drafts(host_data) {
     return 0;
 }
 
-my_drafts drf(host_provided_data);
+// my_drafts drf(host_provided_data);
 
 
 delay_test(val, period) {
