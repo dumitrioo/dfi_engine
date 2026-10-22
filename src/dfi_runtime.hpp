@@ -1981,10 +1981,8 @@ namespace dfi {
             );
             for(auto &&en: extension_names) {
                 auto dlpath{locate_dynamic_library(en, file_util::extract_file_dir(src_file))};
-                if(dlpath && is_library(*dlpath)) {
-                    if(!load_library(*dlpath)) {
-                        throw std::runtime_error{std::string{"module \""} + en + "\" not found"};
-                    }
+                if(!dlpath || !is_library(*dlpath) || !load_library(*dlpath)) {
+                    throw std::runtime_error{std::string{"module \""} + en + "\" not found"};
                 }
             }
             ext_cells_processor_needed_ = ext_cells_processor_needed_ || (extern_cells_.size() > 0);
