@@ -1133,13 +1133,13 @@ namespace dfi {
             } else {
                 if(file_util::file_exists(filename)) {
                     std::string src{file_util::load_text_file(filename)};
-                    load_source_string(src);
+                    load_source_string(src, filename);
                 }
             }
         }
 
         void load_string(std::string const &src) {
-            load_source_string(src);
+            load_source_string(src, {});
         }
 
         void loading_complete() {
@@ -1944,7 +1944,7 @@ namespace dfi {
         }
 
     private:
-        void load_source_string(std::string const &src) {
+        void load_source_string(std::string const &src, std::string const &src_file) {
             lexer lxr{};
             parser prs{};
             std::shared_ptr<token> glued_str_buff{};
@@ -1980,9 +1980,11 @@ namespace dfi {
                 extension_names
             );
             for(auto &&en: extension_names) {
-                auto dlpath{locate_dynamic_library(en)};
+                auto dlpath{locate_dynamic_library(en, file_util::extract_file_dir(src_file))};
                 if(dlpath && is_library(*dlpath)) {
-                    load_library(*dlpath);
+                    if(!load_library(*dlpath)) {
+                        throw std::runtime_error{std::string{"module \""} + en + "\" not found"};
+                    }
                 }
             }
             ext_cells_processor_needed_ = ext_cells_processor_needed_ || (extern_cells_.size() > 0);

@@ -698,7 +698,10 @@ namespace dfi {
 
     }
 
-    static std::optional<std::string> locate_dynamic_library(std::string_view name) {
+    static std::optional<std::string> locate_dynamic_library(
+        std::string_view name,
+        std::string_view first_dir
+    ) {
         namespace fs = std::filesystem;
 
         if(name.empty()) return std::nullopt;
@@ -717,6 +720,10 @@ namespace dfi {
             std::error_code ec;
             if(fs::is_regular_file(in, ec)) { return in; }
             return std::nullopt;
+        }
+
+        if(!first_dir.empty()) {
+            if(auto hit = dldetail::search_in_dir(first_dir, fname, win)) { return hit; }
         }
 
         if(!dirpart.empty()) {

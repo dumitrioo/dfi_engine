@@ -7,7 +7,7 @@ window() {
         if(!gfx_init(GFX_INIT_VIDEO)) {
             throw gfx_last_error();
         }
-        this.w = gfx_create_window("123", 800, 600, GFX_WINDOW_RESIZABLE | GFX_WINDOW_HIGH_PIXEL_DENSITY);
+        this.w = gfx_create_window("SDL test", 800, 450, GFX_WINDOW_RESIZABLE | GFX_WINDOW_HIGH_PIXEL_DENSITY);
         this.w.clear_background(GFX_BLACK);
         this.w.display();
         return this.w;
