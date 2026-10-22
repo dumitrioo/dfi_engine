@@ -156,6 +156,7 @@ DISTFILES += \
     ../pong2.dfi \
     ../pwm.dfi \
     ../quad_eq.dfi \
+    ../sdl_test.dfi \
     ../sockets_server.dfi \
     ../tap_lights.dfi \
     ../tbbt_2cola.dfi \

@@ -1,0 +1,44 @@
+extension "dfisdl";
+
+function rand_color(a) return gfx_color((u8)(randf() * 255), (u8)(randf() * 255), (u8)(randf() * 255), a);
+
+window() {
+    if(this.w == undefined) {
+        if(!gfx_init(GFX_INIT_VIDEO)) {
+            throw gfx_last_error();
+        }
+        this.w = gfx_create_window("123", 800, 600, GFX_WINDOW_RESIZABLE | GFX_WINDOW_HIGH_PIXEL_DENSITY);
+        this.w.clear_background(GFX_BLACK);
+        this.w.display();
+        return this.w;
+    }
+    delay(0.01);
+}
+
+window wnd();
+
+renderer(wnd) {
+    if(wnd != undefined) {
+        wnd.clear_background(GFX_BLACK);
+        l1 = randf() * wnd.width();
+        l2 = randf() * wnd.height();
+        l3 = randf() * wnd.width();
+        l4 = randf() * wnd.height();
+        wnd.line(l1, l2, l3, l4, rand_color(255));
+        wnd.display();
+        evt = gfx_poll();
+        if(evt != undefined) {
+            println(evt);
+            if(
+                evt.type == GFX_EVENT_QUIT ||
+                (evt.type == GFX_EVENT_KEY_DOWN && evt.key.scancode == GFX_SCANCODE_ESCAPE)
+            ) {
+                exit();
+            }
+        }
+    }
+    delay(0.001);
+    return 0;
+}
+
+renderer rndr(wnd);

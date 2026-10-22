@@ -7,3 +7,4 @@ cp build/examples/interpreter/dfi bin
 cp build/examples/fractal/*.so bin
 cp build/examples/zmq/*.so bin
 cp build/examples/ray/*.so bin
+cp build/examples/sdl3/*.so bin

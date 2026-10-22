@@ -40,8 +40,10 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "Build examples" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "Build games" FORCE)
 
+add_subdirectory(3rd/SDL)
 add_subdirectory(3rd/raylib)
 add_subdirectory(3rd/libzmq)
 
+add_subdirectory(examples/sdl3)
 add_subdirectory(examples/ray)
 add_subdirectory(examples/zmq)
