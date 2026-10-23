@@ -1,6 +1,12 @@
 #pragma once
 
 #include "inc/commondefs.hpp"
+#ifdef PLATFORM_WINDOWS
+#define NSTR(s) L##s
+#else
+#include <glob.h>
+#define NSTR(s) s
+#endif
 #include "inc/file_util.hpp"
 #include "inc/str_util.hpp"
 #include "inc/hash/hash.hpp"
@@ -11,24 +17,6 @@
 #include "inc/emhash/hash_set8.hpp"
 #include "inc/emhash/hash_table8.hpp"
 #endif
-
-#ifdef PLATFORM_WINDOWS
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#define NSTR(s) L##s
-#else
-#include <unistd.h>
-#include <cstring>
-#if defined(PLATFORM_APPLE)
-#include <mach-o/dyld.h>
-#elif defined(PLATFORM_FREEBSD)
-#include <sys/sysctl.h>
-#endif
-#include <glob.h>
-#define NSTR(s) s
-#endif
-
 
 #define DFIFUN(ARGS) [](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
 #define DFICLOSURE(ARGS) [&](std::vector<dfi::valbox> &ARGS) -> dfi::valbox
@@ -394,11 +382,21 @@ namespace dfi {
         using nstr = fs::path::string_type;
         using nchar = fs::path::value_type;
 
+        enum class plat: unsigned char { windows, posix, apple };
+
+#if defined(PLATFORM_WINDOWS)
+        constexpr plat k_plat = plat::windows;
+#elif defined(PLATFORM_APPLE)
+        constexpr plat k_plat = plat::apple;
+#else
+        constexpr plat k_plat = plat::posix;
+#endif
+
         static bool ends_ci(const nstr& s, const nstr& lower_ascii_suffix) {
             if(s.size() < lower_ascii_suffix.size()) return false;
             const nstr::size_type off = s.size() - lower_ascii_suffix.size();
             for(nstr::size_type i = 0; i < lower_ascii_suffix.size(); ++i)
-                if(/*ascii_lower*/str_util::fltr<nstr>::islower(s[off + i]) != lower_ascii_suffix[i]) return false;
+                if(str_util::fltr<nstr>::islower(s[off + i]) != lower_ascii_suffix[i]) return false;
             return true;
         }
 
@@ -410,7 +408,7 @@ namespace dfi {
                 const nstr::size_type dot = s.find(NSTR('.'), start);
                 const nstr comp = s.substr(start, dot == nstr::npos ? nstr::npos : dot - start);
                 if(!str_util::fltr<nstr>::all_digits(comp)) return std::nullopt;
-                v.push_back(str_util::atoui<nstr>(comp));
+                try { v.push_back(str_util::atoui<nstr>(comp)); } catch(...) {}
                 if(dot == nstr::npos) break;
                 start = dot + 1;
                 if(start == s.size()) return std::nullopt;
@@ -428,6 +426,10 @@ namespace dfi {
                 pos = name.rfind(NSTR(".so"), pos - 1);
             }
             return false;
+        }
+
+        static bool has_dylib_ext(const nstr& name) {
+            return ends_ci(name, NSTR(".dylib")) || ends_ci(name, NSTR(".bundle"));
         }
 
         static std::optional<fs::path> check(const fs::path& dir, const nstr& file) {
@@ -457,29 +459,73 @@ namespace dfi {
             return dir / fs::path(best);
         }
 
-        static std::optional<fs::path> search_in_dir(const fs::path& dir, const nstr& name, bool win) {
+        static std::optional<fs::path> best_versioned_dylib(const fs::path& dir, const nstr& base) {
+            const nstr prefix = base + NSTR(".");
+            const nstr suff = NSTR(".dylib");
+            bool found = false;
+            nstr best;
+            std::vector<unsigned long long> best_v;
+            std::error_code ec;
+            for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+                const nstr fn = it->path().filename().native();
+                if (fn.size() <= prefix.size() + suff.size()) continue;
+                if (fn.compare(0, prefix.size(), prefix) != 0) continue;
+                if (!ends_ci(fn, suff)) continue;
+                const nstr middle = fn.substr(prefix.size(), fn.size() - prefix.size() - suff.size());
+                const auto v = parse_version(middle);
+                if (!v) continue;
+                std::error_code ec2;
+                if (!fs::is_regular_file(it->path(), ec2)) continue;
+                if (!found || *v > best_v) { found = true; best_v = *v; best = fn; }
+            }
+            if (!found) return std::nullopt;
+            return dir / fs::path(best);
+        }
+
+        static std::optional<fs::path> search_in_dir(const fs::path& dir, const nstr& name, plat p) {
             std::vector<nstr> variants;
             variants.push_back(name);
-            if(!win) variants.push_back(NSTR("lib") + name);
+            if (p != plat::windows)
+                variants.push_back(NSTR("lib") + name);
 
-            for(std::size_t vi = 0; vi < variants.size(); ++vi) {
+            for (std::size_t vi = 0; vi < variants.size(); ++vi) {
                 const nstr& v = variants[vi];
                 const bool literal = (vi == 0);
 
-                if(win) {
-                    if(auto hit = check(dir, v)) return hit;
-                    if(!ends_ci(v, NSTR(".dll")))
-                        if(auto hit = check(dir, v + NSTR(".dll"))) return hit;
+                if (p == plat::windows) {
+                    if (auto hit = check(dir, v)) return hit;
+                    if (!ends_ci(v, NSTR(".dll")))
+                        if (auto hit = check(dir, v + NSTR(".dll"))) return hit;
+                } else if (p == plat::apple) {
+                    const bool dy = has_dylib_ext(v);
+                    const bool so = has_so_ext(v);
+                    if (literal || dy || so)
+                        if (auto hit = check(dir, v)) return hit;
+                    if (dy) {
+                        if (ends_ci(v, NSTR(".dylib"))) {
+                            const nstr base = v.substr(0, v.size() - 6);
+                            if (auto hit = best_versioned_dylib(dir, base))
+                                return hit;
+                        }
+                    } else if (so) {
+                        if (auto hit = best_versioned(dir, v)) return hit;
+                    } else {
+                        if (auto hit = check(dir, v + NSTR(".dylib")))       return hit;
+                        if (auto hit = best_versioned_dylib(dir, v))         return hit;
+                        if (auto hit = check(dir, v + NSTR(".so")))          return hit;
+                        if (auto hit = best_versioned(dir, v + NSTR(".so"))) return hit;
+                        if (auto hit = check(dir, v + NSTR(".bundle")))      return hit;
+                    }
                 } else {
                     const bool ext = has_so_ext(v);
-                    if(literal || ext)
-                        if(auto hit = check(dir, v)) return hit;
-                    if(ext) {
-                        if(auto hit = best_versioned(dir, v)) return hit;
+                    if (literal || ext)
+                        if (auto hit = check(dir, v)) return hit;
+                    if (ext) {
+                        if (auto hit = best_versioned(dir, v)) return hit;
                     } else {
                         const nstr with_so = v + NSTR(".so");
-                        if(auto hit = check(dir, with_so)) return hit;
-                        if(auto hit = best_versioned(dir, with_so)) return hit;
+                        if (auto hit = check(dir, with_so)) return hit;
+                        if (auto hit = best_versioned(dir, with_so)) return hit;
                     }
                 }
             }
@@ -677,6 +723,11 @@ namespace dfi {
                 raw.push_back(wd / L"System");
                 raw.push_back(std::move(wd));
             }
+#elif defined(PLATFORM_APPLE)
+            if (const char* home = std::getenv("HOME"))
+                if (*home) raw.push_back(fs::path(home) / "lib");
+            for (const char* d : {"/usr/local/lib", "/usr/lib"})
+                raw.push_back(fs::path(d));
 #else
             for(const char* d : {"/lib", "/usr/lib", "/lib64", "/usr/lib64", "/usr/local/lib"})
                 raw.push_back(fs::path(d));
@@ -689,6 +740,10 @@ namespace dfi {
             }
 #ifdef PLATFORM_WINDOWS
             append_env_win(raw, get_env_w(L"PATH"));
+#elif defined(PLATFORM_APPLE)
+            append_env_posix(raw, std::getenv("DYLD_LIBRARY_PATH"));
+            append_env_posix(raw, std::getenv("DYLD_FALLBACK_LIBRARY_PATH"));
+            append_env_posix(raw, std::getenv("PATH"));
 #else
             append_env_posix(raw, std::getenv("LD_LIBRARY_PATH"));
             append_env_posix(raw, std::getenv("PATH"));
@@ -705,11 +760,6 @@ namespace dfi {
         namespace fs = std::filesystem;
 
         if(name.empty()) return std::nullopt;
-#if defined(PLATFORM_WINDOWS)
-        constexpr bool win = true;
-#else
-        constexpr bool win = false;
-#endif
         using dldetail::nstr;
 
         const fs::path in = dldetail::input_to_path(name);
@@ -723,15 +773,15 @@ namespace dfi {
         }
 
         if(!first_dir.empty()) {
-            if(auto hit = dldetail::search_in_dir(first_dir, fname, win)) { return hit; }
+            if(auto hit = dldetail::search_in_dir(first_dir, fname, dldetail::k_plat)) { return hit; }
         }
 
         if(!dirpart.empty()) {
-            if(auto hit = dldetail::search_in_dir(dirpart, fname, win)) { return hit; }
+            if(auto hit = dldetail::search_in_dir(dirpart, fname, dldetail::k_plat)) { return hit; }
         }
 
         for(const fs::path& d : dldetail::build_search_dirs()) {
-            if(auto hit = dldetail::search_in_dir(d, fname, win)) { return hit; }
+            if(auto hit = dldetail::search_in_dir(d, fname, dldetail::k_plat)) { return hit; }
         }
 
         return std::nullopt;

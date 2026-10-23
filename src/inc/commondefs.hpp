@@ -98,6 +98,9 @@
 #if defined(_WIN64)
     #define PLATFORM_WINDOWS
     #define PLATFORM_WINDOWS64
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
     #include <WinSock2.h>
     #include <ws2tcpip.h>
     #ifndef ENVIRONMENT64
@@ -111,11 +114,15 @@
     #ifndef ENVIRONMENT32
         #define ENVIRONMENT32
     #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
 #elif defined(__APPLE__)
     #define PLATFORM_APPLE
     #include <fcntl.h>
     #include <unistd.h>
     #include <stdlib.h>
+    #include <mach-o/dyld.h>
     #if TARGET_OS_IPHONE
     #elif TARGET_IPHONE_SIMULATOR
     #elif TARGET_OS_MAC
@@ -201,6 +208,7 @@
     #include <sched.h>
 #elif defined(__FreeBSD__)
     #define PLATFORM_FREEBSD
+    #include <sys/sysctl.h>
 #elif defined(__unix) // all unices not caught above
     #define PLATFORM_UNIXISH
 #elif defined(__posix)
