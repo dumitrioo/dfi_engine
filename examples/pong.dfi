@@ -1,3 +1,5 @@
+extension "ray";
+
 pong() {
     // init
     if(!this.win_created) {

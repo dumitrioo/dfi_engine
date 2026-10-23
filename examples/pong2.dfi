@@ -1,3 +1,5 @@
+extension "ray";
+
 ///////////////////////// helpers
 function serve_ball(scr, side) {
     sp = scr.h * .9;
@@ -135,8 +137,9 @@ paddles(scr) {
         if(this.l == undefined) {
             this.lw = scr.w;
             this.lh = scr.h;
-            this.l = {x: scr.w / 180., y: scr.h / 2. - scr.h / 12., w: scr.w / 180., h: scr.h / 6.};
-            this.r = {x: scr.w - 2. * scr.w / 180., y: scr.h / 2. - scr.h / 12., w: scr.w / 180., h: scr.h / 6.};
+            pp = 3 * scr.w / 180.;
+            this.l = {x: scr.w / 180. + pp, y: scr.h / 2. - scr.h / 12., w: scr.w / 180., h: scr.h / 6.};
+            this.r = {x: scr.w - 2. * scr.w / 180. - pp, y: scr.h / 2. - scr.h / 12., w: scr.w / 180., h: scr.h / 6.};
             this.rst = 0;
             this.pr = false;
             this.pf = false;
