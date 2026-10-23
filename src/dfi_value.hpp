@@ -168,8 +168,6 @@ namespace dfi {
             long double,
             void *,
             std::function<valbox(std::vector<valbox> &)>,
-            array_t,
-            object_t,
             std::string,
             std::wstring,
 #if defined(DFI_USE_CUSTOM_ANY)
@@ -1204,16 +1202,60 @@ namespace dfi {
             if(!dr.box_ || !(dr.box_->type_ == type::ARRAY || dr.box_->pointed_type_ == type::ARRAY))
                 throw std::runtime_error{"not an array"};
             return dr.box_->pointed_type_ == type::ARRAY ?
-                        dr.deref_ptr<array_t>() :
-                        std::get<array_t>(dr.box_->value_);
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<array_t &>(dr.deref_ptr<
+#if defined(DFI_USE_CUSTOM_ANY)
+                   dfi::
+#else
+                   std::
+#endif
+                                           any>()) :
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<array_t &>(std::get<
+#if defined(DFI_USE_CUSTOM_ANY)
+               dfi::
+#else
+               std::
+#endif
+                                           any>(dr.box_->value_));
         }
         array_t const &as_array() const {
             valbox const &dr{deref()};
             if(!dr.box_ || !(dr.box_->type_ == type::ARRAY || dr.box_->pointed_type_ == type::ARRAY))
                 throw std::runtime_error{"not an array"};
             return dr.box_->pointed_type_ == type::ARRAY ?
-                        dr.deref_ptr<array_t>() :
-                        std::get<array_t>(dr.box_->value_);
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<array_t const &>(dr.deref_ptr<
+#if defined(DFI_USE_CUSTOM_ANY)
+                   dfi::
+#else
+                   std::
+#endif
+                                           any>()) :
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<array_t const &>(std::get<
+#if defined(DFI_USE_CUSTOM_ANY)
+               dfi::
+#else
+               std::
+#endif
+                                           any>(dr.box_->value_));
         }
 
         valbox subarray(std::size_t start = 0, std::size_t n = std::numeric_limits<std::size_t>::max()) const {
@@ -1240,16 +1282,60 @@ namespace dfi {
             if(!dr.box_ || !(dr.box_->type_ == type::OBJECT || dr.box_->pointed_type_ == type::OBJECT))
                 throw std::runtime_error{"not an object"};
             return dr.box_->pointed_type_ == type::OBJECT ?
-                        dr.deref_ptr<object_t>() :
-                        std::get<object_t>(dr.box_->value_);
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<object_t &>(dr.deref_ptr<
+#if defined(DFI_USE_CUSTOM_ANY)
+                   dfi::
+#else
+                   std::
+#endif
+                                           any>()) :
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<object_t &>(std::get<
+#if defined(DFI_USE_CUSTOM_ANY)
+               dfi::
+#else
+               std::
+#endif
+                                           any>(dr.box_->value_));
         }
         object_t const &as_object() const & {
             valbox const &dr{deref()};
             if(!dr.box_ || !(dr.box_->type_ == type::OBJECT || dr.box_->pointed_type_ == type::OBJECT))
                 throw std::runtime_error{"not an object"};
             return dr.box_->pointed_type_ == type::OBJECT ?
-                        dr.deref_ptr<object_t>() :
-                        std::get<object_t>(dr.box_->value_);
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<object_t const &>(dr.deref_ptr<
+#if defined(DFI_USE_CUSTOM_ANY)
+                   dfi::
+#else
+                   std::
+#endif
+                                           any>()) :
+#if defined(DFI_USE_CUSTOM_ANY)
+                    dfi::
+#else
+                    std::
+#endif
+                        any_cast<object_t const &>(std::get<
+#if defined(DFI_USE_CUSTOM_ANY)
+               dfi::
+#else
+               std::
+#endif
+                                           any>(dr.box_->value_));
         }
 
         bool is_undefined() const { return val_or_pointed_type() == type::UNDEFINED; }

@@ -149,7 +149,7 @@ namespace dfi {
             if(!holder) {
                 throw_bad_any_cast();
             }
-            return static_cast<std::remove_cvref_t<T> const &>(holder->get_value());
+            return static_cast<std::remove_cvref_t<T> &>(holder->get_value());
         }
 
         template<typename T>
