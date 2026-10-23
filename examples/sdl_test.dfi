@@ -4,6 +4,9 @@ function rand_color(a) return gfx_color((u8)(randf() * 255), (u8)(randf() * 255)
 
 window() {
     if(this.w == undefined) {
+        set_cycle_sleep_seconds(0.01);
+        set_inactive_sleep_seconds(0.1);
+
         if(!gfx_init(GFX_INIT_VIDEO)) {
             throw gfx_last_error();
         }
@@ -12,7 +15,7 @@ window() {
         this.w.display();
         return this.w;
     }
-    delay(0.01);
+    delay(0.001);
 }
 
 window wnd();
