@@ -11,8 +11,8 @@ function serve_ball(scr, side) {
 ///////////////////////// window owner: resource + lifecycle
 win() {
     if(!this.up) {
-        set_cycle_sleep_seconds(0.001);
-        set_inactive_sleep_seconds(0.01);
+        set_cycle_sleep_seconds(0.0001);
+        set_inactive_sleep_seconds(0.001);
         ray_init_window(1280, 720, "Pong");
         ray_set_target_fps(120);
         ray_begin_drawing();
