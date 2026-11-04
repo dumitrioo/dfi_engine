@@ -1,0 +1,235 @@
+// =====================================================================
+//  celegans_std — «стандартная библиотека» червя
+//  Градуальные (не спайковые) нейроны, химические синапсы, щелевые
+//  соединения, мышцы, часы. Вес на синапсе = счёт синапсов коннектома
+//  (White 1986); глобальные усиления — три константы ниже, подобраны
+//  по санити-симуляции (см. текст сообщения).
+// =====================================================================
+
+// xorshift64: состояние живёт в клетке (this.s), функция чистая —
+// квазидетерминизм: при одном seed узел шумит одинаково от запуска к запуску
+function xs64(s) {
+    s = s ^ (s << 13);
+    s = s ^ (s >> 7);
+    s = s ^ (s << 17);
+    return s;
+}
+
+// ---- часы: единственный источник модельного времени ---------------
+// тик ~1 мс; t и dt масштабируются speed (2. — вдвое быстрее жизни).
+// Если проспали — навёрстываем дискретными тиками (как твой
+// some_value_issuer, только на каждый тик).
+simtime(speed) {
+    if(this.next == undefined) {
+        this.t = 0.; this.dt = 0.; this.tick = 0;
+        this.next = steady_clock();
+        set_cycle_sleep_seconds(0.001);        // тик ≈ 1 кГц
+        return {t: 0., dt: 0., tick: 0};
+    }
+    now = steady_clock();
+    if(now < this.next)
+        return {t: this.t, dt: this.dt, tick: this.tick};   // ждём тик
+    k = 1. + (now - this.next) / 0.001;        // сколько тиков проспали
+    if(k < 1.) k = 1.;
+    ki = (u64)k;
+    this.next = this.next + 0.001 * (f64)ki;
+    this.t    = this.t    + 0.001 * speed * (f64)ki;
+    this.dt   = 0.001 * speed * (f64)ki;
+    this.tick = this.tick + ki;
+    return {t: this.t, dt: this.dt, tick: this.tick};
+}
+
+// ---- химическая синапса (градуальная) ------------------------------
+// pre — выход пресинаптической клетки {v, r}; берём активность r.
+// w — счёт синапсов; w < 0 — тормозящая (знак — модельный выбор).
+syn(pre, w) {
+    if(pre == undefined) return 0.;
+    return 0.025 * w * pre.r;
+}
+
+// та же синапса, но на маленькую возбудимую клетку (мотонейрон, AIB):
+// высокое входное сопротивление -> эффективное усиление выше
+mnsyn(pre, w) {
+    if(pre == undefined) return 0.;
+    return 0.10 * w * pre.r;
+}
+
+// ---- одна полусторона щелевого соединения --------------------------
+// ток в a из b: GJ_GAIN * g * (Vb - Va). Полное соединение — два узла
+// (a<-b и b<-a). Узел читает ОБА выхода, поэтому в графе возникают
+// циклы вида a -> gj -> a — это законно: сэмплированная асинхронность
+// сама играет роль релаксации Гаусса-Зейделя, алгебраическая петля
+// не зацикливается.
+gj(a, b, g) {
+    if(a == undefined || b == undefined) return 0.;
+    return 0.012 * g * (b.v - a.v);
+}
+
+// ---- градуальный нейрон, k входов (фиксированная арность!) ----------
+// Входы — токи: выходы syn/mnsyn/gj либо скаляр с сенсора.
+// this.v — мембранный потенциал; выход {v, r}, r — активность [0..1].
+// Обновление стробируется тиком simtime, а шаг берётся из t —
+// пропущенные тики и спячка узла не портят интеграл.
+nrn1(simt, i1, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed;
+        this.tick = 0; this.t_seen = 0.;
+        this.out = {v: this.v, r: sigmoid(this.v)};
+        return this.out;
+    }
+    if(simt == undefined || simt.tick == this.tick) return this.out;
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return this.out;
+
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+
+    i = 0.;
+    if(i1 != undefined) i = i + i1;
+
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    this.out = {v: this.v, r: sigmoid(this.v)};
+    return this.out;
+}
+
+nrn2(simt, i1, i2, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed; this.tick = 0; this.t_seen = 0.;
+        this.out = {v: this.v, r: sigmoid(this.v)};
+        return this.out;
+    }
+    if(simt == undefined || simt.tick == this.tick) return this.out;
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return this.out;
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+    i = 0.;
+    if(i1 != undefined) i = i + i1;
+    if(i2 != undefined) i = i + i2;
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    this.out = {v: this.v, r: sigmoid(this.v)};
+    return this.out;
+}
+
+nrn3(simt, i1, i2, i3, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed; this.tick = 0; this.t_seen = 0.;
+        this.out = {v: this.v, r: sigmoid(this.v)};
+        return this.out;
+    }
+    if(simt == undefined || simt.tick == this.tick) return this.out;
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return this.out;
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+    i = 0.;
+    if(i1 != undefined) i = i + i1;
+    if(i2 != undefined) i = i + i2;
+    if(i3 != undefined) i = i + i3;
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    this.out = {v: this.v, r: sigmoid(this.v)};
+    return this.out;
+}
+
+nrn4(simt, i1, i2, i3, i4, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed; this.tick = 0; this.t_seen = 0.;
+        this.out = {v: this.v, r: sigmoid(this.v)};
+        return this.out;
+    }
+    if(simt == undefined || simt.tick == this.tick) return this.out;
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return this.out;
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+    i = 0.;
+    if(i1 != undefined) i = i + i1;
+    if(i2 != undefined) i = i + i2;
+    if(i3 != undefined) i = i + i3;
+    if(i4 != undefined) i = i + i4;
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    this.out = {v: this.v, r: sigmoid(this.v)};
+    return this.out;
+}
+
+nrn5(simt, i1, i2, i3, i4, i5, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed; this.tick = 0; this.t_seen = 0.;
+        this.out = {v: this.v, r: sigmoid(this.v)};
+        return this.out;
+    }
+    if(simt == undefined || simt.tick == this.tick) return this.out;
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return this.out;
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+    i = 0.;
+    if(i1 != undefined) i = i + i1;
+    if(i2 != undefined) i = i + i2;
+    if(i3 != undefined) i = i + i3;
+    if(i4 != undefined) i = i + i4;
+    if(i5 != undefined) i = i + i5;
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    this.out = {v: this.v, r: sigmoid(this.v)};
+    return this.out;
+}
+
+// ---- механосенсор (ASH/FLP/...): трансдукция, не синапс ------------
+mechanosensor(simt, stim, gain, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed; this.tick = 0; this.t_seen = 0.;
+        this.out = {v: this.v, r: sigmoid(this.v)};
+        return this.out;
+    }
+    if(simt == undefined || simt.tick == this.tick) return this.out;
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return this.out;
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+    i = 0.;
+    if(stim != undefined) i = i + gain * stim;
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    this.out = {v: this.v, r: sigmoid(this.v)};
+    return this.out;
+}
+
+// ---- мышца: вход — мотонейрон, выход — скаляр сокращения [0..1] -----
+// nmj — счёт нейро-мышечных контактов (у DA1 их 37!)
+muscle(simt, mnr, nmj, tau, bias, namp, seed) {
+    if(this.v == undefined) {
+        this.v = bias; this.s = seed; this.tick = 0; this.t_seen = 0.;
+        return sigmoid(this.v);
+    }
+    if(simt == undefined || simt.tick == this.tick) return sigmoid(this.v);
+    dt = simt.t - this.t_seen;
+    this.t_seen = simt.t; this.tick = simt.tick;
+    if(dt <= 0.) return sigmoid(this.v);
+    this.s = xs64(this.s);
+    n = (f64)(this.s >> 11) * (1. / 9007199254740992.) - 0.5;
+    i = 0.;
+    if(mnr != undefined) i = i + 0.25 * nmj * mnr.r;
+    this.v = this.v + (dt / tau) * (bias + i + namp * n - this.v);
+    return sigmoid(this.v);
+}
+
+// ---- осциллограф: раз в 200 мс печатает срез контура ----------------
+monitor(simt, ash, flp, aib, ava, avd, avb, da1, va1, db1, mdor, mven) {
+    if(simt == undefined) return 0;
+    if(ash == undefined || ava == undefined || mdor == undefined) return 0;
+    if(mven == undefined || aib == undefined || db1 == undefined) return 0;
+    if(this.tick == undefined) this.tick = 0;
+    if(simt.tick - this.tick < 200) return 0;
+    this.tick = simt.tick;
+    console.println("t=", simt.t, " ASH=", ash.r, " FLP=", flp.r,
+        " AIB=", aib.r, " | AVA=", ava.r, " AVD=", avd.r,
+        " AVB=", avb.r, " DB1=", db1.r,
+        " | DA1=", da1.r, " VA1=", va1.r,
+        " dor=", mdor, " ven=", mven);
+    return 0;
+}

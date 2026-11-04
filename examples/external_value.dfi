@@ -7,7 +7,7 @@ setup_cell() {
         set_cycle_sleep_seconds(0.00001);
         set_inactive_sleep_seconds(0.01);
     }
-    return external_values_server_enabled();
+    delay(0.1);
 }
 setup_cell setup();
 
@@ -47,7 +47,7 @@ some_value_issuer() {
 // just a regular cell, no fancy stuff, no effort to expose it
 // all the cells are already exposed by the embedded local network server
 // inside the Engine Runtime
-// and this cell's value is accessed below over the network (TCP/IP)
+// and this cell's value is accessed below over the network (UDP/IP)
 some_value_issuer just_a_regular_cell();
 
 // value obtained over the network by URL with name "value_from_net".
@@ -64,12 +64,11 @@ extern 'dfi://127.0.0.1:43987/just_a_regular_cell' value_from_net;
 // network alues. this may be used to create network values hubs.
 extern 'dfi://127.0.0.1:43987/value_from_net' value_from_net_copy;
 
-ext_value_use(vname, exv) {
+volatile_value_changes_monitor(vname, exv) {
     if(exv != this.exv) {
         this.exv = exv;
         console.println("remote ", typeof(exv), " \"", vname, "\": ", this.exv);
     }
-    return 0;
 }
-ext_value_use use1("value_from_net", value_from_net);
-ext_value_use use2("value_from_net_copy", value_from_net_copy);
+volatile_value_changes_monitor m1("value_from_net", value_from_net);
+volatile_value_changes_monitor m2("value_from_net_copy", value_from_net_copy);

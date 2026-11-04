@@ -855,6 +855,38 @@ namespace dfi {
             rt->add_function("scalbn", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) return std::scalbn(args[0].cast_num_to_num<long double>(), args[1].cast_to_s64()); });
             rt->add_function("scalbln", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) return std::scalbln(args[0].cast_num_to_num<long double>(), args[1].cast_to_s64()); });
 
+
+            rt->add_function("sigmoid", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 1, 4)
+                switch(args.size()) {
+                    case 1:
+                        return math::sigmoid_nonmodified<double>(
+                            args[0].is_undefined() ? 0.0 : args[0].cast_num_to_num<double>()
+                        );
+                    case 2:
+                        return math::sigmoid<double>(
+                            args[0].is_undefined() ? 0.0 : args[0].cast_num_to_num<double>(),
+                            0,
+                            0,
+                            args[1].is_undefined() ? 0.0 : args[1].cast_num_to_num<double>()
+                        );
+                    case 3:
+                        return math::sigmoid<double>(
+                            args[0].is_undefined() ? 0.0 : args[0].cast_num_to_num<double>(),
+                            args[2].is_undefined() ? 0.0 : args[2].cast_num_to_num<double>(),
+                            0,
+                            args[1].is_undefined() ? 0.0 : args[1].cast_num_to_num<double>()
+                        );
+                    case 4:
+                        return math::sigmoid<double>(
+                            args[0].is_undefined() ? 0.0 : args[0].cast_num_to_num<double>(),
+                            args[2].is_undefined() ? 0.0 : args[2].cast_num_to_num<double>(),
+                            args[3].is_undefined() ? 0.0 : args[3].cast_num_to_num<double>(),
+                            args[1].is_undefined() ? 0.0 : args[1].cast_num_to_num<double>()
+                        );
+                    default:
+                        return valbox{};
+                }
+            });
             rt->add_function("pow", DFIFUN(args) { DFI_CHCK_FUN_PARMS_NUM_EQ(args, 2) return std::pow(args[0].cast_num_to_num<long double>(), args[1].cast_num_to_num<long double>()); });
             rt->add_function("square", DFIFUN(args) {
                 DFI_CHCK_FUN_PARMS_NUM_EQ(args, 1)

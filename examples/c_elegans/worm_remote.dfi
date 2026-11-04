@@ -1,0 +1,35 @@
+// =====================================================================
+//  worm_remote — включаем DFI-сервер мозга. Тело (физика, нос-сенсор,
+//  мышечные исполнители) живёт на другой машине.
+// =====================================================================
+
+setup_cell() {
+    if(!this.initialized) {
+        this.initialized = true;
+        set_cycle_sleep_seconds(0.0001);
+        set_inactive_sleep_seconds(0.001);
+    }
+    // if(!external_values_server_enabled()) {
+    //     if(!enable_external_values_server("0.0.0.0", 43987)) {
+    //         throw error_str(last_error());
+    //     }
+    // }
+    delay(0.1);
+}
+setup_cell setup();
+
+// На машине тела есть клетка nose (0..1 — «упёрлись носом»).
+// В nose_touch заменяем строку  'touch' touch;  на:
+//
+//      extern 'dfi://192.168.1.50:43987/nose' touch;
+//
+// Наши m_dorsal / m_ventral после включения сервера видны снаружи по
+// имени (как твой just_a_regular_cell), машина тела читает зеркально:
+//
+//      extern 'dfi://<brain-host>:43987/m_dorsal'  dorsal_drive;
+//      extern 'dfi://<brain-host>:43987/m_ventral' ventral_drive;
+//
+// Дальше по желанию: перенеси мышцы на машину тела (убери их инстансы
+// из nose_touch) — рёбра станут сетевыми, граф не изменится. Голова на
+// одном хосте, вентральный корд сегментами на других, мышцы рядом с
+// физикой — полный червь на кластере.

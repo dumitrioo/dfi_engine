@@ -57,7 +57,11 @@ namespace dfi {
         }
 
         void set_return_result(valbox const &res) {
-            return_result_ = res;
+            if(res.is_instance_placement()) {
+                return_result_ = res.clone();
+            } else {
+                return_result_ = res;
+            }
         }
 
         void request_delay(long double timeout) {
@@ -97,12 +101,16 @@ namespace dfi {
             emit_delegate_ = yf;
         }
 
-        void emit(valbox const &yv) {
-            return_result_ = yv;
+        void emit(valbox const &yv) {            
+            if(yv.is_instance_placement()) {
+                return_result_ = yv.clone();
+            } else {
+                return_result_ = yv;
+            }
             if(!emit_delegate_) {
                 return;
             }
-            emit_delegate_(yv);
+            emit_delegate_(return_result_);
         }
 
         void request_continue() {
