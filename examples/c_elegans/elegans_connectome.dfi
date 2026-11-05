@@ -1,0 +1,4430 @@
+// ==========================================================================
+// FULL CONNECTOME C. elegans - hermaphrodite
+// 302 neurons (282 somatic + 20 pharyngeal) + 148 targets
+// (95 body muscles, 22 pharyngeal muscles, 31 other targets).
+// Data: Cook et al. 2019 / OpenWorm herm_full_edgelist.csv.
+//
+// CONVENTIONS
+// - chemical weight synapse = synapse count / 40: the operating point is chosen so that
+// the bilateral sensory pathway FLP->AVA (~114 total, ~57 per cell)
+// has a total weight of ~1.4 — comparable to 1.0 of the tested nose-touch
+// circuit (there, the L+R pools were merged and the normalization was /114)
+// - gap junction conductance = contact count / 100
+// - sign: -1 for GABAergic (DD01-06, VD01-13, RMED/L/R/V, AVL, DVB, RIS)
+// - release threshold rel = 1.0, slope 5, tau=0.1 s, bias=-0.1, noise 0.1
+// - gap: g*(p-v) = glin(Σ g_j p_j) - G*v, G = Σ g_j — cell literal
+// - dendritic aggregators d_*_N (chemistry) and g_* (gap) are memoized per tick
+// - 48 autosynapses from the data (M4->M4 x15, RIML->RIML x11, ...) are retained
+//
+// RUN
+// - with host: publish 'touch' (0..1) — nose touch; read 'AVAL'...'AVER'
+// - without host: autonomous random_touch (strength U[0,1], pause 5-10 sec) +
+// monitors print command neurons 4 times per second
+//
+// CHECKED WITH MIRROR SIMULATION (Python, same equations, 120 sec):
+// - stable: max|v| = 3.1, no divergence
+// - rest: 0% active neurons, AVA=-0.07, AVB=-0.08
+// - nose touch: dose-response as in nose-touch: force <0.3 — no response,
+// 0.5-0.9 — reversal (AVA up to 1.8, AVB suppressed to 0.2), 8/14 touches —
+// reversal, return to rest in ~2 s
+// =========================================================================
+
+// -------- time and incentive --------
+'touch' host_touch;
+simtime clock(1.);
+random_touch rnd_touch();
+first_defined touch(host_touch, rnd_touch);
+
+// -------- NEW SENSORS (touch stimulus input): ASH, FLP, OLQ, IL1: 14 in total --------
+dsum10 d_ASHL_1(clock, ADLL, HSNR, HSNL, AWAL,
+       AWBL, URXL, AIAL, AIBL, RIR,
+       RMGL, 0.15, 0.1, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin6 g_ASHL(clock, ASKL, ASHR, RICL, RMGL,
+       AIZL, ADFL, 0.18, 0.07, 0.05,
+       0.03, 0.02, 0.01);
+sensorn1G ASHL(clock, d_ASHL_1, g_ASHL, 0.36, touch,
+       4., 0.05, 0., 453165);
+dsum16 d_ASHR_1(clock, ADFR, RIFR, ADLR, AIBL,
+       ASER, ASHR, ASIR, AWBR, ADAR,
+       PVPR, PVCL, AWCR, RIR, RMGR,
+       AVFR, AVHL, 0.15, 0.15, 0.1,
+       0.075, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum2 d_ASHR_2(clock, AVJL, HSNL, 0.025, 0.025,
+       1.);
+glin11 g_ASHR(clock, ASHL, AIZR, AFDR, RICR,
+       ADAR, RMGR, ASKR, AVHL, AVAR,
+       AIAR, AVER, 0.07, 0.06, 0.04,
+       0.04, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01);
+sensorn2G ASHR(clock, d_ASHR_1, d_ASHR_2, g_ASHR, 0.35,
+       touch, 4., 0.05, 0., 461084);
+dsum7 d_FLPL_1(clock, FLPR, ADEL, SDQL, PVCR,
+       ADER, AIBL, RID, 0.35, 0.1,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       1.);
+glin7 g_FLPL(clock, FLPR, AVDL, SDQL, AIBL,
+       RIH, SIADR, DD01, 0.06, 0.05,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+sensorn1G FLPL(clock, d_FLPL_1, g_FLPL, 0.16, touch,
+       3., 0.25, 0., 991657);
+dsum5 d_FLPR_1(clock, ADER, FLPL, AVJR, DA01,
+       DB01, 0.1, 0.05, 0.05, 0.05,
+       0.025, 1.);
+glin8 g_FLPR(clock, DA03, AVDL, FLPL, DA02,
+       DA01, ADER, AVDR, AS01, 0.16,
+       0.09, 0.06, 0.06, 0.05, 0.04,
+       0.02, 0.01);
+sensorn1G FLPR(clock, d_FLPR_1, g_FLPR, 0.49, touch,
+       3., 0.25, 0., 999576);
+dsum6 d_IL1DL_1(clock, CEPDL, IL2DL, SAAVR, URADL,
+       URYDL, URXL, 0.45, 0.425, 0.3,
+       0.1, 0.075, 0.05, 1.);
+glin3 g_IL1DL(clock, IL1DR, IL1L, RMEV, 0.03,
+       0.02, 0.01);
+sensorn1G IL1DL(clock, d_IL1DL_1, g_IL1DL, 0.06, touch,
+       1., 0.05, 0., 1086685);
+dsum11 d_IL1DR_1(clock, IL2DR, CEPDR, URYDR, PVR,
+       URADR, URBR, RMDDL, IL1DR, OLQDR,
+       OLLR, RMDVR, 0.7, 0.375, 0.125,
+       0.125, 0.075, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin4 g_IL1DR(clock, IL1R, RMEV, IL1DL, RMDVR,
+       0.08, 0.04, 0.03, 0.01);
+sensorn1G IL1DR(clock, d_IL1DR_1, g_IL1DR, 0.16, touch,
+       1., 0.05, 0., 1094604);
+dsum9 d_IL1L_1(clock, URBL, IL2L, RMER, IL1VL,
+       ADEL, URAVL, RMDR, RMDL, RMDVR,
+       0.25, 0.15, -0.1, 0.075, 0.075,
+       0.075, 0.05, 0.025, 0.025, 1.);
+glin5 g_IL1L(clock, IL1VL, IL1DL, URBL, RIPL,
+       RMER, 0.08, 0.02, 0.02, 0.01,
+       0.01);
+sensorn1G IL1L(clock, d_IL1L_1, g_IL1L, 0.14, touch,
+       1., 0.05, 0., 1102523);
+dsum13 d_IL1R_1(clock, RMDDL, URBR, IL1VR, IL1DR,
+       IL2R, RIAR, RMDVL, RMEL, RMHL,
+       URAVR, CEPDR, ADER, RMDL, 0.225,
+       0.125, 0.1, 0.05, 0.05, 0.05,
+       0.05, -0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_IL1R(clock, IL1DR, IL1VR, 0.08, 0.08);
+sensorn1G IL1R(clock, d_IL1R_1, g_IL1R, 0.16, touch,
+       1., 0.05, 0., 1110442);
+dsum7 d_IL1VL_1(clock, IL2VL, CEPVL, PVR, URAVL,
+       IL1VL, OLLL, URYVL, 0.675, 0.225,
+       0.225, 0.15, 0.125, 0.075, 0.025,
+       1.);
+glin4 g_IL1VL(clock, IL1VR, IL1L, RMED, RMDDL,
+       0.11, 0.08, 0.03, 0.01);
+sensorn1G IL1VL(clock, d_IL1VL_1, g_IL1VL, 0.23, touch,
+       1., 0.05, 0., 1118361);
+dsum8 d_IL1VR_1(clock, IL2VR, PVR, URAVR, CEPVR,
+       URYVR, OLQVR, OLLR, SIADR, 0.725,
+       0.225, 0.225, 0.2, 0.075, 0.05,
+       0.05, 0.025, 1.);
+glin4 g_IL1VR(clock, IL1VL, IL1R, URAVR, IL2VR,
+       0.11, 0.08, 0.04, 0.01);
+sensorn1G IL1VR(clock, d_IL1VR_1, g_IL1VR, 0.24, touch,
+       1., 0.05, 0., 1126280);
+dsum5 d_OLQDL_1(clock, CEPDL, IL2L, RIH, IL2DL,
+       URYDL, 0.675, 0.5, 0.275, 0.05,
+       0.05, 1.);
+glin5 g_OLQDL(clock, RIBL, RIGL, URBL, CEPDL,
+       RMDVL, 0.05, 0.03, 0.03, 0.02,
+       0.01);
+sensorn1G OLQDL(clock, d_OLQDL_1, g_OLQDL, 0.14, touch,
+       2., 0.05, 0., 1308417);
+dsum10 d_OLQDR_1(clock, CEPDR, IL2R, RIH, RIPR,
+       IL2DR, URBR, RIPL, OLLR, URYDR,
+       AIMR, 0.5, 0.25, 0.175, 0.075,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin6 g_OLQDR(clock, CEPDR, URBR, RIBR, RIGR,
+       RIH, RMDVR, 0.08, 0.07, 0.05,
+       0.04, 0.02, 0.01);
+sensorn1G OLQDR(clock, d_OLQDR_1, g_OLQDR, 0.27, touch,
+       2., 0.05, 0., 1316336);
+dsum13 d_OLQVL_1(clock, IL2L, CEPVL, RIH, URYVL,
+       IL2VL, ADLL, IL1VL, BAGR, URXL,
+       RIGL, RMDVR, RICL, RIPL, 0.475,
+       0.475, 0.325, 0.225, 0.15, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin5 g_OLQVL(clock, CEPVL, ADAL, RMDDL, RIBL,
+       RIGL, 0.04, 0.04, 0.03, 0.02,
+       0.02);
+sensorn1G OLQVL(clock, d_OLQVL_1, g_OLQVL, 0.15, touch,
+       2., 0.05, 0., 1324255);
+dsum13 d_OLQVR_1(clock, IL2R, CEPVR, IL2VR, RIH,
+       IL1VR, RMDVL, URXR, RIGR, RIPR,
+       ADFR, ADLR, AWBR, SIBVR, 0.65,
+       0.275, 0.225, 0.175, 0.125, 0.075,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin5 g_OLQVR(clock, RIBR, RIGR, URBR, RMDVL,
+       CEPVR, 0.06, 0.06, 0.05, 0.02,
+       0.01);
+sensorn1G OLQVR(clock, d_OLQVR_1, g_OLQVR, 0.2, touch,
+       2., 0.05, 0., 1332174);
+
+// -------- INTERNEURONS AND OTHER SENSORICS: 140 pcs. --------
+dsum15 d_ADAL_1(clock, URXL, ADAL, VB01, RMGL,
+       URBL, ADFL, ASHL, AWAL, BDUL,
+       ADLL, FLPR, ADEL, AIAL, RICL,
+       PVPL, 0.15, 0.15, 0.125, 0.1,
+       0.075, 0.05, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin5 g_ADAL(clock, ADFL, OLQVL, PVQL, ADAR,
+       AVDR, 0.05, 0.04, 0.04, 0.03,
+       0.02);
+neuron1G ADAL(clock, d_ADAL_1, g_ADAL, 0.18, 0.1,
+       -0.1, 112648);
+dsum16 d_ADAR_1(clock, RIMR, RICL, ASHR, URBR,
+       ADFR, AIAR, RICR, RMGR, ADLR,
+       FLPR, URXR, URYVR, ADER, RIR,
+       PVR, URAVR, 0.225, 0.175, 0.125,
+       0.125, 0.1, 0.1, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin5 g_ADAR(clock, ADFR, ASHR, ADAL, AVDL,
+       PVQR, 0.04, 0.03, 0.03, 0.03,
+       0.02);
+neuron1G ADAR(clock, d_ADAR_1, g_ADAR, 0.15, 0.1,
+       -0.1, 120567);
+dsum6 d_ADEL_1(clock, FLPL, IL2L, BDUL, ADER,
+       RMDL, SIAVL, 0.55, 0.15, 0.15,
+       0.075, 0.025, 0.025, 1.);
+glin2 g_ADEL(clock, AINL, RIGR, 0.02, 0.01);
+neuron1G ADEL(clock, d_ADEL_1, g_ADEL, 0.03, 0.1,
+       -0.1, 128486);
+dsum11 d_ADER_1(clock, FLPR, IL2R, ADEL, AVM,
+       BDUR, FLPL, RMDL, OLLR, RMGR,
+       ALNR, URBR, 0.15, 0.125, 0.125,
+       0.1, 0.1, 0.075, 0.075, 0.05,
+       0.05, 0.025, 0.025, 1.);
+glin6 g_ADER(clock, FLPR, AINR, AVKL, ALNR,
+       PVQR, AVJR, 0.04, 0.04, 0.04,
+       0.02, 0.02, 0.01);
+neuron1G ADER(clock, d_ADER_1, g_ADER, 0.17, 0.1,
+       -0.1, 136405);
+dsum9 d_ADFL_1(clock, AWBL, ASHL, AIAL, ASIL,
+       URXL, AUAL, AIZL, RIGL, RIR,
+       0.625, 0.15, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin8 g_ADFL(clock, ADAL, AFDL, RIPL, ASHL,
+       AWCL, AIZL, RIAL, URBL, 0.05,
+       0.03, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G ADFL(clock, d_ADFL_1, g_ADFL, 0.15, 0.1,
+       -0.1, 144324);
+dsum16 d_ADFR_1(clock, AWAR, AWBR, AVHL, URXR,
+       RIR, ASHR, RIH, AIMR, RIAR,
+       PVPR, ADFR, ASEL, AWCR, BAGL,
+       AIYR, AIZR, 0.225, 0.175, 0.125,
+       0.1, 0.1, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin9 g_ADFR(clock, AFDR, AIAR, ADAR, AWAR,
+       SMDVR, ASGR, AWBR, RIH, SMBVR,
+       0.05, 0.04, 0.04, 0.03, 0.02,
+       0.01, 0.01, 0.01, 0.01);
+neuron1G ADFR(clock, d_ADFR_1, g_ADFR, 0.22, 0.1,
+       -0.1, 152243);
+dsum9 d_ADLL_1(clock, ASHL, ASER, ADAL, RIGL,
+       ADFL, SDQR, AIAL, RMGL, HSNL,
+       0.15, 0.1, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin5 g_ADLL(clock, ADLR, RMGL, AVDR, AWAL,
+       hyp, 0.06, 0.03, 0.02, 0.01,
+       0.01);
+neuron1G ADLL(clock, d_ADLL_1, g_ADLL, 0.13, 0.1,
+       -0.1, 160162);
+dsum16 d_ADLR_1(clock, ASHR, AIAR, ADLR, ASKR,
+       CEPVR, URXR, AVHR, SIBVR, RICL,
+       URBR, PVCL, SMBVR, ASER, ASIR,
+       IL2VR, AIBR, 0.325, 0.25, 0.075,
+       0.075, 0.075, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum2 d_ADLR_2(clock, RIFR, HSNL, 0.025, 0.025,
+       1.);
+glin3 g_ADLR(clock, ADLL, ASGR, ASKR, 0.06,
+       0.01, 0.01);
+neuron2G ADLR(clock, d_ADLR_1, d_ADLR_2, g_ADLR, 0.08,
+       0.1, -0.1, 168081);
+dsum10 d_AFDL_1(clock, AINR, AWAL, ASER, AWCL,
+       CEPDL, AIYL, ADFL, AFDL, AFDR,
+       AIZL, 0.225, 0.175, 0.05, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin7 g_AFDL(clock, URBL, ASEL, ADFL, AIBL,
+       AIYL, AFDR, AVEL, 0.09, 0.06,
+       0.03, 0.02, 0.02, 0.01, 0.01);
+neuron1G AFDL(clock, d_AFDL_1, g_AFDL, 0.24, 0.1,
+       -0.1, 176000);
+dsum9 d_AFDR_1(clock, AWAR, AINL, ASEL, ASER,
+       AINR, ADFR, AIYR, RIGR, RIR,
+       0.575, 0.25, 0.075, 0.075, 0.075,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin8 g_AFDR(clock, ADFR, ASHR, AWCR, ASEL,
+       URBR, ASER, AFDL, RMDVR, 0.05,
+       0.04, 0.03, 0.02, 0.02, 0.01,
+       0.01, 0.01);
+neuron1G AFDR(clock, d_AFDR_1, g_AFDR, 0.19, 0.1,
+       -0.1, 183919);
+dsum16 d_AIAL_1(clock, ASGL, ASKL, ASHL, ADLL,
+       AIZL, AIML, PVQL, ASER, HSNL,
+       ASEL, AWBL, HSNR, ADFL, ASIL,
+       AWCL, ADAL, 1.15, 0.725, 0.6,
+       0.475, 0.3, 0.275, 0.25, 0.2,
+       0.2, 0.15, 0.1, 0.075, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum6 d_AIAL_2(clock, AINR, ASIR, ASKR, AWCR,
+       AVFR, PVQR, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin8 g_AIAL(clock, AIAR, AIBL, ASIR, ASKL,
+       ASIL, ASJL, AWBL, AWCR, 0.07,
+       0.05, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron2G AIAL(clock, d_AIAL_1, d_AIAL_2, g_AIAL, 0.2,
+       0.1, -0.1, 191838);
+dsum14 d_AIAR_1(clock, ASGR, ASKR, ASHR, ADLR,
+       PVQR, AIMR, AWCR, AIZR, ASER,
+       ASIR, AWCL, AWAR, AIBR, AINL,
+       1.275, 0.875, 0.7, 0.55, 0.3,
+       0.25, 0.2, 0.125, 0.1, 0.1,
+       0.1, 0.075, 0.025, 0.025, 1.);
+glin9 g_AIAR(clock, AIAL, ADFR, ASGR, ASIR,
+       AWAR, AIAR, ASHR, ASKR, AWCR,
+       0.07, 0.04, 0.03, 0.03, 0.03,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G AIAR(clock, d_AIAR_1, g_AIAR, 0.25, 0.1,
+       -0.1, 199757);
+dsum16 d_AIBL_1(clock, AIZR, AIAL, ADLL, ASGL,
+       ASEL, RIMR, ASHL, AWCL, AIZL,
+       ASKL, SDQR, PVT, ASER, ASIL,
+       AWCR, FLPL, 1.25, 0.875, 0.65,
+       0.425, 0.4, 0.375, 0.325, 0.3,
+       0.25, 0.225, 0.2, 0.125, 0.1,
+       0.075, 0.075, 0.075, 1.);
+dsum16 d_AIBL_2(clock, AIYL, RIBR, DVC, ADFL,
+       BAGL, AIBL, ADAL, AINR, RICR,
+       RIGR, HSNR, AFDL, ADAR, RIML,
+       SAADL, SAADR, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_AIBL_3(clock, SAAVL, 0.025, 1.);
+glin13 g_AIBL(clock, AIAL, AIZR, RIGR, AFDL,
+       DVC, RMED, ASKL, FLPL, SDQR,
+       RIS, RIMR, SIADR, SMDDR, 0.05,
+       0.04, 0.03, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron3G AIBL(clock, d_AIBL_1, d_AIBL_2, d_AIBL_3, g_AIBL,
+       0.25, 0.1, -0.1, 207676);
+dsum16 d_AIBR_1(clock, AIZL, AIAR, ASER, ADLR,
+       RIML, ASGR, AWCR, ASEL, PVT,
+       RIBL, ASHR, RIGL, ASIR, FLPL,
+       AIZR, ADAR, 1.325, 0.825, 0.8,
+       0.675, 0.55, 0.5, 0.45, 0.325,
+       0.25, 0.2, 0.175, 0.1, 0.075,
+       0.075, 0.075, 0.075, 1.);
+dsum16 d_AIBR_2(clock, DVC, RMHR, ASKR, AWCL,
+       SDQL, ADAL, RICR, RMGL, VB01,
+       ADFL, AWBL, AUAL, AVBR, SAADR,
+       SAAVR, SMDVR, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin12 g_AIBR(clock, DVC, ASKR, AIZL, RIGL,
+       RIS, RIVR, PVPL, RIML, SMDDL,
+       RICR, PVT, SIAVL, 0.09, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01);
+neuron2G AIBR(clock, d_AIBR_1, d_AIBR_2, g_AIBR, 0.33,
+       0.1, -0.1, 215595);
+dsum8 d_AIML_1(clock, AIAL, ASKL, RMGL, URXL,
+       ALML, AVFL, AVFR, SMBVL, 0.15,
+       0.125, 0.075, 0.05, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_AIML(clock, ASGL, SIBVR, 0.01, 0.01);
+neuron1G AIML(clock, d_AIML_1, g_AIML, 0.02, 0.1,
+       -0.1, 223514);
+dsum8 d_AIMR_1(clock, ASKR, URXR, RMGR, PVQR,
+       HSNL, AWBR, AIMR, RIR, 0.125,
+       0.075, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 1.);
+glin4 g_AIMR(clock, AVKR, ASJR, CEPVR, SMBVR,
+       0.03, 0.01, 0.01, 0.01);
+neuron1G AIMR(clock, d_AIMR_1, g_AIMR, 0.06, 0.1,
+       -0.1, 231433);
+dsum7 d_AINL_1(clock, CEPDL, BAGL, AUAR, AIYR,
+       AINR, RIBR, AVJL, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin4 g_AINL(clock, ADEL, ASGR, AUAR, AINR,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G AINL(clock, d_AINL_1, g_AINL, 0.05, 0.1,
+       -0.1, 239352);
+dsum4 d_AINR_1(clock, AFDL, ASGL, AUAR, AINR,
+       0.075, 0.05, 0.025, 0.025, 1.);
+glin7 g_AINR(clock, ADER, BAGL, AUAL, RIAL,
+       ASGL, ASIL, AINL, 0.04, 0.03,
+       0.03, 0.02, 0.01, 0.01, 0.01);
+neuron1G AINR(clock, d_AINR_1, g_AINR, 0.15, 0.1,
+       -0.1, 247271);
+dsum12 d_AIYL_1(clock, ASEL, AFDL, AWCL, AWCR,
+       ASER, AIYR, ASIL, AWAL, BAGR,
+       RIH, AWBL, AUAL, 0.8, 0.625,
+       0.55, 0.3, 0.225, 0.175, 0.075,
+       0.075, 0.075, 0.075, 0.025, 0.025,
+       1.);
+glin4 g_AIYL(clock, RIML, AIYR, AFDL, AVKL,
+       0.05, 0.04, 0.02, 0.01);
+neuron1G AIYL(clock, d_AIYL_1, g_AIYL, 0.12, 0.1,
+       -0.1, 255190);
+dsum12 d_AIYR_1(clock, ASER, AFDR, AWCR, ASEL,
+       AWAR, RIH, ADFR, ASIL, ASGR,
+       AWBR, AUAR, AIBR, 0.95, 0.725,
+       0.55, 0.525, 0.2, 0.1, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin4 g_AIYR(clock, AIYL, RIMR, ASIR, AUAR,
+       0.04, 0.03, 0.01, 0.01);
+neuron1G AIYR(clock, d_AIYR_1, g_AIYR, 0.09, 0.1,
+       -0.1, 263109);
+dsum16 d_AIZL_1(clock, AIYL, ADFL, AWAL, AWBL,
+       RIH, RIR, RIGL, RICR, HSNL,
+       DVA, AIAL, ASHL, HSNR, AUAL,
+       ASEL, ASER, 1.675, 0.975, 0.575,
+       0.375, 0.3, 0.3, 0.25, 0.15,
+       0.15, 0.125, 0.1, 0.075, 0.075,
+       0.05, 0.025, 0.025, 1.);
+dsum7 d_AIZL_2(clock, ASIL, AWCL, URXL, URYDL,
+       RIAL, RIFR, SMBDL, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin8 g_AIZL(clock, AIZR, ASGL, AWAL, AIBR,
+       ASHL, ADFL, RIGL, RIH, 0.18,
+       0.03, 0.03, 0.03, 0.02, 0.01,
+       0.01, 0.01);
+neuron2G AIZL(clock, d_AIZL_1, d_AIZL_2, g_AIZL, 0.32,
+       0.1, -0.1, 271028);
+dsum16 d_AIZR_1(clock, AIYR, ADFR, AWAR, RIH,
+       RIR, AWBR, AIBL, RIGR, DVA,
+       HSNL, BAGL, AUAR, AIAR, RIBR,
+       RIGL, SMDDR, 1.75, 0.925, 0.625,
+       0.475, 0.375, 0.2, 0.175, 0.125,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum2 d_AIZR_2(clock, AVER, HSNR, 0.025, 0.025,
+       1.);
+glin6 g_AIZR(clock, AIZL, ASHR, AIBL, AWAR,
+       ASGR, SIBVL, 0.18, 0.06, 0.04,
+       0.03, 0.01, 0.01);
+neuron2G AIZR(clock, d_AIZR_1, d_AIZR_2, g_AIZR, 0.33,
+       0.1, -0.1, 278947);
+dsum5 d_ALA_1(clock, ADLL, ASJL, AIMR, ASKR,
+       AVDR, 0.125, 0.075, 0.05, 0.025,
+       0.025, 1.);
+glin6 g_ALA(clock, RID, AVER, ASJL, ASKR,
+       AVAL, HSNR, 0.04, 0.03, 0.02,
+       0.01, 0.01, 0.01);
+neuron1G ALA(clock, d_ALA_1, g_ALA, 0.12, 0.1,
+       -0.1, 286866);
+dsum12 d_ALML_1(clock, RIFL, AVJR, CEPDL, PVNR,
+       ALML, BDUL, SDQL, SDQR, ADEL,
+       AIML, AVEL, SIADR, 0.125, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin6 g_ALML(clock, BDUL, AVM, RMGL, PVR,
+       RMDDR, SMBDR, 0.23, 0.07, 0.03,
+       0.03, 0.02, 0.01);
+neuron1G ALML(clock, d_ALML_1, g_ALML, 0.39, 0.1,
+       -0.1, 294785);
+dsum4 d_ALMR_1(clock, BDUR, PVR, URXR, RMGR,
+       0.1, 0.05, 0.025, 0.025, 1.);
+glin5 g_ALMR(clock, BDUR, AVM, PVR, SDQR,
+       AVDR, 0.23, 0.16, 0.03, 0.02,
+       0.02);
+neuron1G ALMR(clock, d_ALMR_1, g_ALMR, 0.46, 0.1,
+       -0.1, 302704);
+dsum4 d_ALNL_1(clock, RIGL, SMBDR, SMDVL, SMDDR,
+       0.15, 0.125, 0.05, 0.025, 1.);
+glin4 g_ALNL(clock, SMBDR, hyp, SMDDR, SMDVL,
+       0.03, 0.03, 0.02, 0.01);
+neuron1G ALNL(clock, d_ALNL_1, g_ALNL, 0.09, 0.1,
+       -0.1, 310623);
+dsum9 d_ALNR_1(clock, SMDVL, RMGR, SIADL, RIGR,
+       SMDDR, ADER, SAAVR, SIBVL, SMBDL,
+       0.15, 0.1, 0.1, 0.075, 0.05,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin4 g_ALNR(clock, PVR, ADER, RMGR, SMDDL,
+       0.16, 0.02, 0.01, 0.01);
+neuron1G ALNR(clock, d_ALNR_1, g_ALNR, 0.2, 0.1,
+       -0.1, 318542);
+dsum10 d_AQR_1(clock, PVPL, DVA, PVPR, RIAL,
+       BAGR, RIR, PVCR, AIBR, AVHR,
+       SIBDL, 0.2, 0.15, 0.125, 0.1,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin6 g_AQR(clock, PVPR, PVPL, AVKL, RIGR,
+       AVBL, AVKR, 0.61, 0.41, 0.07,
+       0.03, 0.03, 0.02);
+neuron1G AQR(clock, d_AQR_1, g_AQR, 1.17, 0.1,
+       -0.1, 326461);
+dsum13 d_ASEL_1(clock, AWCR, AWAL, AIAL, AIZL,
+       ASER, ASIR, AIYR, ADLL, AWBL,
+       AFDL, AFDR, AINL, AINR, 0.2,
+       0.175, 0.125, 0.1, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin5 g_ASEL(clock, AFDL, ASGL, AWCR, AFDR,
+       AWCL, 0.06, 0.03, 0.02, 0.02,
+       0.01);
+neuron1G ASEL(clock, d_ASEL_1, g_ASEL, 0.14, 0.1,
+       -0.1, 421489);
+dsum16 d_ASER_1(clock, ADLL, AIAL, ASIL, AWAR,
+       AWCR, AIAR, ASKL, AFDR, AIYR,
+       ASGR, AINR, ADLR, ASEL, ASIR,
+       AIZR, PVQR, 0.3, 0.25, 0.2,
+       0.125, 0.125, 0.125, 0.1, 0.1,
+       0.1, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum5 d_ASER_2(clock, ASKR, AWBR, AWCL, AFDL,
+       AIYL, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin4 g_ASER(clock, ASGR, AWBR, AFDR, PVQR,
+       0.03, 0.01, 0.01, 0.01);
+neuron2G ASER(clock, d_ASER_1, d_ASER_2, g_ASER, 0.06,
+       0.1, -0.1, 429408);
+dsum7 d_ASGL_1(clock, AIML, ASIL, ADLL, AWAL,
+       AIAL, AINR, RIVL, 0.2, 0.075,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin6 g_ASGL(clock, ASEL, AIZL, RIVL, AWBL,
+       AIML, AINR, 0.03, 0.03, 0.02,
+       0.01, 0.01, 0.01);
+neuron1G ASGL(clock, d_ASGL_1, g_ASGL, 0.11, 0.1,
+       -0.1, 437327);
+dsum11 d_ASGR_1(clock, AIMR, AIAR, ASIR, AWCR,
+       CEPVR, AIYR, ASKR, AWAR, AWBR,
+       AWCL, AINL, 0.15, 0.125, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin8 g_ASGR(clock, ASIR, ASER, AIAR, AWCR,
+       ADFR, ADLR, AIZR, AINL, 0.04,
+       0.03, 0.03, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G ASGR(clock, d_ASGR_1, g_ASGR, 0.16, 0.1,
+       -0.1, 445246);
+dsum5 d_ASIL_1(clock, AINL, AWAR, AWCR, AWCL,
+       URXL, 0.275, 0.05, 0.05, 0.025,
+       0.025, 1.);
+glin2 g_ASIL(clock, AIAL, AINR, 0.01, 0.01);
+neuron1G ASIL(clock, d_ASIL_1, g_ASIL, 0.02, 0.1,
+       -0.1, 469003);
+dsum4 d_ASIR_1(clock, AWCR, AIAR, ADER, SAAVR,
+       0.05, 0.05, 0.025, 0.025, 1.);
+glin4 g_ASIR(clock, ASGR, AIAR, AIAL, AIYR,
+       0.04, 0.03, 0.02, 0.01);
+neuron1G ASIR(clock, d_ASIR_1, g_ASIR, 0.1, 0.1,
+       -0.1, 476922);
+dsum7 d_ASJL_1(clock, AIAL, PVQL, AIML, ASEL,
+       ASKL, PVQR, RIVL, 0.1, 0.075,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin6 g_ASJL(clock, ASJR, ALA, IL2L, AIAL,
+       PVQL, RIVL, 0.07, 0.02, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G ASJL(clock, d_ASJL_1, g_ASJL, 0.13, 0.1,
+       -0.1, 484841);
+dsum4 d_ASJR_1(clock, AIMR, ALA, HSNL, ASJL,
+       0.1, 0.1, 0.05, 0.025, 1.);
+glin3 g_ASJR(clock, ASJL, PVQR, AIMR, 0.07,
+       0.05, 0.01);
+neuron1G ASJR(clock, d_ASJR_1, g_ASJR, 0.13, 0.1,
+       -0.1, 492760);
+dsum9 d_ASKL_1(clock, ASJL, PVQL, AIAL, AIML,
+       ASIL, HSNL, ASGL, ASER, ASHL,
+       0.3, 0.3, 0.225, 0.175, 0.075,
+       0.075, 0.05, 0.025, 0.025, 1.);
+glin7 g_ASKL(clock, ASHL, ASKR, AVHL, PVQL,
+       AIAL, AIBL, HSNL, 0.18, 0.09,
+       0.08, 0.08, 0.02, 0.01, 0.01);
+neuron1G ASKL(clock, d_ASKL_1, g_ASKL, 0.47, 0.1,
+       -0.1, 500679);
+dsum6 d_ASKR_1(clock, ASJR, PVQR, AIMR, HSNL,
+       ASJL, AVHR, 0.3, 0.15, 0.1,
+       0.05, 0.025, 0.025, 1.);
+glin11 g_ASKR(clock, PVQR, AVHR, ASKL, AIBR,
+       HSNR, ASHR, ASKR, ADLR, AIAR,
+       ALA, RMGR, 0.25, 0.1, 0.09,
+       0.03, 0.03, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G ASKR(clock, d_ASKR_1, g_ASKR, 0.58, 0.1,
+       -0.1, 508598);
+dsum8 d_AUAL_1(clock, URXL, ADFL, RIBL, RIR,
+       DVA, IL2DL, AIBR, AINR, 0.35,
+       0.3, 0.225, 0.175, 0.1, 0.05,
+       0.025, 0.025, 1.);
+glin5 g_AUAL(clock, AWBL, AINR, AUAR, RMDVL,
+       AWCL, 0.04, 0.03, 0.02, 0.02,
+       0.01);
+neuron1G AUAL(clock, d_AUAL_1, g_AUAL, 0.12, 0.1,
+       -0.1, 516517);
+dsum10 d_AUAR_1(clock, URXR, ADFR, DVA, BAGL,
+       AINL, AINR, RIAR, RIBR, RIH,
+       AWAR, 0.525, 0.225, 0.2, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.025, 1.);
+glin5 g_AUAR(clock, AWBR, URXR, AUAL, AIYR,
+       AINL, 0.03, 0.03, 0.02, 0.01,
+       0.01);
+neuron1G AUAR(clock, d_AUAR_1, g_AUAR, 0.1, 0.1,
+       -0.1, 524436);
+dsum15 d_AVFL_1(clock, HSNL, AVFR, AIML, PHAL,
+       HSNR, AIMR, AVG, ASHL, AVHR,
+       VC05, PVDL, RIFR, AVHL, SMBVL,
+       VC01, 0.275, 0.175, 0.125, 0.1,
+       0.1, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin14 g_AVFL(clock, AVFR, hyp, AVHR, PVQR,
+       AVHL, VD12, PVPL, AS11, AVG,
+       PVNR, PVPR, PVCL, VA11, VC05,
+       0.31, 0.08, 0.05, 0.05, 0.04,
+       0.03, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+neuron1G AVFL(clock, d_AVFL_1, g_AVFL, 0.66, 0.1,
+       -0.1, 595707);
+dsum11 d_AVFR_1(clock, AVFL, AVHL, AIML, AIMR,
+       HSNL, AVHR, HSNR, RMGL, PVQR,
+       SIADL, VC05, 0.3, 0.125, 0.1,
+       0.1, 0.1, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin10 g_AVFR(clock, AVFL, AVHL, AVHR, PVPL,
+       hyp, PVQL, PVQR, RMGL, AVG,
+       VB01, 0.31, 0.11, 0.07, 0.03,
+       0.03, 0.02, 0.02, 0.01, 0.01,
+       0.01);
+neuron1G AVFR(clock, d_AVFR_1, g_AVFR, 0.62, 0.1,
+       -0.1, 603626);
+dsum16 d_AVHL_1(clock, PHAL, AVFL, AVM, AVFR,
+       AVJL, PVPR, BDUL, BDUR, ADEL,
+       AIML, SMBVR, HSNR, ADFR, ASHR,
+       PQR, AVHR, 0.1, 0.1, 0.075,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_AVHL_2(clock, PVCR, 0.025, 1.);
+glin16 g_AVHL_1(clock, hyp, AVHR, AVFR, PHBR,
+       ASKL, VD12, AVJR, PVPR, AVFL,
+       DB07, AS11, ASHR, PHCR, PVPL,
+       AVDL, PHAL, 0.35, 0.15, 0.11,
+       0.1, 0.08, 0.08, 0.06, 0.06,
+       0.04, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.01);
+glin6 g_AVHL_2(clock, PHBL, DVB, PVNL, PVNR,
+       LUAL, AS10, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin2 g_AVHL(clock, g_AVHL_1, g_AVHL_2, 1., 1.);
+neuron2G AVHL(clock, d_AVHL_1, d_AVHL_2, g_AVHL, 1.24,
+       0.1, -0.1, 619464);
+dsum16 d_AVHR_1(clock, AVFR, PVPL, ASHL, AWBL,
+       PHCR, AIMR, HSNR, PHAL, PHAR,
+       PHCL, AIML, RIFL, AVFL, AVHL,
+       PVQL, SMBVL, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_AVHR_2(clock, VC04, 0.025, 1.);
+glin16 g_AVHR_1(clock, AS11, AVHL, VD12, hyp,
+       ASKR, AVFR, AVFL, DA08, AVG,
+       DVC, PVPL, AVJL, PVPR, PVQL,
+       PHAR, PHBL, 0.17, 0.15, 0.13,
+       0.11, 0.1, 0.07, 0.05, 0.05,
+       0.04, 0.04, 0.04, 0.03, 0.03,
+       0.03, 0.02, 0.02);
+glin10 g_AVHR_2(clock, PHBR, AVJR, AVL, PVQR,
+       PVT, PVNL, PVNR, SIAVL, DD06,
+       VA11, 0.02, 0.02, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+glin2 g_AVHR(clock, g_AVHR_1, g_AVHR_2, 1., 1.);
+neuron2G AVHR(clock, d_AVHR_1, d_AVHR_2, g_AVHR, 1.23,
+       0.1, -0.1, 627383);
+dsum16 d_AVJL_1(clock, ADAR, PVR, AVG, PVNL,
+       BDUR, AVFR, RMGR, AVHL, LUAL,
+       RIMR, ADLL, AQR, PVCL, HSNL,
+       HSNR, ADLR, 0.325, 0.275, 0.175,
+       0.15, 0.125, 0.125, 0.1, 0.1,
+       0.1, 0.1, 0.075, 0.075, 0.075,
+       0.075, 0.075, 0.05, 1.);
+dsum10 d_AVJL_2(clock, FLPR, RIFR, AVFL, PVPR,
+       AVBR, AIML, AVJR, PVNR, AVDL,
+       VC03, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_AVJL_1(clock, PVCR, RIS, AVJR, AVAL,
+       AVDR, PQR, PVNL, PVWR, LUAL,
+       AVHR, PVWL, PVCL, hyp, PVNR,
+       PDB, RIFR, 0.19, 0.15, 0.1,
+       0.07, 0.06, 0.05, 0.05, 0.05,
+       0.05, 0.03, 0.03, 0.03, 0.03,
+       0.02, 0.02, 0.01);
+glin1 g_AVJL_2(clock, LUAR, 0.01);
+glin2 g_AVJL(clock, g_AVJL_1, g_AVJL_2, 1., 1.);
+neuron2G AVJL(clock, d_AVJL_1, d_AVJL_2, g_AVJL, 0.95,
+       0.1, -0.1, 635302);
+dsum16 d_AVJR_1(clock, ADAL, ADLL, RIFL, PVNL,
+       AVHR, PVR, URXL, LUAR, ADLR,
+       AVG, FLPR, BDUL, RIFR, PVCL,
+       AVM, URYVL, 0.275, 0.225, 0.2,
+       0.2, 0.125, 0.125, 0.1, 0.1,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum10 d_AVJR_2(clock, PQR, ADER, AIMR, AVHL,
+       AVJL, PVNR, AVBL, AVDR, LUAL,
+       SMBVL, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_AVJR_1(clock, AVJL, AVHL, PVNR, AVAL,
+       PVCL, AVAR, AVBR, hyp, PQR,
+       AVHR, VA11, ADER, PHBL, PHCR,
+       AVG, PVT, 0.1, 0.06, 0.05,
+       0.04, 0.03, 0.03, 0.03, 0.03,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin4 g_AVJR_2(clock, PVWR, PVCR, AVDL, LUAR,
+       0.01, 0.01, 0.01, 0.01);
+glin2 g_AVJR(clock, g_AVJR_1, g_AVJR_2, 1., 1.);
+neuron2G AVJR(clock, d_AVJR_1, d_AVJR_2, g_AVJR, 0.52,
+       0.1, -0.1, 643221);
+dsum11 d_AVKL_1(clock, RIGR, PVM, RMFL, RMFR,
+       PVT, RIS, AVKR, DVC, AVM,
+       PVR, RIMR, 0.525, 0.375, 0.225,
+       0.175, 0.175, -0.15, 0.075, 0.05,
+       0.025, 0.025, 0.025, 1.);
+glin16 g_AVKL_1(clock, DVA, AVKR, AQR, PVPR,
+       SMBVL, PVT, ADER, AVL, PVPL,
+       PDEL, RIGL, SMBDL, SMBDR, SMBVR,
+       PVM, AIYL, 0.18, 0.09, 0.07,
+       0.06, 0.06, 0.05, 0.04, 0.03,
+       0.03, 0.02, 0.02, 0.02, 0.02,
+       0.02, 0.01, 0.01);
+glin5 g_AVKL_2(clock, RIGR, AS10, AS11, VB10,
+       hyp, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+glin2 g_AVKL(clock, g_AVKL_1, g_AVKL_2, 1., 1.);
+neuron1G AVKL(clock, d_AVKL_1, g_AVKL, 0.78, 0.1,
+       -0.1, 651140);
+dsum12 d_AVKR_1(clock, RIGL, RMFL, RIS, RMFR,
+       PVT, RIGR, AIZL, AVL, RICR,
+       RIML, RMDL, RMDR, 0.425, 0.35,
+       -0.325, 0.225, 0.2, 0.125, 0.1,
+       -0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin15 g_AVKR(clock, hyp, PVPL, AVKL, SMBDR,
+       SMBVR, RICL, AIMR, AQR, RIGR,
+       PVQL, PDEL, PVT, AVER, RIMR,
+       SMBDL, 0.34, 0.22, 0.09, 0.09,
+       0.06, 0.04, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G AVKR(clock, d_AVKR_1, g_AVKR, 0.98, 0.1,
+       -0.1, 659059);
+dsum16 d_AVL_1(clock, DVB, RIS, URYVR, AVFL,
+       PVPR, PVNR, PVT, PVQR, VC01,
+       VC06, IL1VL, ADEL, PVNL, PVCR,
+       AVBL, VC03, -0.525, -0.225, 0.125,
+       0.125, 0.1, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin16 g_AVL_1(clock, DD06, DVC, DVB, PVPR,
+       PVT, VD13, AVG, DA09, AVKL,
+       PVWR, PDA, AVHR, PVNR, VD12,
+       VC06, PVPL, 0.28, 0.22, 0.14,
+       0.08, 0.06, 0.05, 0.04, 0.04,
+       0.03, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.01);
+glin2 g_AVL_2(clock, AVEL, VD11, 0.01, 0.01);
+glin2 g_AVL(clock, g_AVL_1, g_AVL_2, 1., 1.);
+neuron1G AVL(clock, d_AVL_1, g_AVL, 1.11, 0.1,
+       -0.1, 666978);  // GABA, enteral
+dsum3 d_AVM_1(clock, PVM, AVKL, AVJR, 0.05,
+       0.05, 0.025, 1.);
+glin4 g_AVM(clock, ALMR, AVDL, ALML, PVR,
+       0.16, 0.08, 0.07, 0.04);
+neuron1G AVM(clock, d_AVM_1, g_AVM, 0.35, 0.1,
+       -0.1, 674897);
+dsum4 d_AWAL_1(clock, AIYL, AWBL, ADLL, PVQL,
+       0.35, 0.05, 0.025, 0.025, 1.);
+glin3 g_AWAL(clock, AIZL, AWAR, ADLL, 0.03,
+       0.02, 0.01);
+neuron1G AWAL(clock, d_AWAL_1, g_AWAL, 0.06, 0.1,
+       -0.1, 682816);
+dsum11 d_AWAR_1(clock, AIAR, PVQR, HSNL, ASIL,
+       ASKR, ADFR, ASER, ASHR, ASIR,
+       AIYR, AIZR, 0.1, 0.1, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin4 g_AWAR(clock, ADFR, AIAR, AIZR, AWAL,
+       0.03, 0.03, 0.03, 0.02);
+neuron1G AWAR(clock, d_AWAR_1, g_AWAR, 0.11, 0.1,
+       -0.1, 690735);
+dsum9 d_AWBL_1(clock, AWAL, HSNL, AFDL, ADLL,
+       ADFL, HSNR, ASEL, ASHR, AVHR,
+       0.225, 0.125, 0.1, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin5 g_AWBL(clock, AUAL, AWBR, ASGL, AIAL,
+       RMGL, 0.04, 0.03, 0.01, 0.01,
+       0.01);
+neuron1G AWBL(clock, d_AWBL_1, g_AWBL, 0.1, 0.1,
+       -0.1, 698654);
+dsum8 d_AWBR_1(clock, ADFR, AWAR, AVHL, HSNL,
+       URXR, RIFR, AIYR, RIR, 0.1,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin6 g_AWBR(clock, RICL, AWBL, AUAR, ADFR,
+       ASER, RMGR, 0.04, 0.03, 0.03,
+       0.01, 0.01, 0.01);
+neuron1G AWBR(clock, d_AWBR_1, g_AWBR, 0.13, 0.1,
+       -0.1, 706573);
+dsum12 d_AWCL_1(clock, AWCR, ASEL, AIAR, AIYL,
+       ASIL, ADLL, ASIR, AINR, ASER,
+       AWBL, URYDR, AIAL, 0.425, 0.4,
+       0.15, 0.125, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin3 g_AWCL(clock, ADFL, ASEL, AUAL, 0.01,
+       0.01, 0.01);
+neuron1G AWCL(clock, d_AWCL_1, g_AWCL, 0.03, 0.1,
+       -0.1, 714492);
+dsum14 d_AWCR_1(clock, ASEL, AWCL, ADLR, AIAL,
+       AIAR, ASIR, ASIL, AIYL, ADFL,
+       AIZL, AIZR, ADFR, ASER, AIBR,
+       0.275, 0.275, 0.175, 0.15, 0.15,
+       0.125, 0.1, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin5 g_AWCR(clock, AFDR, ASEL, ASGR, AIAL,
+       AIAR, 0.03, 0.02, 0.02, 0.01,
+       0.01);
+neuron1G AWCR(clock, d_AWCR_1, g_AWCR, 0.09, 0.1,
+       -0.1, 722411);
+dsum9 d_BAGL_1(clock, AQR, RIBR, ADFR, AINL,
+       BAGR, RIGR, RIH, AUAR, RMFL,
+       0.2, 0.2, 0.15, 0.125, 0.075,
+       0.05, 0.05, 0.025, 0.025, 1.);
+glin5 g_BAGL(clock, RIR, AINR, RIGR, BAGR,
+       RIGL, 0.04, 0.03, 0.02, 0.01,
+       0.01);
+neuron1G BAGL(clock, d_BAGL_1, g_BAGL, 0.11, 0.1,
+       -0.1, 730330);
+dsum12 d_BAGR_1(clock, AINR, AQR, RIH, AUAL,
+       RIBL, RIGL, URXL, RIAL, IL2VL,
+       BAGL, AIYR, RIR, 0.225, 0.125,
+       0.125, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin3 g_BAGR(clock, RIR, BAGL, AVEL, 0.05,
+       0.01, 0.01);
+neuron1G BAGR(clock, d_BAGR_1, g_BAGR, 0.07, 0.1,
+       -0.1, 738249);
+dsum6 d_BDUL_1(clock, ALML, PVNL, AVM, AVKR,
+       ADEL, PVNR, 0.375, 0.125, 0.075,
+       0.075, 0.025, 0.025, 1.);
+glin2 g_BDUL(clock, ALML, PVNL, 0.23, 0.01);
+neuron1G BDUL(clock, d_BDUL_1, g_BDUL, 0.24, 0.1,
+       -0.1, 746168);
+dsum7 d_BDUR_1(clock, ALMR, CEPDR, AVM, AIMR,
+       PVNL, HSNR, AVHL, 0.35, 0.125,
+       0.125, 0.05, 0.05, 0.05, 0.025,
+       1.);
+glin3 g_BDUR(clock, ALMR, PVR, HSNR, 0.23,
+       0.03, 0.01);
+neuron1G BDUR(clock, d_BDUR_1, g_BDUR, 0.27, 0.1,
+       -0.1, 754087);
+dsum16 d_CEPDL_1(clock, RIH, OLLL, RIS, OLQDL,
+       AIML, ALML, AINR, URBL, PVNR,
+       RMDVL, ASJL, URXL, ADEL, RIAL,
+       RICL, RICR, 0.15, 0.125, -0.1,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum4 d_CEPDL_2(clock, RMGL, AVER, SIADR, SIBDL,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin1 g_CEPDL(clock, OLQDL, 0.02);
+neuron2G CEPDL(clock, d_CEPDL_1, d_CEPDL_2, g_CEPDL, 0.02,
+       0.1, -0.1, 762006);
+dsum11 d_CEPDR_1(clock, CEPDR, ADER, OLLR, URYDR,
+       IL2DR, CEPDL, CEPVR, ALMR, URXR,
+       RICR, URBR, 0.15, 0.125, 0.1,
+       0.075, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin1 g_CEPDR(clock, OLQDR, 0.08);
+neuron1G CEPDR(clock, d_CEPDR_1, g_CEPDR, 0.08, 0.1,
+       -0.1, 769925);
+dsum13 d_CEPVL_1(clock, OLLL, RIS, RIBL, ALML,
+       URYVL, RIH, RICL, RMDDL, RIAR,
+       RMDL, RMHR, URAVL, SMDVR, 0.35,
+       -0.175, 0.125, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin3 g_CEPVL(clock, OLQVL, URAVL, RIH, 0.04,
+       0.03, 0.01);
+neuron1G CEPVL(clock, d_CEPVL_1, g_CEPVL, 0.08, 0.1,
+       -0.1, 777844);
+dsum16 d_CEPVR_1(clock, OLLR, SMBVR, RIH, RIS,
+       URBR, ALMR, ASKR, BAGL, AINL,
+       RIFR, PVR, ADLR, ASIL, ASIR,
+       BDUR, URYVR, 0.4, 0.2, 0.15,
+       -0.1, 0.1, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum4 d_CEPVR_2(clock, ADER, AIMR, RIAR, SMDVL,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin3 g_CEPVR(clock, IL2VR, OLQVR, AIMR, 0.01,
+       0.01, 0.01);
+neuron2G CEPVR(clock, d_CEPVR_1, d_CEPVR_2, g_CEPVR, 0.03,
+       0.1, -0.1, 785763);
+dsum2 d_DVB_1(clock, AVFL, AVL, 0.025, -0.025,
+       1.);
+glin14 g_DVB(clock, DVC, AVL, DA08, VD13,
+       PVPL, PVPR, AS11, PVT, DD06,
+       DVB, VD11, AVHL, DD05, hyp,
+       0.15, 0.14, 0.05, 0.05, 0.04,
+       0.04, 0.04, 0.03, 0.03, 0.02,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G DVB(clock, d_DVB_1, g_DVB, 0.64, 0.1,
+       -0.1, 975819);  // GABA, enteral
+dsum16 d_DVC_1(clock, DVB, AVDR, PVPR, PVT,
+       VC02, VC05, RIGR, RMFR, AVG,
+       AVL, AVDL, IL2VL, RIBL, RMFL,
+       URAVL, VC01, -0.125, 0.1, 0.075,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, -0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin16 g_DVC_1(clock, PVPR, AVL, PVPL, DVB,
+       AVG, PVT, AIBR, PVQR, AVHR,
+       AIBL, VD01, hyp, PVDR, DVA,
+       PVNR, DD06, 0.34, 0.22, 0.2,
+       0.15, 0.12, 0.11, 0.09, 0.07,
+       0.04, 0.02, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01);
+glin3 g_DVC_2(clock, VD11, VD13, VC06, 0.01,
+       0.01, 0.01);
+glin2 g_DVC(clock, g_DVC_1, g_DVC_2, 1., 1.);
+neuron1G DVC(clock, d_DVC_1, g_DVC, 1.47, 0.1,
+       -0.1, 983738);
+dsum16 d_HSNL_1(clock, ASHR, AVFR, BDUL, AIMR,
+       PVQL, ASHL, AWBR, RIFR, AVFL,
+       ASJL, ASKR, AWBL, RIR, HSNL,
+       HSNR, VC05, 0.1, 0.1, 0.075,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin4 g_HSNL(clock, ASKL, RIFL, PVPL, HSNR,
+       0.01, 0.01, 0.01, 0.01);
+neuron1G HSNL(clock, d_HSNL_1, g_HSNL, 0.04, 0.1,
+       -0.1, 1007495);
+dsum16 d_HSNR_1(clock, BDUR, PVQL, ASHR, HSNL,
+       AIMR, RIFR, AVFL, AVFR, VC05,
+       AWBR, AVL, PVPR, ASJL, ASJR,
+       URXL, AIYL, 0.2, 0.15, 0.125,
+       0.125, 0.075, 0.075, 0.075, 0.075,
+       0.075, 0.05, -0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum3 d_HSNR_2(clock, PVNR, AVBR, VC03, 0.025,
+       0.025, 0.025, 1.);
+glin6 g_HSNR(clock, ASKR, PVNR, BDUR, ALA,
+       PVPR, HSNL, 0.03, 0.02, 0.01,
+       0.01, 0.01, 0.01);
+neuron2G HSNR(clock, d_HSNR_1, d_HSNR_2, g_HSNR, 0.09,
+       0.1, -0.1, 1015414);
+dsum3 d_IL2DL_1(clock, IL2DL, IL1DL, CEPDL, 0.05,
+       0.025, 0.025, 1.);
+glin1 g_IL2DL(clock, URADL, 0.01);
+neuron1G IL2DL(clock, d_IL2DL_1, g_IL2DL, 0.01, 0.1,
+       -0.1, 1134199);
+dsum4 d_IL2DR_1(clock, ALNR, IL1DR, AIBL, RMGR,
+       0.175, 0.125, 0.025, 0.025, 1.);
+glin2 g_IL2DR(clock, RMED, URADR, 0.01, 0.01);
+neuron1G IL2DR(clock, d_IL2DR_1, g_IL2DR, 0.02, 0.1,
+       -0.1, 1142118);
+dsum9 d_IL2L_1(clock, ADEL, AWCR, RIH, IL1L,
+       IL2VL, OLQVL, URXL, SIAVL, SMDVL,
+       0.125, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin8 g_IL2L(clock, RMGL, URBL, OLLL, RMDL,
+       RMER, ASJL, URXL, URAVL, 0.05,
+       0.04, 0.02, 0.02, 0.02, 0.01,
+       0.01, 0.01);
+neuron1G IL2L(clock, d_IL2L_1, g_IL2L, 0.18, 0.1,
+       -0.1, 1150037);
+dsum6 d_IL2R_1(clock, RIH, URBR, RMGR, ASEL,
+       OLLR, ADER, 0.075, 0.075, 0.05,
+       0.025, 0.025, 0.025, 1.);
+glin3 g_IL2R(clock, URXR, URBR, RMGR, 0.04,
+       0.04, 0.01);
+neuron1G IL2R(clock, d_IL2R_1, g_IL2R, 0.09, 0.1,
+       -0.1, 1157956);
+dsum1 d_IL2VL_1(clock, RIH, 0.1, 1.);
+glin1 g_IL2VL(clock, URAVL, 0.03);
+neuron1G IL2VL(clock, d_IL2VL_1, g_IL2VL, 0.03, 0.1,
+       -0.1, 1165875);
+dsum5 d_IL2VR_1(clock, RIH, CEPVR, URAVR, IL1VR,
+       RMDVL, 0.125, 0.075, 0.075, 0.05,
+       0.025, 1.);
+glin2 g_IL2VR(clock, IL1VR, CEPVR, 0.01, 0.01);
+neuron1G IL2VR(clock, d_IL2VR_1, g_IL2VR, 0.02, 0.1,
+       -0.1, 1173794);
+dsum7 d_LUAL_1(clock, AVAL, AVAR, PVNL, AVDR,
+       PHCL, AVDL, VA12, 0.15, 0.1,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       1.);
+glin7 g_LUAL(clock, PLML, PVR, AVJL, PVNL,
+       AVAL, AVHL, PVQL, 0.08, 0.06,
+       0.05, 0.03, 0.02, 0.01, 0.01);
+neuron1G LUAL(clock, d_LUAL_1, g_LUAL, 0.26, 0.1,
+       -0.1, 1181713);
+dsum6 d_LUAR_1(clock, AVAR, PHCR, PQR, AVAL,
+       PVWR, PVCR, 0.4, 0.15, 0.075,
+       0.05, 0.025, 0.025, 1.);
+glin12 g_LUAR(clock, PLMR, PVR, hyp, PVT,
+       AVAR, PVWL, PVWR, PVNR, AVAL,
+       PHCR, AVJL, AVJR, 0.09, 0.09,
+       0.07, 0.04, 0.04, 0.03, 0.03,
+       0.02, 0.02, 0.01, 0.01, 0.01);
+neuron1G LUAR(clock, d_LUAR_1, g_LUAR, 0.46, 0.1,
+       -0.1, 1189632);
+dsum11 d_OLLL_1(clock, URYVL, CEPDL, ADEL, OLLL,
+       CEPVL, URYDL, SAADR, IL1L, URBL,
+       AVER, RMDL, 0.225, 0.2, 0.15,
+       0.1, 0.1, 0.075, 0.075, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin3 g_OLLL(clock, OLLR, RIGL, IL2L, 0.11,
+       0.03, 0.02);
+neuron1G OLLL(clock, d_OLLL_1, g_OLLL, 0.16, 0.1,
+       -0.1, 1292579);
+dsum16 d_OLLR_1(clock, CEPVR, CEPDR, IL2R, URYVL,
+       RIS, OLLR, SAADL, ADER, RMDL,
+       RMDR, ADLR, ASEL, IL1DR, IL1R,
+       IL1VR, RIBR, 0.35, 0.325, 0.125,
+       0.125, -0.125, 0.1, 0.1, 0.075,
+       0.075, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum4 d_OLLR_2(clock, RMGR, URBR, RMEL, SAAVL,
+       0.025, 0.025, -0.025, 0.025, 1.);
+glin2 g_OLLR(clock, OLLL, RIGR, 0.11, 0.05);
+neuron2G OLLR(clock, d_OLLR_1, d_OLLR_2, g_OLLR, 0.16,
+       0.1, -0.1, 1300498);
+dsum1 d_PDEL_1(clock, PDER, 0.125, 1.);
+glin11 g_PDEL(clock, PDER, PVM, PVR, PLMR,
+       VB11, DVA, PLML, AVKL, PVCR,
+       AVKR, VB10, 0.25, 0.11, 0.08,
+       0.04, 0.04, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01);
+neuron1G PDEL(clock, d_PDEL_1, g_PDEL, 0.63, 0.1,
+       -0.1, 1355931);
+dsum3 d_PDER_1(clock, DVA, PVCL, PVCR, 0.025,
+       0.025, 0.025, 1.);
+glin13 g_PDER(clock, PDEL, PVR, PVM, VB09,
+       DVA, VD09, VB10, PLML, PLMR,
+       PVDR, AVKL, PVCL, hyp, 0.25,
+       0.09, 0.08, 0.07, 0.06, 0.05,
+       0.04, 0.03, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G PDER(clock, d_PDER_1, g_PDER, 0.73, 0.1,
+       -0.1, 1363850);
+dsum2 d_PHAL_1(clock, PHAR, AVG, 0.275, 0.075,
+       1.);
+glin8 g_PHAL(clock, PHAR, PVPR, AVG, PLNL,
+       PHCL, AVHL, PVQL, hyp, 0.07,
+       0.07, 0.03, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G PHAL(clock, d_PHAL_1, g_PHAL, 0.22, 0.1,
+       -0.1, 1371769);
+dsum2 d_PHAR_1(clock, PHAL, PHCR, 0.325, 0.05,
+       1.);
+glin9 g_PHAR(clock, PVPL, PHAL, PLNR, AVG,
+       AVHR, PVR, PVCR, PHBR, hyp,
+       0.15, 0.07, 0.06, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01);
+neuron1G PHAR(clock, d_PHAR_1, g_PHAR, 0.38, 0.1,
+       -0.1, 1379688);
+dsum5 d_PHBL_1(clock, PHAL, PHAR, PHBR, PQR,
+       LUAL, 0.175, 0.075, 0.075, 0.05,
+       0.05, 1.);
+glin10 g_PHBL(clock, PHBR, PVQL, PVCL, hyp,
+       AVHR, PLNL, PQR, AVHL, AVJR,
+       AVAR, 0.17, 0.03, 0.03, 0.03,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G PHBL(clock, d_PHBL_1, g_PHBL, 0.33, 0.1,
+       -0.1, 1387607);
+dsum3 d_PHBR_1(clock, PHAL, PHAR, PHBL, 0.25,
+       0.2, 0.1, 1.);
+glin12 g_PHBR(clock, PHBL, PLNR, AVHL, PVQR,
+       hyp, AVHR, PHAR, PHCR, PVPL,
+       PVR, PVT, PVWR, 0.17, 0.12,
+       0.1, 0.04, 0.04, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+neuron1G PHBR(clock, d_PHBR_1, g_PHBR, 0.55, 0.1,
+       -0.1, 1395526);
+dsum2 d_PHCL_1(clock, PHCR, DVB, 0.1, -0.05,
+       1.);
+glin8 g_PHCL(clock, PLML, PLNL, PHCR, DA08,
+       PHAL, AVAL, VA12, hyp, 0.11,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G PHCL(clock, d_PHCL_1, g_PHCL, 0.21, 0.1,
+       -0.1, 1403445);
+dsum3 d_PHCR_1(clock, PHBR, PHCL, VA12, 0.075,
+       0.05, 0.025, 1.);
+glin10 g_PHCR(clock, DA09, PVCR, AVAL, PHCL,
+       AVHL, PHBR, AVG, AVJR, AVAR,
+       LUAR, 0.07, 0.05, 0.03, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G PHCR(clock, d_PHCR_1, g_PHCR, 0.24, 0.1,
+       -0.1, 1411364);
+glin7 g_PLML(clock, PHCL, LUAL, PVCL, PDER,
+       hyp, PDEL, PLNL, 0.11, 0.08,
+       0.04, 0.03, 0.03, 0.02, 0.01);
+neuron0G PLML(clock, g_PLML, 0.32, 0.1, -0.1,
+       1419283);
+glin7 g_PLMR(clock, LUAR, PVCR, PDEL, PVR,
+       PDER, PLNR, hyp, 0.09, 0.08,
+       0.04, 0.03, 0.02, 0.01, 0.01);
+neuron0G PLMR(clock, g_PLMR, 0.28, 0.1, -0.1,
+       1427202);
+dsum7 d_PLNL_1(clock, SIAVL, SMDVL, SMDVR, SMBVL,
+       SMBVR, SAADR, SIBVR, 0.25, 0.15,
+       0.15, 0.125, 0.125, 0.025, 0.025,
+       1.);
+glin7 g_PLNL(clock, hyp, PHCL, VA02, PLML,
+       PHAL, PHBL, PVWL, 0.03, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01);
+neuron1G PLNL(clock, d_PLNL_1, g_PLNL, 0.11, 0.1,
+       -0.1, 1435121);
+dsum3 d_PLNR_1(clock, SIAVR, SMBVR, SMBVL, 0.25,
+       0.125, 0.05, 1.);
+glin4 g_PLNR(clock, PHBR, PHAR, hyp, PLMR,
+       0.12, 0.06, 0.02, 0.01);
+neuron1G PLNR(clock, d_PLNR_1, g_PLNR, 0.21, 0.1,
+       -0.1, 1443040);
+dsum4 d_PQR_1(clock, LUAR, PVNL, PVNR, AVDR,
+       0.175, 0.125, 0.1, 0.075, 1.);
+glin12 g_PQR(clock, PVPL, PVPR, AVJL, PVNL,
+       AVDR, AVJR, PVNR, PVWL, PVCL,
+       AVDL, PHBL, hyp, 0.16, 0.1,
+       0.05, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01);
+neuron1G PQR(clock, d_PQR_1, g_PQR, 0.49, 0.1,
+       -0.1, 1450959);
+dsum5 d_PVDL_1(clock, PVDR, PVCR, AVFR, PVNL,
+       PVPL, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin5 g_PVDL(clock, AVAR, PVDR, AVG, PVCR,
+       VA10, 0.04, 0.03, 0.01, 0.01,
+       0.01);
+neuron1G PVDL(clock, d_PVDL_1, g_PVDL, 0.1, 0.1,
+       -0.1, 1474716);
+dsum4 d_PVDR_1(clock, PVDL, PVNR, DVC, PVCR,
+       0.25, 0.125, 0.025, 0.025, 1.);
+glin6 g_PVDR(clock, AVAL, PVDL, PVCR, PDER,
+       DVC, VD09, 0.06, 0.03, 0.02,
+       0.01, 0.01, 0.01);
+neuron1G PVDR(clock, d_PVDR_1, g_PVDR, 0.14, 0.1,
+       -0.1, 1482635);
+dsum1 d_PVM_1(clock, PVR, 0.025, 1.);
+glin6 g_PVM(clock, PDEL, PDER, PVM, AVKL,
+       DVA, PVR, 0.11, 0.08, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G PVM(clock, d_PVM_1, g_PVM, 0.23, 0.1,
+       -0.1, 1490554);
+dsum10 d_PVNL_1(clock, BDUR, AVM, BDUL, PQR,
+       AVG, PHBL, AVFL, AVAL, LUAL,
+       LUAR, 0.275, 0.1, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_PVNL_1(clock, AVBR, PVPR, AVJL, PQR,
+       LUAL, PVNR, PVPL, PVT, PVCL,
+       hyp, BDUL, AVHL, AVHR, AVAL,
+       AVDR, DD06, 0.07, 0.06, 0.05,
+       0.03, 0.03, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin1 g_PVNL_2(clock, VD12, 0.01);
+glin2 g_PVNL(clock, g_PVNL_1, g_PVNL_2, 1., 1.);
+neuron1G PVNL(clock, d_PVNL_1, g_PVNL, 0.41, 0.1,
+       -0.1, 1498473);
+dsum16 d_PVNR_1(clock, PVNL, BDUR, BDUL, AVG,
+       AVJL, AVM, AVBL, HSNR, VC06,
+       AIMR, PVNR, PDA, VA11, VB06,
+       VD06, VC03, 0.225, 0.125, 0.1,
+       0.1, 0.1, 0.075, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, -0.025, 0.025, 1.);
+glin16 g_PVNR_1(clock, PVWR, AVJR, PVR, AVBL,
+       PVT, PQR, AVJL, AVL, PVNL,
+       PVPR, AVBR, LUAR, HSNR, AVFL,
+       AVHL, AVHR, 0.06, 0.05, 0.05,
+       0.05, 0.03, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01);
+glin6 g_PVNR_2(clock, DVC, AVDL, AVDR, VD13,
+       hyp, VC06, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin2 g_PVNR(clock, g_PVNR_1, g_PVNR_2, 1., 1.);
+neuron1G PVNR(clock, d_PVNR_1, g_PVNR, 0.49, 0.1,
+       -0.1, 1506392);
+dsum15 d_PVPL_1(clock, DVB, AVHR, RIFL, DVC,
+       AQR, PHAR, RIGL, RIR, PVDL,
+       ADAL, RMGL, AVKR, PVQL, SIBDL,
+       SMBVL, -0.25, 0.225, 0.2, 0.1,
+       0.075, 0.075, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_PVPL_1(clock, AQR, hyp, AVKR, DVC,
+       PQR, PHAR, PVT, VD13, PVQL,
+       AS11, VA11, AVHR, DVB, AVFR,
+       AVG, AVKL, 0.41, 0.41, 0.22,
+       0.2, 0.16, 0.15, 0.14, 0.11,
+       0.08, 0.06, 0.06, 0.04, 0.04,
+       0.03, 0.03, 0.03);
+glin16 g_PVPL_2(clock, AIBR, RIGL, AVFL, AVHL,
+       PVNL, PVPR, DD06, PHBR, AVL,
+       DVA, PVPL, AVAL, PDB, VA12,
+       VD11, HSNL, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin2 g_PVPL(clock, g_PVPL_1, g_PVPL_2, 1., 1.);
+neuron1G PVPL(clock, d_PVPL_1, g_PVPL, 2.4, 0.1,
+       -0.1, 1514311);
+dsum16 d_PVPR_1(clock, RIFR, DVA, AVBL, AVHL,
+       AVL, VC03, ADFR, ASHR, AQR,
+       PQR, RIR, AVFR, PVNL, PVCR,
+       HSNR, VC01, 0.15, 0.075, 0.075,
+       0.05, -0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_PVPR_2(clock, VC02, 0.025, 1.);
+glin16 g_PVPR_1(clock, AQR, VD12, DVC, PVT,
+       PQR, DD06, AVL, PHAL, AVHL,
+       AVKL, PVNL, DVB, hyp, RMGR,
+       AVHR, AVG, 0.61, 0.35, 0.34,
+       0.17, 0.1, 0.09, 0.08, 0.07,
+       0.06, 0.06, 0.06, 0.04, 0.04,
+       0.03, 0.03, 0.02);
+glin10 g_PVPR_2(clock, PVNR, PVPL, AVAL, AVFL,
+       PVWL, AVBR, AVEL, HSNR, VC01,
+       VC06, 0.02, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+glin2 g_PVPR(clock, g_PVPR_1, g_PVPR_2, 1., 1.);
+neuron2G PVPR(clock, d_PVPR_1, d_PVPR_2, g_PVPR, 2.28,
+       0.1, -0.1, 1522230);
+dsum9 d_PVQL_1(clock, ASJL, PHAR, PHAL, AVFR,
+       AIAL, AIML, AVFL, AVKR, HSNL,
+       0.85, 0.1, 0.075, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin13 g_PVQL(clock, PVQR, ASKL, PVPL, ADAL,
+       PHBL, AVHR, hyp, AVFR, AVKR,
+       ASJL, PHAL, AVG, LUAL, 0.46,
+       0.08, 0.08, 0.04, 0.03, 0.03,
+       0.03, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G PVQL(clock, d_PVQL_1, g_PVQL, 0.83, 0.1,
+       -0.1, 1530149);
+dsum10 d_PVQR_1(clock, ASJR, PHCR, AVHL, PHCL,
+       AVG, VC03, PHAR, PVPR, HSNR,
+       VC02, 0.475, 0.1, 0.075, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_PVQR(clock, PVQL, ASKR, DVC, ASJR,
+       AVFL, PHBR, ADER, ADAR, AVFR,
+       AVHR, ASER, PVT, PVWR, PVCL,
+       DA07, hyp, 0.46, 0.25, 0.07,
+       0.05, 0.05, 0.04, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G PVQR(clock, d_PVQR_1, g_PVQR, 1.06, 0.1,
+       -0.1, 1538068);
+dsum15 d_PVR_1(clock, AVM, ADAR, IL1DR, CEPVL,
+       PVM, PDER, DVA, LUAR, SMBVR,
+       URBL, PVNR, PVR, PVCR, SMDVL,
+       VC05, 0.15, 0.15, 0.125, 0.075,
+       0.075, 0.05, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_PVR_1(clock, PVCR, ALNR, DVA, DA09,
+       PDB, hyp, PDER, LUAR, PDEL,
+       LUAL, PVNR, AVM, DB07, ALML,
+       ALMR, PLMR, 0.19, 0.16, 0.15,
+       0.15, 0.13, 0.12, 0.09, 0.09,
+       0.08, 0.06, 0.05, 0.04, 0.04,
+       0.03, 0.03, 0.03);
+glin6 g_PVR_2(clock, BDUR, PHAR, PVWR, PVM,
+       PHBR, VD13, 0.03, 0.02, 0.02,
+       0.01, 0.01, 0.01);
+glin2 g_PVR(clock, g_PVR_1, g_PVR_2, 1., 1.);
+neuron1G PVR(clock, d_PVR_1, g_PVR, 1.54, 0.1,
+       -0.1, 1545987);
+dsum16 d_PVT_1(clock, PVNL, VC02, RIGR, VC03,
+       VC01, RMFL, PVNR, URAVR, PHAR,
+       AVG, DVC, PVWL, AVEL, VB10,
+       VD11, HSNR, 0.15, 0.15, 0.125,
+       0.125, 0.1, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, -0.025, 0.025, 1.);
+dsum1 d_PVT_2(clock, VC05, 0.025, 1.);
+glin16 g_PVT_1(clock, PVPR, VD13, PVPL, DVC,
+       DVA, AVL, AVKL, AVG, PVCR,
+       LUAR, VD12, DVB, PVNR, DD06,
+       VD11, AVHR, 0.17, 0.17, 0.14,
+       0.11, 0.08, 0.06, 0.05, 0.04,
+       0.04, 0.04, 0.04, 0.03, 0.03,
+       0.03, 0.03, 0.02);
+glin14 g_PVT_2(clock, PVNL, PVWR, AVAR, VC06,
+       PHBR, AIBR, AVJR, AVKR, PVQR,
+       AVDL, RMEV, URAVL, hyp, VC03,
+       0.02, 0.02, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+glin2 g_PVT(clock, g_PVT_1, g_PVT_2, 1., 1.);
+neuron2G PVT(clock, d_PVT_1, d_PVT_2, g_PVT, 1.26,
+       0.1, -0.1, 1553906);
+dsum7 d_PVWL_1(clock, PVNR, PVNL, LUAR, AVL,
+       LUAL, VB11, VD13, 0.225, 0.1,
+       0.075, -0.025, 0.025, 0.025, -0.025,
+       1.);
+glin12 g_PVWL(clock, PVCR, VD12, hyp, PVCL,
+       AVJL, LUAR, PQR, PVWR, PLNL,
+       PVPR, DA08, VD13, 0.1, 0.06,
+       0.06, 0.04, 0.03, 0.03, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01);
+neuron1G PVWL(clock, d_PVWL_1, g_PVWL, 0.4, 0.1,
+       -0.1, 1561825);
+dsum6 d_PVWR_1(clock, PVNR, LUAR, PVNL, PVWL,
+       PVCR, VB11, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin15 g_PVWR(clock, PVCR, PVNR, AVJL, hyp,
+       AVL, LUAR, PVR, PVT, PVWL,
+       AVAR, VD13, PHBR, AVJR, PVQR,
+       AVDR, 0.1, 0.06, 0.05, 0.04,
+       0.03, 0.03, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G PVWR(clock, d_PVWR_1, g_PVWR, 0.45, 0.1,
+       -0.1, 1569744);
+dsum16 d_RIAL_1(clock, AIYL, ADFL, RIAR, RIH,
+       AIZL, SMDVR, AUAL, RMDL, SMDVL,
+       BAGR, URXL, RMDR, RIR, AWBL,
+       ASHL, SMDDL, 1.275, 1.15, 0.95,
+       0.85, 0.725, 0.6, 0.525, 0.5,
+       0.475, 0.45, 0.375, 0.35, 0.275,
+       0.25, 0.225, 0.225, 1.);
+dsum16 d_RIAL_2(clock, AQR, AWCL, RIBL, RIVR,
+       RIVL, SMDDR, IL2VL, ASIL, AWCR,
+       DVA, AVAL, RIML, URYVL, ADEL,
+       AIBR, ADLL, 0.2, 0.15, 0.15,
+       0.15, 0.125, 0.125, 0.1, 0.075,
+       0.075, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.025, 1.);
+dsum4 d_RIAL_3(clock, CEPVL, CEPVR, ALNL, RMDDL,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin4 g_RIAL(clock, SMDVL, AINR, ADFL, RIBL,
+       0.04, 0.02, 0.01, 0.01);
+neuron3G RIAL(clock, d_RIAL_1, d_RIAL_2, d_RIAL_3, g_RIAL,
+       0.08, 0.1, -0.1, 1577663);
+dsum16 d_RIAR_1(clock, ADFR, AIYR, RIH, SMDVL,
+       AIZR, RIAL, AUAR, RMDL, RMDR,
+       URXR, BAGL, SMDVR, SMDDL, OLQVR,
+       RIBR, AQR, 1.525, 1.25, 0.9,
+       0.775, 0.625, 0.575, 0.55, 0.55,
+       0.525, 0.5, 0.45, 0.4, 0.35,
+       0.25, 0.2, 0.1, 1.);
+dsum16 d_RIAR_2(clock, RIR, DVA, ASHR, AWBR,
+       RIAR, RIGR, SMDDR, ASEL, IL2VR,
+       URYVR, ALA, PVPR, RIVL, RIVR,
+       CEPVR, ADER, 0.1, 0.1, 0.075,
+       0.075, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum4 d_RIAR_3(clock, RIFR, RMDVR, SAAVR, SMBVR,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin7 g_RIAR(clock, RMDDL, RMDDR, SAAVR, SIAVL,
+       SIAVR, SMDDL, SMDVR, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+neuron3G RIAR(clock, d_RIAR_1, d_RIAR_2, d_RIAR_3, g_RIAR,
+       0.07, 0.1, -0.1, 1585582);
+dsum16 d_RIBL_1(clock, AIYL, AUAL, OLLL, BAGR,
+       RIH, AIBR, URYVL, RIML, URYDL,
+       AINR, RIS, ADFL, CEPDL, CEPVL,
+       RIGL, AINL, 1.05, 0.875, 0.6,
+       0.55, 0.45, 0.275, 0.225, 0.225,
+       0.2, 0.2, -0.2, 0.1, 0.075,
+       0.075, 0.075, 0.05, 1.);
+dsum7 d_RIBL_2(clock, RIAL, DVC, ASIL, IL2DL,
+       RMED, URAVL, SMDDR, 0.05, 0.05,
+       0.025, 0.025, -0.025, 0.025, 0.025,
+       1.);
+glin15 g_RIBL(clock, RIBR, AVBL, OLQDL, SIBDL,
+       RIBL, RIGL, AVBR, SMDDL, OLQVL,
+       RMEV, SIADL, SIBVR, RIAL, SIAVL,
+       SIBVL, 0.15, 0.06, 0.05, 0.05,
+       0.03, 0.03, 0.03, 0.03, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01);
+neuron2G RIBL(clock, d_RIBL_1, d_RIBL_2, g_RIBL, 0.54,
+       0.1, -0.1, 1593501);
+dsum16 d_RIBR_1(clock, AIYR, AUAR, OLLR, BAGL,
+       URYVR, RIS, AIBL, RIH, DVC,
+       RIMR, URYVL, AINL, RIGR, RMEV,
+       BAGR, URYDR, 1.5, 0.775, 0.525,
+       0.475, 0.475, -0.45, 0.4, 0.375,
+       0.15, 0.1, 0.075, 0.075, 0.05,
+       -0.05, 0.025, 0.025, 1.);
+dsum5 d_RIBR_2(clock, RIAR, RMFL, RMDL, RMED,
+       SMDVL, 0.025, 0.025, 0.025, -0.025,
+       0.025, 1.);
+glin14 g_RIBR(clock, RIBL, OLQVR, SIBVR, OLQDR,
+       RIBR, SMDDL, AVBR, SIADR, RIGR,
+       AVBL, SIAVR, SIBDR, SMBDR, SMDDR,
+       0.15, 0.06, 0.06, 0.05, 0.05,
+       0.04, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.02);
+neuron2G RIBR(clock, d_RIBR_1, d_RIBR_2, g_RIBR, 0.59,
+       0.1, -0.1, 1601420);
+dsum16 d_RICL_1(clock, CEPVL, CEPDR, CEPVR, CEPDL,
+       URXL, OLQVL, ADAL, RICR, SIBVR,
+       OLQDR, ALML, ADLR, IL2DR, IL2L,
+       URBL, URBR, 0.5, 0.325, 0.325,
+       0.275, 0.2, 0.1, 0.075, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_RICL_2(clock, RMHL, 0.025, 1.);
+glin3 g_RICL(clock, ASHL, AWBR, AVKR, 0.05,
+       0.04, 0.04);
+neuron2G RICL(clock, d_RICL_1, d_RICL_2, g_RICL, 0.13,
+       0.1, -0.1, 1609339);
+dsum16 d_RICR_1(clock, CEPDR, CEPVL, CEPVR, AIZL,
+       CEPDL, OLQDL, ADLR, OLQVR, ALML,
+       SDQL, SDQR, URXR, IL2DR, OLQDR,
+       RICL, AIBR, 0.475, 0.425, 0.3,
+       0.275, 0.2, 0.15, 0.125, 0.075,
+       0.075, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.025, 1.);
+dsum5 d_RICR_2(clock, ADAL, URBL, URBR, RIML,
+       RMHL, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin4 g_RICR(clock, ASHR, URXR, AIBR, RMHR,
+       0.04, 0.01, 0.01, 0.01);
+neuron2G RICR(clock, d_RICR_1, d_RICR_2, g_RICR, 0.07,
+       0.1, -0.1, 1617258);
+dsum14 d_RID_1(clock, PVCR, PVCL, URYVL, BAGL,
+       AVM, AIML, AINL, AINR, RMGL,
+       AVJR, AS02, ADAL, RMHL, DB01,
+       0.475, 0.3, 0.1, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin6 g_RID(clock, AVBR, RID, ALA, AVBL,
+       DB01, DB03, 0.07, 0.05, 0.04,
+       0.02, 0.02, 0.01);
+neuron1G RID(clock, d_RID_1, g_RID, 0.21, 0.1,
+       -0.1, 1625177);
+dsum10 d_RIFL_1(clock, AIAL, HSNL, ALML, BDUL,
+       AIML, ADEL, AIBL, RIFR, RMGL,
+       AVFL, 0.25, 0.225, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin3 g_RIFL(clock, AVDL, AVER, HSNL, 0.01,
+       0.01, 0.01);
+neuron1G RIFL(clock, d_RIFL_1, g_RIFL, 0.03, 0.1,
+       -0.1, 1633096);
+dsum15 d_RIFR_1(clock, ASGR, AIAR, HSNR, AWAR,
+       PVQR, URXR, AIMR, ADLR, CEPDR,
+       ASKR, AWBR, ADAR, AVFL, AVHL,
+       AVJL, 0.35, 0.25, 0.15, 0.125,
+       0.1, 0.075, 0.075, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin4 g_RIFR(clock, AVG, DD01, RMGR, AVJL,
+       0.03, 0.02, 0.01, 0.01);
+neuron1G RIFR(clock, d_RIFR_1, g_RIFR, 0.07, 0.1,
+       -0.1, 1641015);
+dsum16 d_RIGL_1(clock, ADEL, DVC, ADER, BAGR,
+       URXL, ADFL, AIZL, BAGL, PVPL,
+       AWBL, RIR, ADLL, AQR, AIBR,
+       RIBL, AVHR, 0.45, 0.4, 0.3,
+       0.25, 0.15, 0.1, 0.1, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum4 d_RIGL_2(clock, AVKR, PVT, AVAR, SAADL,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin15 g_RIGL(clock, RIGR, URYDL, OLQDL, OLLL,
+       URYVL, AIBR, RIBL, VD01, OLQVL,
+       AVKL, PVPL, RMEL, BAGL, AIZL,
+       RMFL, 0.81, 0.04, 0.03, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01);
+neuron2G RIGL(clock, d_RIGL_1, d_RIGL_2, g_RIGL, 1.14,
+       0.1, -0.1, 1648934);
+dsum15 d_RIGR_1(clock, ADFR, ADEL, DVC, ADER,
+       BAGL, URXR, AWAR, PVT, AIBL,
+       RIBR, RIR, RMGR, PVPR, ADFL,
+       SABVL, 0.6, 0.375, 0.325, 0.275,
+       0.175, 0.175, 0.15, 0.15, 0.125,
+       0.125, 0.1, 0.05, 0.05, 0.025,
+       0.025, 1.);
+glin14 g_RIGR(clock, RIGL, OLQVR, OLLR, OLQDR,
+       URYDR, AQR, AIBL, BAGL, RIBR,
+       AVKR, VD01, ADEL, RMFL, AVKL,
+       0.81, 0.06, 0.05, 0.04, 0.03,
+       0.03, 0.03, 0.02, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G RIGR(clock, d_RIGR_1, g_RIGR, 1.16, 0.1,
+       -0.1, 1656853);
+dsum16 d_RIH_1(clock, IL2L, IL2R, OLQVR, IL2VL,
+       IL2VR, CEPDR, OLQDL, ADEL, URADL,
+       ADFR, IL2DL, OLQDR, URYVL, RIBR,
+       RIGL, RIPL, 0.625, 0.475, 0.45,
+       0.125, 0.125, 0.1, 0.075, 0.075,
+       0.075, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum8 d_RIH_2(clock, PVT, RMEV, SMBDL, CEPDL,
+       AIYL, RMFR, RIPR, URAVR, 0.05,
+       -0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin5 g_RIH(clock, OLQDR, ADFR, CEPVL, FLPL,
+       AIZL, 0.02, 0.01, 0.01, 0.01,
+       0.01);
+neuron2G RIH(clock, d_RIH_1, d_RIH_2, g_RIH, 0.06,
+       0.1, -0.1, 1664772);
+dsum16 d_RIML_1(clock, AIBR, AIZL, SAADR, SAAVR,
+       RIML, SAADL, RICR, RIS, VB01,
+       ADAL, RIFL, ALNR, AVKR, SAAVL,
+       ASHL, RIMR, 1.175, 0.875, 0.35,
+       0.3, 0.275, 0.275, 0.25, -0.25,
+       0.25, 0.225, 0.175, 0.125, 0.125,
+       0.125, 0.1, 0.1, 1.);
+dsum10 d_RIML_2(clock, HSNL, AVKL, RMDL, RIAL,
+       SMDDL, AIBL, RIBL, RICL, SMDVR,
+       HSNR, 0.1, 0.075, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin9 g_RIML(clock, AVEL, AVER, AVAR, AIYL,
+       RMFL, AIBR, RIS, RMDL, SIADL,
+       0.1, 0.09, 0.08, 0.05, 0.03,
+       0.02, 0.02, 0.01, 0.01);
+neuron2G RIML(clock, d_RIML_1, d_RIML_2, g_RIML, 0.41,
+       0.1, -0.1, 1672691);
+dsum16 d_RIMR_1(clock, AIBL, AIZR, SAAVL, SAADR,
+       SAADL, ADAR, RIS, RIFR, RICL,
+       SAAVR, AIBR, DVA, AVKR, SMDDR,
+       RIAL, RMFL, 1.4, 0.85, 0.825,
+       0.575, 0.4, 0.375, -0.375, 0.25,
+       0.2, 0.175, 0.125, 0.125, 0.075,
+       0.075, 0.05, 0.05, 1.);
+dsum9 d_RIMR_2(clock, AVKL, AVL, RIML, RICR,
+       AVHL, AVER, RMDR, SMDDL, HSNR,
+       0.05, -0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin9 g_RIMR(clock, AVAL, AVER, AVEL, AIYR,
+       RIS, AVAR, AIBL, AVKR, SIADR,
+       0.11, 0.11, 0.07, 0.03, 0.02,
+       0.02, 0.01, 0.01, 0.01);
+neuron2G RIMR(clock, d_RIMR_1, d_RIMR_2, g_RIMR, 0.39,
+       0.1, -0.1, 1680610);
+dsum16 d_RIPL_1(clock, IL2VL, IL2DL, RIH, PVR,
+       URAVL, IL1VL, URADL, SAAVR, IL1DL,
+       CEPDL, ASHL, CEPVL, ADAL, ADLL,
+       RIPL, IL2DR, 0.9, 0.7, 0.45,
+       0.4, 0.375, 0.325, 0.3, 0.3,
+       0.275, 0.2, 0.1, 0.1, 0.1,
+       0.075, 0.05, 0.025, 1.);
+glin7 g_RIPL(clock, RIPL, I1L, ADFL, RIPR,
+       RMED, IL1L, URAVL, 0.04, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01);
+neuron1G RIPL(clock, d_RIPL_1, g_RIPL, 0.14, 0.1,
+       -0.1, 1688529);  // somatics <-> pharynx
+dsum16 d_RIPR_1(clock, IL2DR, IL2VR, IL1DR, PVR,
+       OLQVR, IL1VR, URADR, URAVR, URXR,
+       ADAR, RIH, CEPVR, ADLR, RIFR,
+       SDQL, BAGL, 1.075, 1.075, 0.7,
+       0.475, 0.45, 0.4, 0.4, 0.325,
+       0.25, 0.225, 0.175, 0.075, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum1 d_RIPR_2(clock, RMEL, -0.025, 1.);
+glin3 g_RIPR(clock, RMED, I1R, RIPL, 0.04,
+       0.02, 0.02);
+neuron2G RIPR(clock, d_RIPR_1, d_RIPR_2, g_RIPR, 0.08,
+       0.1, -0.1, 1696448);  // somatics <-> pharynx
+dsum16 d_RIR_1(clock, RIGL, AVHR, ADFR, AWBR,
+       RIGR, ADFL, ASHL, URXR, DVA,
+       RIAL, HSNL, AWAR, AIAL, AVHL,
+       ADLL, ASEL, 0.2, 0.2, 0.175,
+       0.175, 0.125, 0.1, 0.1, 0.1,
+       0.1, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum5 d_RIR_2(clock, URXL, AQR, AIYL, RMGR,
+       PVPL, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin2 g_RIR(clock, BAGR, BAGL, 0.05, 0.04);
+neuron2G RIR(clock, d_RIR_1, d_RIR_2, g_RIR, 0.09,
+       0.1, -0.1, 1704367);
+dsum16 d_RIS_1(clock, SDQL, RIBL, CEPDL, RIS,
+       SMDDR, OLLR, PVCL, RIMR, SMDDL,
+       FLPL, URYVL, RIBR, RMFL, AVJL,
+       AVL, PVT, 0.2, 0.125, 0.075,
+       -0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, -0.025, 0.025, 1.);
+dsum3 d_RIS_2(clock, RMDL, RMDR, RMEV, 0.025,
+       0.025, -0.025, 1.);
+glin11 g_RIS(clock, AVJL, SMDDR, AIBR, AVEL,
+       RIML, RIMR, SMDDL, SMDVL, AIBL,
+       RMDR, RMEV, 0.15, 0.05, 0.03,
+       0.03, 0.02, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01);
+neuron2G RIS(clock, d_RIS_1, d_RIS_2, g_RIS, 0.37,
+       0.1, -0.1, 1712286);  // GABA, «sleeping»
+dsum13 d_RIVL_1(clock, RIAL, RIVR, SMDVL, AVKL,
+       AWCR, RIAR, CEPVR, ADEL, ADFL,
+       RICR, RMDL, SMBDR, SMDDR, 0.2,
+       0.2, 0.15, 0.125, 0.075, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin7 g_RIVL(clock, RIVR, SDQR, ASGL, SAADR,
+       SMDVL, ASJL, SIBVR, 0.28, 0.05,
+       0.02, 0.02, 0.02, 0.01, 0.01);
+neuron1G RIVL(clock, d_RIVL_1, g_RIVL, 0.41, 0.1,
+       -0.1, 1720205);
+dsum12 d_RIVR_1(clock, RIAL, ADAR, RICL, RIAR,
+       BAGL, ADEL, DVC, AIYR, RMGL,
+       SAADL, SMDDL, SMDVR, 0.3, 0.125,
+       0.1, 0.075, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin5 g_RIVR(clock, RIVL, SMDVR, SDQR, AIBR,
+       SAADL, 0.28, 0.08, 0.03, 0.03,
+       0.01);
+neuron1G RIVR(clock, d_RIVR_1, g_RIVR, 0.43, 0.1,
+       -0.1, 1728124);
+dsum6 d_SDQL_1(clock, SMBDR, SDQR, SIADR, ALML,
+       BDUR, AVBL, 0.45, 0.1, 0.1,
+       0.05, 0.05, 0.025, 1.);
+glin4 g_SDQL(clock, SDQR, FLPL, DVA, SIADR,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G SDQL(clock, d_SDQL_1, g_SDQL, 0.05, 0.1,
+       -0.1, 1918180);
+dsum3 d_SDQR_1(clock, SMBDL, PVR, SIADL, 0.45,
+       0.125, 0.1, 1.);
+glin10 g_SDQR(clock, RIVL, RIVR, ALMR, SDQL,
+       SIBDL, AIBL, DVA, AVBL, SAADL,
+       SIAVR, 0.05, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G SDQR(clock, d_SDQR_1, g_SDQR, 0.19, 0.1,
+       -0.1, 1926099);
+dsum5 d_URADL_1(clock, IL1DL, IL2DL, CEPDL, BDUL,
+       PVR, 0.25, 0.2, 0.2, 0.075,
+       0.075, 1.);
+glin1 g_URADL(clock, IL2DL, 0.01);
+neuron1G URADL(clock, d_URADL_1, g_URADL, 0.01, 0.1,
+       -0.1, 2060722);
+dsum5 d_URADR_1(clock, IL1DR, IL2DR, CEPDR, BDUR,
+       IL2R, 0.2, 0.125, 0.075, 0.075,
+       0.05, 1.);
+glin2 g_URADR(clock, IL2DR, URYDR, 0.01, 0.01);
+neuron1G URADR(clock, d_URADR_1, g_URADR, 0.02, 0.1,
+       -0.1, 2068641);
+dsum8 d_URAVL_1(clock, RMDVR, IL2VL, CEPVL, IL1L,
+       IL1VL, IL2L, ADAL, DVC, 0.2,
+       0.175, 0.15, 0.1, 0.1, 0.05,
+       0.025, 0.025, 1.);
+glin5 g_URAVL(clock, IL2VL, CEPVL, IL2L, RIPL,
+       PVT, 0.03, 0.03, 0.01, 0.01,
+       0.01);
+neuron1G URAVL(clock, d_URAVL_1, g_URAVL, 0.09, 0.1,
+       -0.1, 2076560);
+dsum7 d_URAVR_1(clock, IL2VR, IL1VR, CEPVR, IL2R,
+       BAGL, RIH, RIPR, 0.4, 0.1,
+       0.075, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin1 g_URAVR(clock, IL1VR, 0.04);
+neuron1G URAVR(clock, d_URAVR_1, g_URAVR, 0.04, 0.1,
+       -0.1, 2084479);
+dsum5 d_URBL_1(clock, CEPDL, ADEL, PVNR, IL1L,
+       URBL, 0.275, 0.05, 0.05, 0.025,
+       0.025, 1.);
+glin5 g_URBL(clock, AFDL, IL2L, OLQDL, IL1L,
+       ADFL, 0.09, 0.04, 0.03, 0.02,
+       0.01);
+neuron1G URBL(clock, d_URBL_1, g_URBL, 0.19, 0.1,
+       -0.1, 2092398);
+dsum8 d_URBR_1(clock, CEPDR, URXR, ADLR, IL2R,
+       RICL, RICR, ALMR, ADER, 0.35,
+       0.2, 0.15, 0.075, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin5 g_URBR(clock, OLQDR, OLQVR, IL2R, AFDR,
+       SMBVR, 0.07, 0.05, 0.04, 0.02,
+       0.01);
+neuron1G URBR(clock, d_URBR_1, g_URBR, 0.19, 0.1,
+       -0.1, 2100317);
+dsum16 d_URXL_1(clock, URBL, RIR, RIGL, AQR,
+       IL2L, URXL, RMGL, ASHL, CEPVL,
+       URYVL, ADAL, AINR, RIAL, PVNR,
+       ADFL, AUAL, 0.65, 0.225, 0.15,
+       0.125, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum2 d_URXL_2(clock, AIML, DVA, 0.025, 0.025,
+       1.);
+glin2 g_URXL(clock, RMGL, IL2L, 0.03, 0.01);
+neuron2G URXL(clock, d_URXL_1, d_URXL_2, g_URXL, 0.04,
+       0.1, -0.1, 2108236);
+dsum16 d_URXR_1(clock, URBR, ADFR, ADLR, RIR,
+       AUAR, AIMR, RIFR, RIGR, RMGR,
+       CEPDR, ADER, ADAR, AINR, IL1R,
+       IL2R, IL2VR, 0.4, 0.25, 0.2,
+       0.15, 0.125, 0.125, 0.075, 0.075,
+       0.075, 0.05, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 1.);
+dsum5 d_URXR_2(clock, BAGL, URYDR, PVPR, AVER,
+       RMDL, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin4 g_URXR(clock, RMGR, IL2R, AUAR, RICR,
+       0.05, 0.04, 0.03, 0.01);
+neuron2G URXR(clock, d_URXR_1, d_URXR_2, g_URXR, 0.13,
+       0.1, -0.1, 2116155);
+dsum7 d_URYDL_1(clock, CEPDL, OLQDL, AIZL, RIBL,
+       DVA, OLLL, URBL, 0.175, 0.075,
+       0.075, 0.075, 0.075, 0.05, 0.025,
+       1.);
+glin2 g_URYDL(clock, RIGL, AVAL, 0.04, 0.02);
+neuron1G URYDL(clock, d_URYDL_1, g_URYDL, 0.06, 0.1,
+       -0.1, 2124074);
+dsum5 d_URYDR_1(clock, CEPDR, IL1DR, ADAR, RIS,
+       URADR, 0.075, 0.05, 0.05, -0.025,
+       0.025, 1.);
+glin3 g_URYDR(clock, AVAR, RIGR, URADR, 0.05,
+       0.03, 0.01);
+neuron1G URYDR(clock, d_URYDR_1, g_URYDR, 0.09, 0.1,
+       -0.1, 2131993);
+dsum6 d_URYVL_1(clock, CEPVL, IL1VL, OLLR, RMDVR,
+       OLLL, RIS, 0.125, 0.1, 0.075,
+       0.05, 0.025, -0.025, 1.);
+glin1 g_URYVL(clock, RIGL, 0.03);
+neuron1G URYVL(clock, d_URYVL_1, g_URYVL, 0.03, 0.1,
+       -0.1, 2139912);
+dsum9 d_URYVR_1(clock, RIS, RIH, ADFR, CEPVR,
+       RIBR, RIGR, AWBR, RMDVL, URAVR,
+       -0.125, 0.1, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin1 g_URYVR(clock, AVAL, 0.02);
+neuron1G URYVR(clock, d_URYVR_1, g_URYVR, 0.02, 0.1,
+       -0.1, 2147831);
+neuron0 CANL(clock, 0.1, -0.1, 2488348);  // no synapses
+neuron0 CANR(clock, 0.1, -0.1, 2496267);  // no synapses
+
+// -------- COMMAND INTERNEURONS (movement: backward AVA/AVD/AVE, forward AVB/PVC): 12 pcs. --------
+dsum16 d_AVAL_1(clock, SAAVL, PHBL, AVDR, AVDL,
+       PHBR, FLPL, LUAL, FLPR, PQR,
+       AVEL, SAADL, ASHL, RICL, RICR,
+       DVC, AVER, 1.4, 1.2, 1.025,
+       0.925, 0.875, 0.825, 0.675, 0.575,
+       0.575, 0.425, 0.425, 0.375, 0.375,
+       0.375, 0.35, 0.35, 1.);
+dsum16 d_AVAL_2(clock, PVDL, LUAR, AUAL, PVCR,
+       AVBR, ADLL, PVDR, ADER, AVBL,
+       RIMR, SDQR, BDUR, ADEL, AVAR,
+       ALNR, SDQL, 0.325, 0.325, 0.275,
+       0.25, 0.25, 0.225, 0.225, 0.225,
+       0.225, 0.225, 0.2, 0.175, 0.175,
+       0.175, 0.15, 0.15, 1.);
+dsum16 d_AVAL_3(clock, DVA, PVNL, PHCL, AIBL,
+       RIBL, PVNR, PVCL, RIML, BAGR,
+       AQR, AVJR, PVPL, ADAL, RMGL,
+       AVG, VA12, 0.15, 0.15, 0.125,
+       0.125, 0.125, 0.125, 0.125, 0.125,
+       0.1, 0.1, 0.1, 0.1, 0.075,
+       0.075, 0.075, 0.075, 1.);
+dsum15 d_AVAL_4(clock, URYVR, RIAL, AWCL, IL2VR,
+       OLQVL, URXL, RMGR, AVFR, AVHR,
+       PVPR, SAADR, SIADR, SMBDR, VA02,
+       VD06, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       -0.025, 1.);
+glin16 g_AVAL_1(clock, AVAR, PVCR, VA02, VA06,
+       RIMR, DA07, AVDR, SABVR, DA08,
+       AVJL, AVDL, SABD, DA02, PVDR,
+       DA03, VA03, 0.18, 0.15, 0.13,
+       0.13, 0.11, 0.1, 0.09, 0.08,
+       0.08, 0.07, 0.07, 0.07, 0.07,
+       0.06, 0.06, 0.06);
+glin16 g_AVAL_2(clock, VA04, VA10, PVCL, AS10,
+       VA01, VA05, AVJR, DA06, VA09,
+       PHCR, hyp, URYDL, URYVR, PVPR,
+       AVEL, LUAL, 0.06, 0.06, 0.05,
+       0.05, 0.05, 0.05, 0.04, 0.04,
+       0.04, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.02);
+glin13 g_AVAL_3(clock, LUAR, DA01, DA04, DA05,
+       VA07, VA08, VA11, VB11, PHCL,
+       ALA, PVNL, PVPL, DA09, 0.02,
+       0.02, 0.02, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+glin3 g_AVAL(clock, g_AVAL_1, g_AVAL_2, g_AVAL_3, 1.,
+       1., 1.);
+neuron4G AVAL(clock, d_AVAL_1, d_AVAL_2, d_AVAL_3, d_AVAL_4,
+       g_AVAL, 2.32, 0.1, -0.1, 532355) 'AVAL';  // command «back»
+dsum16 d_AVAR_1(clock, AVDR, FLPL, SAAVR, PHBR,
+       AVDL, PHBL, AVER, LUAR, PVDR,
+       PVDL, PQR, SAADR, LUAL, RICL,
+       DVC, AVBL, 1.3, 1.2, 0.975,
+       0.95, 0.925, 0.825, 0.825, 0.775,
+       0.75, 0.725, 0.65, 0.65, 0.575,
+       0.45, 0.4, 0.35, 1.);
+dsum16 d_AVAR_2(clock, AVBR, RICR, AVAL, ASHR,
+       FLPR, ADEL, ADLR, SDQL, ADAR,
+       ADAL, PVCL, AQR, RIBR, ADLL,
+       AVJR, PVPR, 0.35, 0.325, 0.3,
+       0.25, 0.25, 0.225, 0.2, 0.2,
+       0.2, 0.175, 0.175, 0.15, 0.15,
+       0.125, 0.125, 0.125, 1.);
+dsum16 d_AVAR_3(clock, PVCR, ADER, BAGL, AUAR,
+       ALA, AVG, PVPL, AVEL, URXR,
+       AIBR, RIAR, DVA, RIML, VD11,
+       VD13, ASHL, 0.125, 0.1, 0.075,
+       0.075, 0.075, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       -0.05, -0.05, 0.025, 1.);
+dsum10 d_AVAR_4(clock, AIMR, AVHL, AVJL, PVWR,
+       RMDVR, RMHL, SMDVR, VA04, VA06,
+       VD05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       -0.025, 1.);
+glin16 g_AVAR_1(clock, PVCR, AVAL, VA11, AVDR,
+       SABVL, PVCL, DA01, RIML, DA03,
+       VA01, URYDR, DA05, DA08, VA07,
+       VA09, PVDL, 0.22, 0.18, 0.16,
+       0.15, 0.15, 0.1, 0.09, 0.08,
+       0.07, 0.07, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.04);
+glin16 g_AVAR_2(clock, LUAR, DA06, DA09, VA05,
+       VA10, hyp, AVJR, AVBL, DA02,
+       AS05, AS11, VA03, VA04, VA12,
+       ASHR, PVT, 0.04, 0.04, 0.04,
+       0.04, 0.04, 0.04, 0.03, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.03,
+       0.03, 0.02, 0.02);
+glin16 g_AVAR_3(clock, PVWR, AVDL, AVER, RIMR,
+       RMDR, SABVR, DA04, AS06, AS10,
+       VA08, PHBL, PHCR, RMDVR, SAAVR,
+       AS03, VD11, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin3 g_AVAR(clock, g_AVAR_1, g_AVAR_2, g_AVAR_3, 1.,
+       1., 1.);
+neuron4G AVAR(clock, d_AVAR_1, d_AVAR_2, d_AVAR_3, d_AVAR_4,
+       g_AVAR, 2.34, 0.1, -0.1, 540274) 'AVAR';  // command «back»
+dsum16 d_AVBL_1(clock, FLPR, RIFL, SDQR, FLPL,
+       AIBL, PVCR, PVR, ASHL, AVM,
+       PVPL, ADLL, AVJR, RIML, RIMR,
+       ADAR, PVPR, 0.75, 0.65, 0.575,
+       0.55, 0.525, 0.525, 0.425, 0.35,
+       0.325, 0.325, 0.3, 0.25, 0.225,
+       0.225, 0.2, 0.2, 1.);
+dsum16 d_AVBL_2(clock, AQR, PVCL, AVFR, URYVR,
+       ADAL, AVG, AVJL, URXL, AVFL,
+       ADLR, AVHR, AVAR, AWBL, URXR,
+       RIBR, RMGR, 0.175, 0.175, 0.15,
+       0.125, 0.125, 0.125, 0.125, 0.1,
+       0.1, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum13 d_AVBL_3(clock, AVHL, AVKL, AVAL, AVBR,
+       SDQL, URYDR, RIFR, URBL, DVA,
+       DVC, AVDR, SAAVR, VC03, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin16 g_AVBL_1(clock, AVBR, VB02, DB07, DVA,
+       DB03, RIBL, PVNR, VB11, DB02,
+       DB04, VB07, VB09, AQR, AVAR,
+       DB05, DB06, 0.17, 0.14, 0.13,
+       0.11, 0.09, 0.06, 0.05, 0.05,
+       0.04, 0.04, 0.04, 0.04, 0.03,
+       0.03, 0.03, 0.03);
+glin13 g_AVBL_2(clock, VB04, VB05, VB06, VB08,
+       VB10, RIBR, RID, SIBVL, SDQR,
+       AS06, AS10, VA11, VB01, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+glin2 g_AVBL(clock, g_AVBL_1, g_AVBL_2, 1., 1.);
+neuron3G AVBL(clock, d_AVBL_1, d_AVBL_2, d_AVBL_3, g_AVBL,
+       1.34, 0.1, -0.1, 548193) 'AVBL';  // command «forward»
+dsum16 d_AVBR_1(clock, RIFR, PVCL, FLPL, ADAL,
+       SDQR, PVR, ADAR, PVCR, AIBR,
+       AQR, PVPL, RIMR, FLPR, PVPR,
+       RIML, AVM, 0.875, 0.675, 0.55,
+       0.525, 0.475, 0.425, 0.375, 0.35,
+       0.325, 0.3, 0.3, 0.3, 0.275,
+       0.275, 0.275, 0.225, 1.);
+dsum16 d_AVBR_2(clock, ADLR, ASHR, AVFR, AVJL,
+       AVBL, AVAR, URXR, RMGL, RMGR,
+       AVG, AWBR, IL2DL, SDQL, RIPR,
+       AVJR, PVNL, 0.175, 0.15, 0.15,
+       0.15, 0.15, 0.1, 0.075, 0.075,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum15 d_AVBR_3(clock, BDUR, URYVL, RIBL, RIFL,
+       URBR, AVFL, AVHL, AVHR, DVA,
+       PVNR, PVQR, SAADL, SMBVL, HSNR,
+       VC04, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin16 g_AVBR_1(clock, AVBL, DB01, PVNL, RID,
+       VB03, VB02, VB11, DB04, VB04,
+       hyp, DB05, DB06, VB06, VB08,
+       VB10, RIBL, 0.17, 0.15, 0.07,
+       0.07, 0.07, 0.06, 0.06, 0.05,
+       0.05, 0.05, 0.04, 0.04, 0.04,
+       0.04, 0.04, 0.03);
+glin15 g_AVBR_2(clock, RIBR, AVJR, DVA, DB02,
+       DB07, VA11, VB05, VB07, VB09,
+       PVNR, SIBDL, DB03, AS05, PVPR,
+       AS06, 0.03, 0.03, 0.03, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.03,
+       0.02, 0.02, 0.02, 0.02, 0.01,
+       0.01);
+glin2 g_AVBR(clock, g_AVBR_1, g_AVBR_2, 1., 1.);
+neuron3G AVBR(clock, d_AVBR_1, d_AVBR_2, d_AVBR_3, g_AVBR,
+       1.4, 0.1, -0.1, 556112) 'AVBR';  // command «forward»
+dsum16 d_AVDL_1(clock, FLPL, ASHR, LUAL, ADLR,
+       FLPR, PVCR, PQR, ASHL, PHBR,
+       PVNL, PVCL, PHBL, AVEL, LUAR,
+       ADLL, AVBR, 0.75, 0.675, 0.675,
+       0.65, 0.625, 0.4, 0.375, 0.175,
+       0.175, 0.175, 0.175, 0.15, 0.125,
+       0.125, 0.1, 0.1, 1.);
+dsum16 d_AVDL_2(clock, AVER, SDQL, AQR, AVAL,
+       AVAR, AVDR, ADEL, ADAR, RMGR,
+       AVM, PVDL, PVDR, ADAL, AIML,
+       RIGR, URBR, 0.1, 0.075, 0.075,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum6 d_AVDL_3(clock, AVG, AVHL, AVJL, AVJR,
+       PVNR, VA04, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin15 g_AVDL(clock, FLPR, AVM, AVAL, AVDR,
+       FLPL, ADAR, hyp, PQR, AVHL,
+       AVAR, RIFL, AVJR, PVNR, PVT,
+       VA10, 0.09, 0.08, 0.07, 0.06,
+       0.05, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron3G AVDL(clock, d_AVDL_1, d_AVDL_2, d_AVDL_3, g_AVDL,
+       0.52, 0.1, -0.1, 564031) 'AVDL';  // command «back»
+dsum16 d_AVDR_1(clock, FLPL, ASHL, PQR, ADLL,
+       LUAR, PVCL, FLPR, AVJR, PVNL,
+       PVCR, AVAR, LUAL, ADER, PHBR,
+       AVDL, RIBL, 0.85, 0.5, 0.5,
+       0.375, 0.35, 0.275, 0.2, 0.175,
+       0.15, 0.15, 0.15, 0.15, 0.125,
+       0.125, 0.125, 0.1, 1.);
+dsum16 d_AVDR_2(clock, AVER, ADLR, ALML, ADAR,
+       AVG, PVPL, AVBL, ASHR, URYVL,
+       AQR, AUAL, PHAL, PHAR, ADAL,
+       AIMR, DVA, 0.1, 0.075, 0.075,
+       0.075, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum11 d_AVDR_3(clock, PVNR, PVWR, AVAL, OLQVL,
+       AVM, PVDL, URXL, PHBL, ALA,
+       AVHR, HSNR, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin14 g_AVDR(clock, AVAR, AVAL, AVJL, AVDL,
+       PQR, ADLL, ALMR, FLPR, ADAL,
+       PVCR, PVNL, PVNR, PVWR, SIADL,
+       0.15, 0.09, 0.06, 0.06, 0.03,
+       0.02, 0.02, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01);
+neuron3G AVDR(clock, d_AVDR_1, d_AVDR_2, d_AVDR_3, g_AVDR,
+       0.53, 0.1, -0.1, 571950) 'AVDR';  // command «back»
+dsum16 d_AVEL_1(clock, OLLR, AIZR, URYVR, FLPR,
+       DVA, RIS, CEPVR, CEPDR, URXL,
+       AUAL, RIBL, BAGR, URYVL, ALA,
+       RIGL, RIBR, 0.975, 0.7, 0.65,
+       0.525, 0.475, -0.425, 0.325, 0.225,
+       0.225, 0.225, 0.225, 0.2, 0.2,
+       0.2, 0.175, 0.15, 1.);
+dsum16 d_AVEL_2(clock, PVCR, URYDR, PVNR, AVDL,
+       AIBR, RIR, AVKL, ALML, ADEL,
+       AIZL, ADAL, AVL, AVER, IL1R,
+       IL2L, BAGL, 0.15, 0.125, 0.125,
+       0.125, 0.1, 0.1, 0.1, 0.075,
+       0.075, 0.075, 0.075, -0.075, 0.075,
+       0.05, 0.05, 0.05, 1.);
+dsum11 d_AVEL_3(clock, RMGL, PVCL, SDQL, URYDL,
+       AIBL, ADAR, AVJL, AVAL, SMDDL,
+       VB02, VD02, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, -0.025, 1.);
+glin14 g_AVEL(clock, RIML, RIMR, AVER, RIS,
+       RMGL, AVAL, RMDVR, AS01, AFDL,
+       BAGR, AVL, PVPR, RMEV, SMDVR,
+       0.1, 0.07, 0.05, 0.03, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+neuron3G AVEL(clock, d_AVEL_1, d_AVEL_2, d_AVEL_3, g_AVEL,
+       0.39, 0.1, -0.1, 579869) 'AVEL';  // command «back»
+dsum16 d_AVER_1(clock, OLLL, AIZL, URYVL, RIS,
+       DVA, RIBL, CEPDL, AUAR, URYDL,
+       ASHR, FLPR, BAGL, PVCL, RMGR,
+       PVCR, IL1L, 1.325, 0.65, 0.575,
+       -0.45, 0.425, 0.35, 0.325, 0.325,
+       0.225, 0.175, 0.175, 0.175, 0.175,
+       0.15, 0.15, 0.125, 1.);
+dsum16 d_AVER_2(clock, IL1R, CEPVL, RIML, ADER,
+       ALA, RIBR, RIGR, AVJR, AVAR,
+       IL2R, URXR, URYDR, AVKL, AVAL,
+       AVBR, AVDR, 0.125, 0.125, 0.125,
+       0.1, 0.1, 0.1, 0.1, 0.075,
+       0.075, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum12 d_AVER_3(clock, RMDVL, AIZR, RIGL, AVG,
+       AVBL, RMDDL, URAVL, SMDDL, SMDDR,
+       SMDVR, VA04, HSNR, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin16 g_AVER(clock, RIMR, RIML, RMDVR, AVEL,
+       RMDR, ALA, AVAR, RMDDL, ASHR,
+       RIFL, AVKR, RMDVL, RMEV, SMDDR,
+       DA01, AS01, 0.11, 0.09, 0.07,
+       0.05, 0.05, 0.03, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron3G AVER(clock, d_AVER_1, d_AVER_2, d_AVER_3, g_AVER,
+       0.52, 0.1, -0.1, 587788) 'AVER';  // command «back»
+dsum13 d_AVG_1(clock, PHAL, PHAR, PVDL, AVFL,
+       AVG, PVNL, PVCL, PQR, PHBL,
+       AVFR, PVPR, VB04, VC06, 0.275,
+       0.225, 0.2, 0.125, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin16 g_AVG_1(clock, DVC, hyp, AVHR, AVL,
+       PVT, PHAL, RIFR, PVPL, PHAR,
+       PVPR, PVDL, PHCR, AVFL, AVFR,
+       AVJR, PVQL, 0.12, 0.06, 0.04,
+       0.04, 0.04, 0.03, 0.03, 0.03,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin2 g_AVG_2(clock, AS11, DD06, 0.01, 0.01);
+glin2 g_AVG(clock, g_AVG_1, g_AVG_2, 1., 1.);
+neuron1G AVG(clock, d_AVG_1, g_AVG, 0.51, 0.1,
+       -0.1, 611545);
+dsum16 d_DVA_1(clock, PHCR, PHCL, SDQR, RIR,
+       PDER, FLPR, AQR, PHAR, PVDR,
+       RIGR, PVCL, PVM, AIZR, PVCR,
+       AUAL, PHAL, 0.55, 0.3, 0.25,
+       0.225, 0.175, 0.15, 0.15, 0.15,
+       0.125, 0.1, 0.1, 0.075, 0.075,
+       0.075, 0.05, 0.05, 1.);
+dsum11 d_DVA_2(clock, PVR, AVBL, FLPL, SDQL,
+       PDEL, AIBR, AIZL, RIGL, AVHR,
+       AVKL, DA09, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin16 g_DVA_1(clock, AVKL, PVR, AVBL, PVT,
+       PDER, hyp, PDEL, PVCL, AVBR,
+       DA09, DB01, DB07, DB06, PVM,
+       SDQL, SDQR, 0.18, 0.15, 0.11,
+       0.08, 0.06, 0.04, 0.03, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.02,
+       0.01, 0.01, 0.01);
+glin10 g_DVA_2(clock, DVC, PVPL, PVCR, SAAVR,
+       SIADR, SIAVR, PDA, AS11, VA11,
+       VB04, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+glin2 g_DVA(clock, g_DVA_1, g_DVA_2, 1., 1.);
+neuron2G DVA(clock, d_DVA_1, d_DVA_2, g_DVA, 0.95,
+       0.1, -0.1, 967900);  // neuromodulatory
+dsum16 d_PVCL_1(clock, PHBL, PHBR, PVDR, AVAL,
+       AVAR, PVDL, ALML, AVM, PHCL,
+       PVPR, AVJL, AVJR, PVNL, DVA,
+       PVR, PVCR, 1.775, 0.975, 0.725,
+       0.525, 0.5, 0.325, 0.275, 0.25,
+       0.175, 0.15, 0.125, 0.125, 0.125,
+       0.1, 0.1, 0.1, 1.);
+dsum16 d_PVCL_2(clock, ADLR, ASHR, BDUR, PVPL,
+       VA12, FLPR, PVM, SDQL, AQR,
+       PQR, RIFR, AVG, PVWL, PVCL,
+       AVDL, AVEL, 0.075, 0.075, 0.075,
+       0.075, 0.075, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_PVCL_3(clock, VC02, 0.025, 1.);
+glin16 g_PVCL_1(clock, PVCR, VA12, DA08, AVAR,
+       DB07, AVAL, PLML, PVWL, VB11,
+       hyp, PHBL, AVJL, AVJR, DVA,
+       PQR, PVNL, 0.67, 0.18, 0.17,
+       0.1, 0.08, 0.05, 0.04, 0.04,
+       0.04, 0.04, 0.03, 0.03, 0.03,
+       0.03, 0.02, 0.02);
+glin7 g_PVCL_2(clock, VB10, PDER, AVFL, PVQR,
+       DA04, DA07, VD13, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+glin2 g_PVCL(clock, g_PVCL_1, g_PVCL_2, 1., 1.);
+neuron3G PVCL(clock, d_PVCL_1, d_PVCL_2, d_PVCL_3, g_PVCL,
+       1.65, 0.1, -0.1, 1458878) 'PVCL';  // command "forward"
+dsum16 d_PVCR_1(clock, PVDL, PVDR, PHCR, PHBR,
+       AVAR, AVM, AVAL, PVPR, ALMR,
+       PVCL, PVPL, LUAR, AVJR, FLPL,
+       ALML, AQR, 0.9, 0.725, 0.625,
+       0.525, 0.5, 0.425, 0.4, 0.325,
+       0.25, 0.25, 0.225, 0.225, 0.175,
+       0.15, 0.1, 0.1, 1.);
+dsum15 d_PVCR_2(clock, VA12, PVM, AVG, PVNR,
+       AVBL, AVDR, AVEL, PQR, RIFR,
+       AVFR, AVJL, DVA, PVWL, VB11,
+       VD13, 0.1, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       -0.025, 1.);
+glin16 g_PVCR_1(clock, PVCL, AVAR, AVJL, PVR,
+       AVAL, PVWL, PVWR, PLMR, VA12,
+       PHCR, PVT, DA07, DA09, VA11,
+       hyp, PVDR, 0.67, 0.22, 0.19,
+       0.19, 0.15, 0.1, 0.1, 0.08,
+       0.08, 0.05, 0.04, 0.03, 0.03,
+       0.03, 0.03, 0.02);
+glin13 g_PVCR_2(clock, PDEL, PHAR, AVDR, DB07,
+       VB11, PVDL, AVJR, DVA, SIBVL,
+       DA08, PDA, VB10, VD12, 0.02,
+       0.02, 0.02, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+glin2 g_PVCR(clock, g_PVCR_1, g_PVCR_2, 1., 1.);
+neuron2G PVCR(clock, d_PVCR_1, d_PVCR_2, g_PVCR, 2.19,
+       0.1, -0.1, 1466797) 'PVCR';  // command "forward"
+
+// -------- VENTRAL CORRUGATOR MOTONEURONS (DA/VA/DB/VB/VD/DD/AS/VC): 77 pcs --------
+dsum11 d_AS01_1(clock, DB01, DA01, VA06, AVER,
+       AVEL, AS01, AVAR, AVBR, PVCL,
+       VA07, VD02, 0.7, 0.325, 0.325,
+       0.15, 0.075, 0.075, 0.05, 0.05,
+       0.025, 0.025, -0.025, 1.);
+glin6 g_AS01(clock, VD02, VA03, VA06, AVEL,
+       FLPR, AVER, 0.23, 0.03, 0.03,
+       0.02, 0.01, 0.01);
+neuron1G AS01(clock, d_AS01_1, g_AS01, 0.33, 0.1,
+       -0.1, 334380);
+dsum9 d_AS02_1(clock, VA07, AVER, DB01, AVAR,
+       AVAL, PVCL, DA02, VA06, VA08,
+       0.25, 0.1, 0.1, 0.075, 0.05,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin3 g_AS02(clock, VA04, DA02, VA03, 0.09,
+       0.02, 0.02);
+neuron1G AS02(clock, d_AS02_1, g_AS02, 0.13, 0.1,
+       -0.1, 342299);
+dsum5 d_AS03_1(clock, VA08, AVBR, DB02, VA07,
+       AVER, 0.1, 0.075, 0.075, 0.075,
+       0.025, 1.);
+glin1 g_AS03(clock, AVAR, 0.01);
+neuron1G AS03(clock, d_AS03_1, g_AS03, 0.01, 0.1,
+       -0.1, 350218);
+dsum9 d_AS04_1(clock, VA08, AVAL, AVAR, AVDL,
+       DA03, DB02, DB03, AVBL, AVBR,
+       0.275, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.025, 0.025, 1.);
+glin2 g_AS04(clock, DA03, DA02, 0.04, 0.01);
+neuron1G AS04(clock, d_AS04_1, g_AS04, 0.05, 0.1,
+       -0.1, 358137);
+dsum7 d_AS05_1(clock, AVAL, AS05, VA08, AVBL,
+       HSNR, AVAR, DB03, 0.15, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       1.);
+glin2 g_AS05(clock, AVAR, AVBR, 0.03, 0.02);
+neuron1G AS05(clock, d_AS05_1, g_AS05, 0.05, 0.1,
+       -0.1, 366056);
+dsum4 d_AS06_1(clock, VA09, VA10, AVAR, DB04,
+       0.125, 0.075, 0.05, 0.05, 1.);
+glin4 g_AS06(clock, DA05, AVAR, AVBL, AVBR,
+       0.05, 0.02, 0.01, 0.01);
+neuron1G AS06(clock, d_AS06_1, g_AS06, 0.09, 0.1,
+       -0.1, 373975);
+dsum6 d_AS07_1(clock, AVAL, AVAR, VA10, DB05,
+       VA09, VA11, 0.15, 0.15, 0.15,
+       0.075, 0.075, 0.05, 1.);
+neuron1 AS07(clock, d_AS07_1, 0.1, -0.1, 381894);
+dsum6 d_AS08_1(clock, AVAR, VA11, AVAL, DB05,
+       DB06, VA12, 0.25, 0.25, 0.15,
+       0.05, 0.05, 0.05, 1.);
+neuron1 AS08(clock, d_AS08_1, 0.1, -0.1, 389813);
+dsum5 d_AS09_1(clock, AVAL, AVAR, VA12, DB06,
+       VA11, 0.275, 0.25, 0.2, 0.025,
+       0.025, 1.);
+neuron1 AS09(clock, d_AS09_1, 0.1, -0.1, 397732);
+dsum8 d_AS10_1(clock, VA12, AVAL, AVBL, AVDR,
+       DB07, AVFL, AVBR, AVDL, 0.15,
+       0.125, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 1.);
+glin10 g_AS10(clock, hyp, AVAL, VA12, AVAR,
+       AVHL, AVKL, AVBL, DA07, DA09,
+       DB07, 0.07, 0.05, 0.03, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G AS10(clock, d_AS10_1, g_AS10, 0.23, 0.1,
+       -0.1, 405651);
+dsum8 d_AS11_1(clock, AVAR, AVAL, VA12, AVDL,
+       AVDR, DB07, PHBL, DA09, 0.25,
+       0.2, 0.15, 0.1, 0.075, 0.05,
+       0.025, 0.025, 1.);
+glin14 g_AS11(clock, hyp, AVHR, PVPL, DVB,
+       PDB, AVHL, AVAR, AVFL, AVG,
+       AVKL, DVA, DA08, VA11, VB11,
+       0.31, 0.17, 0.06, 0.04, 0.04,
+       0.03, 0.03, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+neuron1G AS11(clock, d_AS11_1, g_AS11, 0.76, 0.1,
+       -0.1, 413570);
+dsum9 d_DA01_1(clock, DB01, AVEL, AVER, AS01,
+       AVAL, AVDR, AVDL, AVM, AVAR,
+       0.4, 0.275, 0.275, 0.2, 0.15,
+       0.125, 0.1, 0.05, 0.05, 1.);
+glin5 g_DA01(clock, AVAR, FLPR, AVAL, AVER,
+       DA02, 0.09, 0.05, 0.02, 0.01,
+       0.01);
+neuron1G DA01(clock, d_DA01_1, g_DA01, 0.18, 0.1,
+       -0.1, 793682);  // dorsal "back"
+dsum13 d_DA02_1(clock, AVAL, AVAR, AVER, AVDR,
+       AVEL, DB02, DD01, AVDL, DB01,
+       DVA, RID, PVCR, VA01, 0.25,
+       0.225, 0.175, 0.125, 0.125, 0.075,
+       -0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin9 g_DA02(clock, VA01, AVAL, FLPR, AVAR,
+       VA06, AS02, DA01, DA05, AS04,
+       0.09, 0.07, 0.06, 0.03, 0.03,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G DA02(clock, d_DA02_1, g_DA02, 0.33, 0.1,
+       -0.1, 801601);
+dsum12 d_DA03_1(clock, AVAL, DB02, AVDL, AVAR,
+       AVEL, AVBR, AVDR, AVER, AS04,
+       DD02, DA02, AS03, 0.3, 0.3,
+       0.225, 0.2, 0.15, 0.075, 0.075,
+       0.075, 0.05, -0.05, 0.025, 0.025,
+       1.);
+glin8 g_DA03(clock, FLPR, AVAR, AVAL, AS04,
+       DA04, DA05, VA02, VA06, 0.16,
+       0.07, 0.06, 0.04, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G DA03(clock, d_DA03_1, g_DA03, 0.37, 0.1,
+       -0.1, 809520);
+dsum10 d_DA04_1(clock, AVAL, AVAR, DB03, AVDL,
+       AVDR, DA03, PVCR, AVBR, DA05,
+       DB02, 0.3, 0.225, 0.1, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin5 g_DA04(clock, AVAL, AVAR, PVCL, DA03,
+       VA03, 0.02, 0.02, 0.01, 0.01,
+       0.01);
+neuron1G DA04(clock, d_DA04_1, g_DA04, 0.07, 0.1,
+       -0.1, 817439);
+dsum14 d_DA05_1(clock, AVAL, AVAR, AVDR, DB04,
+       PVCR, HSNR, PVR, PVCL, AVBL,
+       AVDL, DA06, DB03, AS06, DD03,
+       0.35, 0.225, 0.075, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, -0.025, 1.);
+glin5 g_DA05(clock, AVAR, AS06, AVAL, DA02,
+       DA03, 0.05, 0.05, 0.02, 0.01,
+       0.01);
+neuron1G DA05(clock, d_DA05_1, g_DA05, 0.14, 0.1,
+       -0.1, 825358);
+dsum5 d_DA06_1(clock, AVAR, DB05, RID, DA07,
+       HSNR, 0.1, 0.075, 0.05, 0.025,
+       0.025, 1.);
+glin2 g_DA06(clock, AVAL, AVAR, 0.04, 0.04);
+neuron1G DA06(clock, d_DA06_1, g_DA06, 0.08, 0.1,
+       -0.1, 833277);
+dsum7 d_DA07_1(clock, DB05, AVAR, AVAL, PVCR,
+       AVBL, AVBR, DA08, 0.3, 0.15,
+       0.1, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin7 g_DA07(clock, AVAL, PVCR, VD11, PVQR,
+       PVCL, DA08, AS10, 0.1, 0.03,
+       0.02, 0.01, 0.01, 0.01, 0.01);
+neuron1G DA07(clock, d_DA07_1, g_DA07, 0.19, 0.1,
+       -0.1, 841196);
+dsum16 d_DA08_1(clock, AVAR, DVB, VA12, AVAL,
+       DB06, PHAL, PHAR, PVCL, AVDL,
+       PQR, PHBL, AVG, PVQL, AVDR,
+       DA09, DB05, 0.5, -0.25, 0.225,
+       0.125, 0.1, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin16 g_DA08(clock, PVCL, DA09, AVAL, VA12,
+       AVHR, DVB, AVAR, PHCL, DD06,
+       VA10, PVWL, PVCR, DA07, PDA,
+       AS11, hyp, 0.17, 0.15, 0.08,
+       0.06, 0.05, 0.05, 0.05, 0.02,
+       0.02, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G DA08(clock, d_DA08_1, g_DA08, 0.73, 0.1,
+       -0.1, 849115);
+dsum9 d_DA09_1(clock, PHCR, VA12, AVAL, AVAR,
+       DB07, PVR, PHCL, PDA, DB06,
+       0.575, 0.425, 0.075, 0.075, 0.075,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin16 g_DA09(clock, PVR, DA08, PDA, PHCR,
+       AVL, AVAR, DVA, PVCR, VA11,
+       VD13, AVAL, AS10, VA10, VA12,
+       VB11, hyp, 0.15, 0.15, 0.09,
+       0.07, 0.04, 0.04, 0.03, 0.03,
+       0.03, 0.02, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G DA09(clock, d_DA09_1, g_DA09, 0.71, 0.1,
+       -0.1, 857034);
+dsum6 d_DB01_1(clock, AS01, RID, AVDR, DA01,
+       DA02, AS02, 0.075, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin5 g_DB01(clock, AVBR, DB02, VB03, DVA,
+       RID, 0.15, 0.05, 0.05, 0.03,
+       0.02);
+neuron1G DB01(clock, d_DB01_1, g_DB01, 0.3, 0.1,
+       -0.1, 864953);
+dsum7 d_DB02_1(clock, PVCL, PVCR, DVA, PVR,
+       AVAR, DA04, AS04, 0.1, 0.1,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       1.);
+glin5 g_DB02(clock, DB03, DB01, AVBL, AVBR,
+       VB04, 0.14, 0.05, 0.04, 0.03,
+       0.01);
+neuron1G DB02(clock, d_DB02_1, g_DB02, 0.27, 0.1,
+       -0.1, 872872);
+dsum9 d_DB03_1(clock, PVCR, DVA, PVR, PVCL,
+       AVAR, DA03, PVNR, AVEL, AVER,
+       0.15, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin8 g_DB03(clock, DB02, AVBL, PVM, AVBR,
+       RID, DB04, DD03, VB06, 0.14,
+       0.09, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G DB03(clock, d_DB03_1, g_DB03, 0.31, 0.1,
+       -0.1, 880791);
+dsum9 d_DB04_1(clock, PVCL, PVCR, DVA, PVR,
+       AVBR, AVDR, DA05, AS06, VC02,
+       0.15, 0.15, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin5 g_DB04(clock, AVBR, DB05, AVBL, DB03,
+       DD03, 0.05, 0.05, 0.04, 0.01,
+       0.01);
+neuron1G DB04(clock, d_DB04_1, g_DB04, 0.16, 0.1,
+       -0.1, 888710);
+dsum1 d_DB05_1(clock, DA06, 0.025, 1.);
+glin4 g_DB05(clock, DB04, DB06, AVBR, AVBL,
+       0.05, 0.05, 0.04, 0.03);
+neuron1G DB05(clock, d_DB05_1, g_DB05, 0.17, 0.1,
+       -0.1, 896629);
+dsum1 d_DB06_1(clock, DA07, 0.025, 1.);
+glin5 g_DB06(clock, DB05, DB07, AVBL, AVBR,
+       DVA, 0.05, 0.05, 0.04, 0.03,
+       0.02);
+neuron1G DB06(clock, d_DB06_1, g_DB06, 0.19, 0.1,
+       -0.1, 904548);
+dsum8 d_DB07_1(clock, VA12, PVCL, PQR, PVR,
+       AVAL, DVA, DA08, DA09, 0.25,
+       0.125, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 1.);
+glin12 g_DB07(clock, AVBL, PVCL, DB06, PVR,
+       AVHL, DVA, AVBR, PVCR, PDB,
+       AS10, VA10, hyp, 0.13, 0.08,
+       0.05, 0.04, 0.03, 0.03, 0.03,
+       0.02, 0.02, 0.01, 0.01, 0.01);
+neuron1G DB07(clock, d_DB07_1, g_DB07, 0.46, 0.1,
+       -0.1, 912467);
+dsum16 d_DD01_1(clock, DB01, VB02, VA02, VA03,
+       DA01, VA01, DA02, FLPL, VD03,
+       VC01, VC02, PVNL, AVL, RID,
+       DB02, AS02, 0.775, 0.75, 0.5,
+       0.45, 0.3, 0.3, 0.175, 0.15,
+       -0.15, 0.15, 0.15, 0.125, -0.1,
+       0.075, 0.075, 0.075, 1.);
+dsum9 d_DD01_2(clock, AS01, AS04, VD01, AVHL,
+       PVQR, SAAVL, VB01, VD02, VC03,
+       0.05, 0.05, -0.05, 0.025, 0.025,
+       0.025, 0.025, -0.025, 0.025, 1.);
+glin9 g_DD01(clock, DD02, VD03, VD02, RIFR,
+       vBWML8, vBWMR8, FLPL, SABVR, VC01,
+       0.06, 0.04, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01);
+neuron2G DD01(clock, d_DD01_1, d_DD01_2, g_DD01, 0.22,
+       0.1, -0.1, 920386);
+dsum16 d_DD02_1(clock, VB03, VA04, DB02, VA03,
+       VC01, VB04, VA05, DA04, AS04,
+       VC02, DA03, DB03, VC03, RID,
+       PVNR, PVPR, 0.9, 0.425, 0.4,
+       0.25, 0.2, 0.175, 0.15, 0.1,
+       0.1, 0.1, 0.075, 0.075, 0.075,
+       0.05, 0.025, 0.025, 1.);
+dsum1 d_DD02_2(clock, VB02, 0.025, 1.);
+glin5 g_DD02(clock, DD01, DD03, VD04, VD03,
+       VD05, 0.06, 0.02, 0.02, 0.01,
+       0.01);
+neuron2G DD02(clock, d_DD02_1, d_DD02_2, g_DD02, 0.12,
+       0.1, -0.1, 928305);
+dsum12 d_DD03_1(clock, VB05, VA06, VA05, DB03,
+       VB04, DA05, DB04, VC01, VC02,
+       DA06, VC03, VA07, 0.85, 0.525,
+       0.425, 0.35, 0.325, 0.3, 0.225,
+       0.2, 0.2, 0.175, 0.125, 0.075,
+       1.);
+glin4 g_DD03(clock, DD04, DD02, DB03, DB04,
+       0.03, 0.02, 0.01, 0.01);
+neuron1G DD03(clock, d_DD03_1, g_DD03, 0.07, 0.1,
+       -0.1, 936224);
+dsum7 d_DD04_1(clock, VB06, VA07, VA08, VA09,
+       DA08, DA07, DB04, 0.8, 0.425,
+       0.225, 0.15, 0.1, 0.075, 0.05,
+       1.);
+glin2 g_DD04(clock, DD03, DD05, 0.03, 0.03);
+neuron1G DD04(clock, d_DD04_1, g_DD04, 0.06, 0.1,
+       -0.1, 944143);
+dsum10 d_DD05_1(clock, VB07, DB03, VB08, VB09,
+       DB04, VA08, VA10, VA09, DA08,
+       PVDL, 0.725, 0.35, 0.25, 0.25,
+       0.225, 0.225, 0.225, 0.15, 0.1,
+       0.075, 1.);
+glin3 g_DD05(clock, DD04, DD06, DVB, 0.03,
+       0.03, 0.01);
+neuron1G DD05(clock, d_DD05_1, g_DD05, 0.07, 0.1,
+       -0.1, 952062);
+dsum16 d_DD06_1(clock, VA11, VB08, VB09, VB10,
+       VB11, DVB, VA10, AS11, VA09,
+       DA09, PDA, VD13, PVQR, DB04,
+       PDB, VA12, 0.475, 0.475, 0.475,
+       0.475, 0.475, -0.25, 0.225, 0.15,
+       0.15, 0.1, 0.075, -0.075, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum5 d_DD06_2(clock, VD11, VD12, VC06, AVL,
+       PVQL, -0.05, -0.05, 0.05, -0.025,
+       0.025, 1.);
+glin16 g_DD06(clock, AVL, VD12, PVPR, VA12,
+       DVB, PVT, DD05, VD11, PVPL,
+       DA08, VD13, AVG, AVHR, DVC,
+       PVNL, PDA, 0.28, 0.14, 0.09,
+       0.07, 0.03, 0.03, 0.03, 0.03,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron2G DD06(clock, d_DD06_1, d_DD06_2, g_DD06, 0.81,
+       0.1, -0.1, 959981);
+dsum1 d_PDA_1(clock, DVB, -0.05, 1.);
+glin8 g_PDA(clock, DA09, PDB, AVL, hyp,
+       DVA, PVCR, DA08, DD06, 0.09,
+       0.05, 0.03, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G PDA(clock, d_PDA_1, g_PDA, 0.23, 0.1,
+       -0.1, 1340093);
+dsum1 d_PDB_1(clock, LUAR, 0.05, 1.);
+glin8 g_PDB(clock, PVR, hyp, PDA, AS11,
+       VD13, AVJL, DB07, PVPL, 0.13,
+       0.11, 0.05, 0.04, 0.04, 0.02,
+       0.02, 0.01);
+neuron1G PDB(clock, d_PDB_1, g_PDB, 0.42, 0.1,
+       -0.1, 1348012);
+dsum8 d_VA01_1(clock, AVEL, VD01, VB01, FLPL,
+       AVER, AVAL, VA02, SAAVL, 0.3,
+       -0.2, 0.175, 0.125, 0.125, 0.05,
+       0.05, 0.025, 1.);
+glin3 g_VA01(clock, DA02, AVAR, AVAL, 0.09,
+       0.07, 0.05);
+neuron1G VA01(clock, d_VA01_1, g_VA01, 0.21, 0.1,
+       -0.1, 2155750);  // ventral "back"
+dsum12 d_VA02_1(clock, VD02, AVAL, AVAR, VB02,
+       AVER, AVBL, DVA, SAAVL, VB01,
+       AVM, AVFR, AVDR, -0.3, 0.2,
+       0.125, 0.125, 0.1, 0.075, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       1.);
+glin7 g_VA02(clock, AVAL, SABD, PLNL, DA03,
+       VA06, VD02, hyp, 0.13, 0.12,
+       0.02, 0.01, 0.01, 0.01, 0.01);
+neuron1G VA02(clock, d_VA02_1, g_VA02, 0.31, 0.1,
+       -0.1, 2163669);
+dsum12 d_VA03_1(clock, VB02, AVAL, AVAR, VD03,
+       AVBR, AVDL, AVDR, SAAVL, VA02,
+       VB01, AVEL, AVER, 0.275, 0.15,
+       0.15, -0.1, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       1.);
+glin7 g_VA03(clock, AVAL, AVAR, AS01, SABD,
+       AS02, DA04, VD03, 0.06, 0.03,
+       0.03, 0.02, 0.02, 0.01, 0.01);
+neuron1G VA03(clock, d_VA03_1, g_VA03, 0.18, 0.1,
+       -0.1, 2171588);
+dsum10 d_VA04_1(clock, VB03, AVAL, AVAR, AVBR,
+       AVER, SAAVL, VA03, VB01, VB04,
+       VD04, 0.25, 0.175, 0.15, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.025,
+       -0.025, 1.);
+glin5 g_VA04(clock, AS02, AVAL, AVAR, VA07,
+       VB03, 0.09, 0.06, 0.03, 0.01,
+       0.01);
+neuron1G VA04(clock, d_VA04_1, g_VA04, 0.2, 0.1,
+       -0.1, 2179507);
+dsum8 d_VA05_1(clock, AVAL, AVDR, AVAR, VA06,
+       VD05, AVDL, VB03, VB04, 0.175,
+       0.075, 0.05, 0.05, -0.05, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_VA05(clock, AVAR, AVAL, 0.05, 0.04);
+neuron1G VA05(clock, d_VA05_1, g_VA05, 0.09, 0.1,
+       -0.1, 2187426);
+dsum10 d_VA06_1(clock, AVAR, AVAL, VD06, VA05,
+       VB05, HSNR, AVG, DVA, PVNR,
+       VD05, 0.225, 0.2, -0.075, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       -0.025, 1.);
+glin5 g_VA06(clock, AVAL, DA02, AS01, DA03,
+       VA02, 0.13, 0.03, 0.03, 0.01,
+       0.01);
+neuron1G VA06(clock, d_VA06_1, g_VA06, 0.21, 0.1,
+       -0.1, 2195345);
+dsum4 d_VA07_1(clock, AVAL, AVAR, VB06, VD07,
+       0.175, 0.175, 0.075, -0.05, 1.);
+glin3 g_VA07(clock, AVAR, AVAL, VA04, 0.05,
+       0.02, 0.01);
+neuron1G VA07(clock, d_VA07_1, g_VA07, 0.08, 0.1,
+       -0.1, 2203264);
+dsum5 d_VA08_1(clock, AVAL, AVAR, VB06, VD08,
+       DVA, 0.175, 0.175, 0.05, -0.05,
+       0.025, 1.);
+glin2 g_VA08(clock, AVAL, AVAR, 0.02, 0.02);
+neuron1G VA08(clock, d_VA08_1, g_VA08, 0.04, 0.1,
+       -0.1, 2211183);
+dsum6 d_VA09_1(clock, AVAL, AVAR, VD09, PVDR,
+       VB07, VD08, 0.175, 0.175, -0.075,
+       0.05, 0.025, -0.025, 1.);
+glin2 g_VA09(clock, AVAL, AVAR, 0.05, 0.04);
+neuron1G VA09(clock, d_VA09_1, g_VA09, 0.09, 0.1,
+       -0.1, 2219102);
+dsum6 d_VA10_1(clock, AVAL, AVAR, AVDL, VD10,
+       AVBL, VB07, 0.225, 0.1, 0.05,
+       -0.05, 0.025, 0.025, 1.);
+glin8 g_VA10(clock, AVAL, AVAR, DA08, hyp,
+       PVDL, AVDL, DA09, DB07, 0.06,
+       0.04, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G VA10(clock, d_VA10_1, g_VA10, 0.18, 0.1,
+       -0.1, 2227021);
+dsum12 d_VA11_1(clock, AVAR, AVAL, VA12, VB10,
+       VD12, VB08, VB09, VD11, AVG,
+       PVNR, PVCL, AVDR, 0.325, 0.15,
+       0.1, 0.075, -0.075, 0.05, 0.05,
+       -0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin15 g_VA11(clock, AVAR, PVPL, PVCR, AVBR,
+       DA09, VB10, AVJR, AVAL, AVFL,
+       AVHR, DVA, AVBL, AS11, VA12,
+       hyp, 0.16, 0.06, 0.03, 0.03,
+       0.03, 0.03, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G VA11(clock, d_VA11_1, g_VA11, 0.45, 0.1,
+       -0.1, 2234940);
+dsum14 d_VA12_1(clock, VD12, VD13, PHCR, PHCL,
+       PHBL, AVAL, VB11, PVDR, PHBR,
+       DVA, PVNL, PVWR, AVDL, DA09,
+       -0.325, -0.275, 0.2, 0.15, 0.125,
+       0.125, 0.125, 0.075, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin13 g_VA12(clock, PVCL, PVCR, VD12, DD06,
+       VB11, DA08, VD13, AVAR, AS10,
+       PHCL, PVPL, DA09, VA11, 0.18,
+       0.08, 0.08, 0.07, 0.07, 0.06,
+       0.06, 0.03, 0.03, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G VA12(clock, d_VA12_1, g_VA12, 0.7, 0.1,
+       -0.1, 2242859);
+dsum12 d_VB01_1(clock, RIML, RICR, VD01, AIBR,
+       ADEL, AVFL, RIMR, FLPR, DVA,
+       SMDVR, VA02, VD05, 0.2, 0.175,
+       -0.125, 0.075, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, -0.025,
+       1.);
+glin3 g_VB01(clock, VB02, AVFR, AVBL, 0.02,
+       0.01, 0.01);
+neuron1G VB01(clock, d_VB01_1, g_VB01, 0.04, 0.1,
+       -0.1, 2250778);
+dsum10 d_VB02_1(clock, VD02, AVBL, AVFL, VD03,
+       AIZL, SAAVL, DD01, VA02, VA03,
+       VC03, -0.1, 0.075, 0.05, -0.05,
+       0.025, 0.025, -0.025, 0.025, 0.025,
+       0.025, 1.);
+glin5 g_VB02(clock, AVBL, VB03, AVBR, VB01,
+       VB04, 0.14, 0.1, 0.06, 0.02,
+       0.01);
+neuron1G VB02(clock, d_VB02_1, g_VB02, 0.33, 0.1,
+       -0.1, 2258697);
+dsum7 d_VB03_1(clock, VA04, VA03, PVR, VD04,
+       AVM, PVCR, VD03, 0.2, 0.075,
+       0.05, -0.05, 0.025, 0.025, -0.025,
+       1.);
+glin5 g_VB03(clock, VB02, AVBR, DB01, VA04,
+       VB04, 0.1, 0.07, 0.05, 0.01,
+       0.01);
+neuron1G VB03(clock, d_VB03_1, g_VB03, 0.24, 0.1,
+       -0.1, 2266616);
+dsum7 d_VB04_1(clock, PVCL, VD05, PVCR, VA04,
+       VA05, VA06, VC03, 0.075, -0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin6 g_VB04(clock, AVBR, AVBL, DB02, VB02,
+       VB03, VB05, 0.05, 0.03, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G VB04(clock, d_VB04_1, g_VB04, 0.12, 0.1,
+       -0.1, 2274535);
+dsum4 d_VB05_1(clock, VA06, PVDR, VB04, VD06,
+       0.175, 0.025, 0.025, -0.025, 1.);
+glin4 g_VB05(clock, VB06, AVBL, AVBR, VB04,
+       0.05, 0.03, 0.03, 0.01);
+neuron1G VB05(clock, d_VB05_1, g_VB05, 0.12, 0.1,
+       -0.1, 2282454);
+dsum6 d_VB06_1(clock, PVDR, PVCR, PVCL, VD07,
+       VA07, VA08, 0.1, 0.1, 0.05,
+       -0.05, 0.025, 0.025, 1.);
+glin5 g_VB06(clock, VB05, VB07, AVBR, AVBL,
+       DB03, 0.05, 0.05, 0.04, 0.03,
+       0.01);
+neuron1G VB06(clock, d_VB06_1, g_VB06, 0.18, 0.1,
+       -0.1, 2290373);
+dsum3 d_VB07_1(clock, VD08, VA09, VD07, -0.05,
+       0.025, -0.025, 1.);
+glin4 g_VB07(clock, VB06, VB08, AVBL, AVBR,
+       0.05, 0.05, 0.04, 0.03);
+neuron1G VB07(clock, d_VB07_1, g_VB07, 0.17, 0.1,
+       -0.1, 2298292);
+dsum3 d_VB08_1(clock, VD09, VA09, VA10, -0.05,
+       0.025, 0.025, 1.);
+glin4 g_VB08(clock, VB07, VB09, AVBL, AVBR,
+       0.05, 0.05, 0.04, 0.03);
+neuron1G VB08(clock, d_VB08_1, g_VB08, 0.17, 0.1,
+       -0.1, 2306211);
+dsum2 d_VB09_1(clock, VA10, VD10, 0.025, -0.025,
+       1.);
+glin5 g_VB09(clock, PDER, VB08, VB10, AVBR,
+       AVBL, 0.07, 0.05, 0.05, 0.04,
+       0.03);
+neuron1G VB09(clock, d_VB09_1, g_VB09, 0.24, 0.1,
+       -0.1, 2314130);
+dsum2 d_VB10_1(clock, VA11, VD11, 0.15, -0.025,
+       1.);
+glin12 g_VB10(clock, VB09, PDER, AVBL, VB11,
+       AVBR, VA11, PVCL, PDEL, AVKL,
+       PVCR, VD11, VD12, 0.05, 0.04,
+       0.04, 0.04, 0.03, 0.03, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+neuron1G VB10(clock, d_VB10_1, g_VB10, 0.3, 0.1,
+       -0.1, 2322049);
+dsum5 d_VB11_1(clock, VA12, PVCR, DVA, PVCL,
+       VD12, 0.1, 0.075, 0.05, 0.025,
+       -0.025, 1.);
+glin11 g_VB11(clock, VA12, AVBR, AVBL, PDEL,
+       PVCL, VB10, PVCR, AVAL, DA09,
+       AS11, hyp, 0.07, 0.06, 0.05,
+       0.04, 0.04, 0.04, 0.02, 0.02,
+       0.01, 0.01, 0.01);
+neuron1G VB11(clock, d_VB11_1, g_VB11, 0.37, 0.1,
+       -0.1, 2329968);
+dsum5 d_VC01_1(clock, VC03, VC02, AVG, AVL,
+       AVFL, 0.125, 0.075, 0.05, -0.05,
+       0.025, 1.);
+glin4 g_VC01(clock, VC02, VC03, PVPR, DD01,
+       0.12, 0.07, 0.01, 0.01);
+neuron1G VC01(clock, d_VC01_1, g_VC01, 0.21, 0.1,
+       -0.1, 2337887);
+dsum7 d_VC02_1(clock, HSNR, VC01, AVL, VC03,
+       PVNR, PVQR, VB02, 0.15, 0.1,
+       -0.05, 0.05, 0.025, 0.025, 0.025,
+       1.);
+glin4 g_VC02(clock, VC01, VC03, VD01, VC02,
+       0.12, 0.03, 0.01, 0.01);
+neuron1G VC02(clock, d_VC02_1, g_VC02, 0.17, 0.1,
+       -0.1, 2345806);
+dsum5 d_VC03_1(clock, VC02, AVBL, VC01, HSNR,
+       VC04, 0.1, 0.075, 0.05, 0.025,
+       0.025, 1.);
+glin8 g_VC03(clock, VC01, VC04, VC02, vm2aL,
+       vm2aR, vm2pL, vm2pR, PVT, 0.07,
+       0.04, 0.03, 0.02, 0.02, 0.02,
+       0.02, 0.01);
+neuron1G VC03(clock, d_VC03_1, g_VC03, 0.23, 0.1,
+       -0.1, 2353725);
+dsum2 d_VC04_1(clock, VC05, HSNR, 0.1, 0.025,
+       1.);
+glin2 g_VC04(clock, VC03, VC05, 0.04, 0.04);
+neuron1G VC04(clock, d_VC04_1, g_VC04, 0.08, 0.1,
+       -0.1, 2361644);
+dsum4 d_VC05_1(clock, HSNL, VC05, HSNR, VC04,
+       0.225, 0.15, 0.05, 0.05, 1.);
+glin3 g_VC05(clock, VC04, VC06, AVFL, 0.04,
+       0.04, 0.01);
+neuron1G VC05(clock, d_VC05_1, g_VC05, 0.09, 0.1,
+       -0.1, 2369563);
+dsum1 d_VC06_1(clock, AVL, -0.025, 1.);
+glin7 g_VC06(clock, VC05, AVL, PVT, DVC,
+       PVNR, PVPR, VD12, 0.04, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01);
+neuron1G VC06(clock, d_VC06_1, g_VC06, 0.12, 0.1,
+       -0.1, 2377482);
+dsum10 d_VD01_1(clock, AS01, VC01, SAAVL, VB01,
+       VA01, VC02, VC03, AVHL, PVQR,
+       VA02, 0.5, 0.125, 0.1, 0.1,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin6 g_VD01(clock, SMDDR, VD02, RIGL, RIGR,
+       DVC, VC02, 0.05, 0.04, 0.03,
+       0.02, 0.02, 0.01);
+neuron1G VD01(clock, d_VD01_1, g_VD01, 0.17, 0.1,
+       -0.1, 2385401);
+dsum14 d_VD02_1(clock, VA02, DB01, AS02, DA02,
+       VB02, DA01, VA03, VC02, SAAVL,
+       VB01, AVEL, DD01, VC01, VC03,
+       0.675, 0.6, 0.525, 0.425, 0.35,
+       0.1, 0.075, 0.075, 0.05, 0.05,
+       0.025, -0.025, 0.025, 0.025, 1.);
+glin7 g_VD02(clock, AS01, VD03, VD01, DD01,
+       VD02, VA02, dBWML9, 0.23, 0.07,
+       0.04, 0.03, 0.03, 0.01, 0.01);
+neuron1G VD02(clock, d_VD02_1, g_VD02, 0.42, 0.1,
+       -0.1, 2393320);
+dsum14 d_VD03_1(clock, DA03, DB02, AS03, DA02,
+       VA03, VB02, VB03, PVNR, AVBR,
+       DB01, VC01, VC03, AVEL, DD02,
+       1.075, 0.825, 0.575, 0.275, 0.275,
+       0.1, 0.1, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.025, -0.025, 1.);
+glin5 g_VD03(clock, VD02, VD04, DD01, DD02,
+       VA03, 0.07, 0.06, 0.04, 0.01,
+       0.01);
+neuron1G VD03(clock, d_VD03_1, g_VD03, 0.19, 0.1,
+       -0.1, 2401239);
+dsum15 d_VD04_1(clock, AS04, DB02, DA03, DA04,
+       DB03, VA04, PVNR, VB03, VC02,
+       VC01, DA06, DB05, VC03, DD02,
+       VB04, 0.525, 0.375, 0.325, 0.275,
+       0.225, 0.2, 0.15, 0.15, 0.15,
+       0.1, 0.075, 0.075, 0.075, -0.025,
+       0.025, 1.);
+glin3 g_VD04(clock, VD03, DD02, VD05, 0.06,
+       0.02, 0.01);
+neuron1G VD04(clock, d_VD04_1, g_VD04, 0.09, 0.1,
+       -0.1, 2409158);
+dsum13 d_VD05_1(clock, DB03, DA04, AS05, VA05,
+       VC01, VC02, DA06, DB05, VA06,
+       VB04, VC03, RID, DA05, 0.6,
+       0.525, 0.3, 0.225, 0.1, 0.1,
+       0.075, 0.075, 0.075, 0.075, 0.075,
+       0.025, 0.025, 1.);
+glin3 g_VD05(clock, VD06, DD02, VD04, 0.1,
+       0.01, 0.01);
+neuron1G VD05(clock, d_VD05_1, g_VD05, 0.12, 0.1,
+       -0.1, 2417077);
+dsum14 d_VD06_1(clock, DA05, AS06, DB04, DA06,
+       DB05, VB05, VA06, VC03, DB03,
+       VA07, VC02, PVNR, VB06, VC01,
+       0.55, 0.5, 0.35, 0.325, 0.325,
+       0.25, 0.15, 0.125, 0.1, 0.05,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin3 g_VD06(clock, VD07, VD05, PDEL, 0.15,
+       0.1, 0.02);
+neuron1G VD06(clock, d_VD06_1, g_VD06, 0.27, 0.1,
+       -0.1, 2424996);
+dsum10 d_VD07_1(clock, VB06, AS07, DA06, DB05,
+       VA07, DA07, DB06, VC03, VA08,
+       PVNR, 0.55, 0.5, 0.325, 0.325,
+       0.325, 0.25, 0.25, 0.2, 0.05,
+       0.025, 1.);
+glin2 g_VD07(clock, VD06, VD08, 0.15, 0.06);
+neuron1G VD07(clock, d_VD07_1, g_VD07, 0.21, 0.1,
+       -0.1, 2432915);
+dsum7 d_VD08_1(clock, AS08, DA07, DB06, DA08,
+       DB07, VB07, VA08, 0.5, 0.3,
+       0.3, 0.125, 0.125, 0.125, 0.075,
+       1.);
+glin2 g_VD08(clock, VD07, VD09, 0.06, 0.06);
+neuron1G VD08(clock, d_VD08_1, g_VD08, 0.12, 0.1,
+       -0.1, 2440834);
+dsum11 d_VD09_1(clock, AS09, DA07, DB06, VB07,
+       DA08, DA09, DB07, VB08, VA08,
+       DVC, VA09, 0.5, 0.25, 0.25,
+       0.15, 0.125, 0.125, 0.125, 0.125,
+       0.075, 0.05, 0.05, 1.);
+glin5 g_VD09(clock, VD08, VD10, PDER, PVM,
+       PVDR, 0.06, 0.06, 0.05, 0.01,
+       0.01);
+neuron1G VD09(clock, d_VD09_1, g_VD09, 0.19, 0.1,
+       -0.1, 2448753);
+dsum9 d_VD10_1(clock, AS10, DA08, DB07, VB08,
+       DA09, VB09, PVDL, VA09, VA10,
+       0.25, 0.175, 0.175, 0.15, 0.125,
+       0.125, 0.075, 0.075, 0.05, 1.);
+glin2 g_VD10(clock, VD09, VD11, 0.06, 0.06);
+neuron1G VD10(clock, d_VD10_1, g_VD10, 0.12, 0.1,
+       -0.1, 2456672);
+dsum11 d_VD11_1(clock, DA09, PDA, AS10, VB10,
+       VB09, DA08, DB07, VA11, VC06,
+       VA09, VA10, 0.275, 0.25, 0.25,
+       0.175, 0.15, 0.125, 0.125, 0.125,
+       0.125, 0.075, 0.075, 1.);
+glin12 g_VD11(clock, VD10, VD12, PVT, DD06,
+       DVB, DA07, hyp, AVL, DVC,
+       PVPL, AVAR, VB10, 0.06, 0.06,
+       0.03, 0.03, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+neuron1G VD11(clock, d_VD11_1, g_VD11, 0.29, 0.1,
+       -0.1, 2464591);
+dsum16 d_VD12_1(clock, AS11, PDA, DA09, PDB,
+       VA12, VB10, DA08, DB07, AVL,
+       VA10, VA11, VC06, VB11, PVNL,
+       PVWL, VD13, 0.5, 0.3, 0.275,
+       0.25, 0.175, 0.15, 0.125, 0.125,
+       -0.075, 0.075, 0.075, 0.075, 0.05,
+       0.025, 0.025, -0.025, 1.);
+glin16 g_VD12(clock, PVPR, DD06, AVHR, AVHL,
+       VA12, PVWL, VD11, VD13, hyp,
+       PVT, AVFL, AVL, PVNL, PVCR,
+       VB10, VC06, 0.35, 0.14, 0.13,
+       0.08, 0.08, 0.06, 0.06, 0.06,
+       0.05, 0.04, 0.03, 0.02, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G VD12(clock, d_VD12_1, g_VD12, 1.14, 0.1,
+       -0.1, 2472510);
+dsum10 d_VD13_1(clock, VB11, VA12, PDA, PDB,
+       DA08, DB07, AS11, PVNR, DVB,
+       DA09, 0.55, 0.3, 0.25, 0.25,
+       0.125, 0.125, 0.1, 0.05, -0.025,
+       0.025, 1.);
+glin15 g_VD13(clock, PVT, PVPL, VA12, VD12,
+       AVL, DVB, PDB, PVWR, DA09,
+       DD06, DVC, PVNR, PVR, PVWL,
+       PVCL, 0.17, 0.11, 0.06, 0.06,
+       0.05, 0.05, 0.04, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G VD13(clock, d_VD13_1, g_VD13, 0.65, 0.1,
+       -0.1, 2480429);
+
+// -------- CRANIAL AND SUBLATERAL MOTONEURONS (RME/RMD/RMF/RMG/RMH/SAA/SAB/SIA/SIB/SMB/SMD): 39 pcs. --------
+dsum16 d_RMDDL_1(clock, RIAL, RIAR, RMDVR, IL1VL,
+       URYVL, OLLL, IL1L, IL1DR, OLQDR,
+       URYDR, IL1R, CEPVL, URAVL, RMDR,
+       SMDVR, URXR, 1.2, 1.2, 1.075,
+       0.75, 0.575, 0.55, 0.5, 0.275,
+       0.275, 0.225, 0.2, 0.175, 0.175,
+       0.15, 0.075, 0.05, 1.);
+dsum10 d_RMDDL_2(clock, RMHL, OLQDL, ALMR, RIS,
+       RMGR, AVFR, RMDDR, RMEV, RIVR,
+       SIBVL, 0.05, 0.025, 0.025, -0.025,
+       0.025, 0.025, 0.025, -0.025, 0.025,
+       0.025, 1.);
+glin8 g_RMDDL(clock, OLQVL, SMDDL, AVER, RMDVL,
+       IL1VL, RIAR, RMDL, SIBDR, 0.03,
+       0.03, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron2G RMDDL(clock, d_RMDDL_1, d_RMDDL_2, g_RMDDL, 0.14,
+       0.1, -0.1, 1736043);
+dsum16 d_RMDDR_1(clock, RIAR, RMDVL, IL1VR, RIAL,
+       URYVR, OLLR, URYDL, IL1R, OLQDL,
+       RMDL, CEPVR, IL1DL, SMDVL, URBL,
+       ALML, ALNL, 1.325, 1.025, 1.,
+       0.875, 0.8, 0.65, 0.375, 0.3,
+       0.25, 0.175, 0.1, 0.075, 0.075,
+       0.05, 0.025, 0.025, 1.);
+dsum5 d_RMDDR_2(clock, RIS, RMGL, RMEV, URAVR,
+       HSNR, -0.025, 0.025, -0.025, 0.025,
+       0.025, 1.);
+glin8 g_RMDDR(clock, RMDVR, ALML, RIAR, RMGL,
+       RMDL, SAADR, SIADL, SMDDR, 0.05,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron2G RMDDR(clock, d_RMDDR_1, d_RMDDR_2, g_RMDDR, 0.13,
+       0.1, -0.1, 1743962);
+dsum16 d_RMDL_1(clock, RIAL, RMGR, RIMR, IL1R,
+       ADEL, RMDR, RIS, OLLR, RIAR,
+       RIML, OLLL, RMFR, IL2L, RMHR,
+       RIVL, SIADL, 0.65, 0.5, 0.375,
+       0.275, 0.275, 0.275, -0.25, 0.225,
+       0.225, 0.225, 0.15, 0.15, 0.125,
+       0.1, 0.1, 0.1, 1.);
+dsum11 d_RMDL_2(clock, IL1L, IL2R, SMDDL, URYVR,
+       RMGL, SMBVR, ADER, URBR, AVKL,
+       AVKR, SIAVR, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin9 g_RMDL(clock, IL2L, SIBVL, SMDDL, RIML,
+       RMDDL, RMDDR, RMDVL, RMER, SIAVR,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+neuron2G RMDL(clock, d_RMDL_1, d_RMDL_2, g_RMDL, 0.12,
+       0.1, -0.1, 1751881);
+dsum16 d_RMDR_1(clock, RIAR, RIML, RIAL, RIS,
+       RMGL, RMFL, RIMR, IL1L, URXR,
+       RMDL, RMGR, ADER, IL1R, RIVR,
+       IL2L, ALA, 0.875, 0.525, 0.425,
+       -0.4, 0.4, 0.325, 0.3, 0.225,
+       0.2, 0.2, 0.175, 0.15, 0.1,
+       0.1, 0.075, 0.075, 1.);
+dsum13 d_RMDR_2(clock, SMBVR, OLLR, AVKR, RMDVL,
+       CEPDR, AIMR, RIBL, RMFR, URBR,
+       RMHL, RMHR, SMDDL, SMDDR, 0.075,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin4 g_RMDR(clock, AVER, AVAR, RIS, RMDVR,
+       0.05, 0.02, 0.01, 0.01);
+neuron2G RMDR(clock, d_RMDR_1, d_RMDR_2, g_RMDR, 0.09,
+       0.1, -0.1, 1759800);
+dsum16 d_RMDVL_1(clock, RIAR, RIAL, RMDDR, IL1L,
+       URYVR, OLQVR, URYDL, RMGL, CEPDL,
+       RMDR, IL1R, IL1VR, RIVL, IL1DL,
+       OLLL, AINL, 1.425, 1.2, 0.65,
+       0.55, 0.475, 0.45, 0.45, 0.375,
+       0.325, 0.225, 0.2, 0.125, 0.125,
+       0.075, 0.075, 0.075, 1.);
+dsum4 d_RMDVL_2(clock, RMDL, PLNL, RMDDL, URAVR,
+       0.05, 0.025, 0.025, 0.025, 1.);
+glin8 g_RMDVL(clock, SAAVL, OLQVR, AUAL, RMDDL,
+       OLQDL, AVER, RMDL, SIAVR, 0.03,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron2G RMDVL(clock, d_RMDVL_1, d_RMDVL_2, g_RMDVL, 0.13,
+       0.1, -0.1, 1767719);
+dsum16 d_RMDVR_1(clock, RIAL, RIAR, IL1DR, RMGR,
+       RMDDL, IL1R, URYVL, OLQVL, URYDR,
+       CEPVL, OLLR, IL1L, IL1VL, CEPDR,
+       RMDDR, RMDL, 1.2, 1.175, 0.8,
+       0.575, 0.55, 0.425, 0.425, 0.35,
+       0.3, 0.2, 0.15, 0.125, 0.075,
+       0.075, 0.075, 0.075, 1.);
+dsum7 d_RMDVR_2(clock, RMDVR, RIBR, RMDVL, RIVR,
+       URAVL, SAADL, SMBVL, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin12 g_RMDVR(clock, SAAVR, SMDVR, AVER, RMDDR,
+       AVEL, AFDR, IL1DR, OLQDR, AVAR,
+       RMDR, SAADL, SIAVL, 0.09, 0.08,
+       0.07, 0.05, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+neuron2G RMDVR(clock, d_RMDVR_1, d_RMDVR_2, g_RMDVR, 0.38,
+       0.1, -0.1, 1775638);
+dsum15 d_RMED_1(clock, SMBDR, SMDVR, URYDR, SMDDL,
+       RID, SMDDR, SMBDL, IL2DR, IL2DL,
+       IL2VR, OLQDL, OLLR, RIBR, RMED,
+       RMEV, 0.625, 0.225, 0.175, 0.175,
+       0.125, 0.125, 0.1, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, -0.025,
+       -0.025, 1.);
+glin6 g_RMED(clock, RMEV, RIPR, IL1VL, AIBL,
+       RIPL, IL2DR, 0.06, 0.04, 0.03,
+       0.02, 0.02, 0.01);
+neuron1G RMED(clock, d_RMED_1, g_RMED, 0.18, 0.1,
+       -0.1, 1783557);
+dsum12 d_RMEL_1(clock, IL2DR, IL2DL, IL2VR, URADL,
+       URAVL, IL2VL, IL1R, IL2R, OLLL,
+       OLQDL, IL1DL, URAVR, 0.3, 0.275,
+       0.2, 0.2, 0.2, 0.175, 0.125,
+       0.125, 0.125, 0.05, 0.025, 0.025,
+       1.);
+glin2 g_RMEL(clock, RMEV, RIGL, 0.04, 0.02);
+neuron1G RMEL(clock, d_RMEL_1, g_RMEL, 0.06, 0.1,
+       -0.1, 1791476);
+dsum16 d_RMER_1(clock, IL2VR, IL2DR, IL2L, IL2DL,
+       IL2VL, RIH, RMER, IL1L, RMHR,
+       URAVR, OLLR, RMDL, URAVL, OLQVR,
+       OLQDR, ADEL, 0.425, 0.275, 0.25,
+       0.2, 0.15, 0.15, -0.125, 0.1,
+       0.1, 0.1, 0.075, 0.075, 0.075,
+       0.05, 0.025, 0.025, 1.);
+dsum1 d_RMER_2(clock, URADR, 0.025, 1.);
+glin4 g_RMER(clock, IL2L, IL1L, RMDL, RMEV,
+       0.02, 0.01, 0.01, 0.01);
+neuron2G RMER(clock, d_RMER_1, d_RMER_2, g_RMER, 0.05,
+       0.1, -0.1, 1799395);
+dsum16 d_RMEV_1(clock, SMBVL, IL2VR, RIH, URAVL,
+       SMBVR, IL2DR, IL2L, PVT, RIS,
+       IL2R, IL2VL, RMDDL, URAVR, IL2DL,
+       RMEL, SAAVR, 0.5, 0.375, 0.25,
+       0.25, 0.2, 0.125, 0.125, 0.1,
+       -0.075, 0.05, 0.05, 0.05, 0.05,
+       0.025, -0.025, 0.025, 1.);
+dsum2 d_RMEV_2(clock, SMDDL, SMDVL, 0.025, 0.025,
+       1.);
+glin11 g_RMEV(clock, RMED, IL1DR, RMEL, RIBL,
+       IL1DL, RIS, PVT, AVEL, AVER,
+       RMER, SMDVL, 0.06, 0.04, 0.04,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron2G RMEV(clock, d_RMEV_1, d_RMEV_2, g_RMEV, 0.23,
+       0.1, -0.1, 1807314);
+dsum13 d_RMFL_1(clock, DVC, VB01, SAADR, SDQL,
+       PVT, AVKL, AVKR, RIML, ASIL,
+       AIBR, AINL, RICR, RIMR, 0.35,
+       0.25, 0.125, 0.075, 0.075, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin5 g_RMFL(clock, RIML, RIGL, RIGR, SAADR,
+       SAAVR, 0.03, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G RMFL(clock, d_RMFL_1, g_RMFL, 0.07, 0.1,
+       -0.1, 1815233);
+dsum10 d_RMFR_1(clock, SAAVL, DVC, PVT, RIMR,
+       AIBL, RICL, RIML, RMDL, SAADL,
+       SAADR, 0.275, 0.225, 0.175, 0.175,
+       0.15, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+neuron1 RMFR(clock, d_RMFR_1, 0.1, -0.1, 1823152);
+dsum16 d_RMGL_1(clock, RMHR, ADEL, CEPDL, RIGL,
+       URXL, ALML, BDUL, AIML, CEPVL,
+       AIAL, AVKR, AVEL, IL1L, ALNL,
+       RICR, RIR, 0.2, 0.175, 0.15,
+       0.15, 0.125, 0.075, 0.075, 0.075,
+       0.05, 0.05, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum4 d_RMGL_2(clock, AVFR, PVQL, RMDR, SAADR,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin10 g_RMGL(clock, RMHL, IL2L, ADLL, ASHL,
+       ALML, URXL, AVEL, AWBL, AVFR,
+       RMDDR, 0.06, 0.05, 0.03, 0.03,
+       0.03, 0.03, 0.02, 0.01, 0.01,
+       0.01);
+neuron2G RMGL(clock, d_RMGL_1, d_RMGL_2, g_RMGL, 0.28,
+       0.1, -0.1, 1831071);
+dsum14 d_RMGR_1(clock, URBR, ASHR, URXR, ADER,
+       AIMR, SMBVR, IL2R, CEPDR, RIR,
+       PVQR, AVER, SIBVL, HSNL, HSNR,
+       0.2, 0.15, 0.15, 0.125, 0.1,
+       0.075, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin11 g_RMGR(clock, URXR, RMHR, ASHR, PVPR,
+       SMBVR, ASKR, AWBR, IL2R, ALNR,
+       RIFR, RMHL, 0.05, 0.04, 0.03,
+       0.03, 0.03, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G RMGR(clock, d_RMGR_1, g_RMGR, 0.24, 0.1,
+       -0.1, 1838990);
+dsum16 d_RMHL_1(clock, RIGR, SDQR, CEPVL, CEPDR,
+       IL1R, RMDL, RMHR, OLQVL, RMFL,
+       IL1VL, IL2DL, OLQDL, CEPDL, ALNL,
+       ADEL, RMGL, 0.425, 0.375, 0.25,
+       0.175, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum1 d_RMHL_2(clock, RMDDL, 0.025, 1.);
+glin4 g_RMHL(clock, RMGL, SIBVR, RMGR, SMDDL,
+       0.06, 0.03, 0.01, 0.01);
+neuron2G RMHL(clock, d_RMHL_1, d_RMHL_2, g_RMHL, 0.11,
+       0.1, -0.1, 1846909);
+dsum16 d_RMHR_1(clock, RIGL, CEPVR, CEPDL, SDQR,
+       CEPVL, URBL, RMGL, OLQDR, RMER,
+       ADEL, RIVR, OLQVR, CEPDR, AVKR,
+       RMDL, SIBVR, 0.575, 0.375, 0.2,
+       0.175, 0.125, 0.125, 0.1, 0.075,
+       -0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin2 g_RMHR(clock, RMGR, RICR, 0.04, 0.01);
+neuron1G RMHR(clock, d_RMHR_1, g_RMHR, 0.05, 0.1,
+       -0.1, 1854828);
+dsum14 d_SAADL_1(clock, VB01, SMBVL, RIVR, AIBL,
+       PLNR, SABD, BDUL, RMGR, AIBR,
+       AVKR, RIAL, RMGL, AVKL, RIML,
+       0.45, 0.4, 0.3, 0.15, 0.125,
+       0.1, 0.075, 0.075, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin4 g_SAADL(clock, SMBDL, SDQR, RMDVR, RIVR,
+       0.03, 0.01, 0.01, 0.01);
+neuron1G SAADL(clock, d_SAADL_1, g_SAADL, 0.06, 0.1,
+       -0.1, 1862747);
+dsum13 d_SAADR_1(clock, SMBVR, RIVL, AIBL, PLNL,
+       DVA, SAAVL, RIML, SABD, AVKL,
+       SDQL, AIBR, ADEL, RIAR, 0.3,
+       0.275, 0.25, 0.2, 0.125, 0.125,
+       0.1, 0.1, 0.075, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin3 g_SAADR(clock, RIVL, RMFL, RMDDR, 0.02,
+       0.01, 0.01);
+neuron1G SAADR(clock, d_SAADR_1, g_SAADR, 0.04, 0.1,
+       -0.1, 1870666);
+dsum16 d_SAAVL_1(clock, RIMR, RIML, ALNL, SMBDR,
+       SABVR, AIBL, AINL, AVKL, DVA,
+       ASIL, RICL, PLNL, RMHL, VA02,
+       VD01, VD05, 0.275, 0.25, 0.2,
+       0.2, 0.1, 0.075, 0.075, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, -0.025, -0.025, 1.);
+glin6 g_SAAVL(clock, SMBVR, SMDVL, RMDVL, SABD,
+       SMBDR, SAAVR, 0.17, 0.08, 0.03,
+       0.03, 0.02, 0.01);
+neuron1G SAAVL(clock, d_SAAVL_1, g_SAAVL, 0.34, 0.1,
+       -0.1, 1878585);
+dsum11 d_SAAVR_1(clock, RIML, SMBDL, RIMR, AVAR,
+       SABVL, ALNR, AIBR, RMFL, DVA,
+       SAAVR, SMDDL, 0.25, 0.225, 0.2,
+       0.15, 0.1, 0.075, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin9 g_SAAVR(clock, SMBVL, RMDVR, SMDDL, RIAR,
+       RMFL, DVA, AVAR, SAAVL, SMBDL,
+       0.16, 0.09, 0.04, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+neuron1G SAAVR(clock, d_SAAVR_1, g_SAAVR, 0.35, 0.1,
+       -0.1, 1886504);
+dsum13 d_SABD_1(clock, AVEL, AVL, AVDL, DVA,
+       PVR, SAADL, SAADR, AVHL, AVJL,
+       AVDR, AVER, SAAVL, HSNR, 0.45,
+       -0.225, 0.125, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin4 g_SABD(clock, VA02, AVAL, SAAVL, VA03,
+       0.12, 0.07, 0.03, 0.02);
+neuron1G SABD(clock, d_SABD_1, g_SABD, 0.24, 0.1,
+       -0.1, 1894423);
+dsum9 d_SABVL_1(clock, AVEL, AVER, AVL, AVDR,
+       AVJR, AVAL, AVDL, SAAVR, VC03,
+       0.4, 0.3, -0.225, 0.125, 0.075,
+       0.05, 0.05, 0.05, 0.025, 1.);
+glin1 g_SABVL(clock, AVAR, 0.15);
+neuron1G SABVL(clock, d_SABVL_1, g_SABVL, 0.15, 0.1,
+       -0.1, 1902342);
+dsum8 d_SABVR_1(clock, AVEL, AVER, AVL, AVDL,
+       AVAR, SAAVL, AVDR, HSNR, 0.3,
+       0.275, -0.15, 0.125, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin3 g_SABVR(clock, AVAL, AVAR, DD01, 0.08,
+       0.02, 0.01);
+neuron1G SABVR(clock, d_SABVR_1, g_SABVR, 0.11, 0.1,
+       -0.1, 1910261);
+dsum12 d_SIADL_1(clock, SMBDL, SMDDL, RIAL, URBR,
+       AVKR, SDQR, URXR, RMGL, SIBDL,
+       ALMR, AIBR, RMGR, 0.475, 0.35,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       1.);
+glin6 g_SIADL(clock, RIBL, SMBDL, AVDR, RIML,
+       RMDDR, SIBVR, 0.02, 0.02, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G SIADL(clock, d_SIADL_1, g_SIADL, 0.08, 0.1,
+       -0.1, 1934018);
+dsum14 d_SIADR_1(clock, SMBDR, SMDDR, CEPDL, RIAR,
+       SDQL, ADEL, AIBL, RMGL, URBL,
+       SIBDR, IL2VR, ALNL, AIZR, SMDVL,
+       0.5, 0.35, 0.1, 0.1, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin8 g_SIADR(clock, RIBR, SMBDR, FLPL, SDQL,
+       AIBL, DVA, RIMR, SMDDR, 0.03,
+       0.03, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G SIADR(clock, d_SIADR_1, g_SIADR, 0.12, 0.1,
+       -0.1, 1941937);
+dsum12 d_SIAVL_1(clock, SMDVR, PLNL, RIAR, CEPVL,
+       RIVR, SIBVR, RMGL, SMBDL, URBL,
+       RMDVR, RMDR, SMBVL, 0.75, 0.25,
+       0.175, 0.15, 0.125, 0.125, 0.1,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       1.);
+glin7 g_SIAVL(clock, SIBDL, SIBVL, AIBR, RIAR,
+       RIBL, AVHR, RMDVR, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01);
+neuron1G SIAVL(clock, d_SIAVL_1, g_SIAVL, 0.09, 0.1,
+       -0.1, 1949856);
+dsum15 d_SIAVR_1(clock, SMDVL, PLNR, CEPVR, RIVL,
+       SIBVL, URXR, URBR, AIBL, RIAL,
+       RMGR, AVKL, RMDVL, SIBVR, SMBDR,
+       SMBVR, 0.75, 0.25, 0.175, 0.125,
+       0.125, 0.1, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin6 g_SIAVR(clock, RIBR, SDQR, RIAR, DVA,
+       RMDL, RMDVL, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G SIAVR(clock, d_SIAVR_1, g_SIAVR, 0.07, 0.1,
+       -0.1, 1957775);
+dsum7 d_SIBDL_1(clock, SMDDL, OLQDL, RMGL, SIADL,
+       IL1DL, CEPDL, SAADL, 0.35, 0.225,
+       0.125, 0.1, 0.075, 0.05, 0.025,
+       1.);
+glin5 g_SIBDL(clock, SIBVL, RIBL, SDQR, AVBR,
+       SIAVL, 0.08, 0.05, 0.02, 0.02,
+       0.02);
+neuron1G SIBDL(clock, d_SIBDL_1, g_SIBDL, 0.19, 0.1,
+       -0.1, 1965694);
+dsum12 d_SIBDR_1(clock, SMDVR, SMDDR, OLQDR, SIADR,
+       AIBL, RMDL, URBR, CEPDR, SDQR,
+       RMDVR, RMHL, SAADL, 0.75, 0.35,
+       0.15, 0.1, 0.075, 0.075, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin5 g_SIBDR(clock, SIBVR, SMBDL, SIBVL, RIBR,
+       RMDDL, 0.1, 0.04, 0.03, 0.02,
+       0.01);
+neuron1G SIBDR(clock, d_SIBDR_1, g_SIBDR, 0.2, 0.1,
+       -0.1, 1973613);
+dsum15 d_SIBVL_1(clock, SMDVL, OLQVL, PVCL, URYVR,
+       AVM, ADLR, RMGR, SIAVR, SMDDL,
+       SDQL, URYVL, URBL, RMDVR, RIVR,
+       SAADL, 0.75, 0.325, 0.175, 0.125,
+       0.1, 0.05, 0.05, 0.05, 0.05,
+       0.025, 0.025, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin13 g_SIBVL(clock, SIBDL, SIBDR, SMDDL, AVBL,
+       RMDL, SIAVL, SMBVL, AIZR, RIBL,
+       PVCR, SIBVR, SMBDL, SMDVL, 0.08,
+       0.03, 0.03, 0.02, 0.02, 0.02,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G SIBVL(clock, d_SIBVL_1, g_SIBVL, 0.28, 0.1,
+       -0.1, 1981532);
+dsum13 d_SIBVR_1(clock, OLQVR, PVCR, URYVL, URYVR,
+       RMGL, SMDDR, CEPDL, ADEL, AIBR,
+       URBR, AVKL, SIAVL, RMDVL, 0.45,
+       0.25, 0.1, 0.1, 0.1, 0.075,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.025, 1.);
+glin9 g_SIBVR(clock, SIBDR, RIBR, RMHL, RIBL,
+       AIML, RIVL, SIADL, SIBVL, SMBDL,
+       0.1, 0.06, 0.03, 0.02, 0.01,
+       0.01, 0.01, 0.01, 0.01);
+neuron1G SIBVR(clock, d_SIBVR_1, g_SIBVR, 0.26, 0.1,
+       -0.1, 1989451);
+dsum16 d_SMBDL_1(clock, AIZL, SIADL, DVA, RICL,
+       ALNR, URBR, AVHR, AVKR, SMBDR,
+       SMDDL, AWBL, SMBVL, ADFL, CEPDR,
+       RIVR, SAAVR, 0.6, 0.45, 0.15,
+       0.125, 0.1, 0.1, 0.075, 0.075,
+       0.075, 0.075, 0.05, 0.05, 0.025,
+       0.025, 0.025, 0.025, 1.);
+glin8 g_SMBDL(clock, SIBDR, SAADL, AVKL, SIADL,
+       AVKR, SAAVR, SIBVL, SIBVR, 0.04,
+       0.03, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G SMBDL(clock, d_SMBDL_1, g_SMBDL, 0.15, 0.1,
+       -0.1, 1997370);
+dsum16 d_SMBDR_1(clock, AIZR, SIADR, SDQL, ALNL,
+       RIAL, DVA, CEPDL, AVHL, RICR,
+       URBL, SMDDR, ADFR, ALML, RIAR,
+       SAADR, SAAVL, 0.425, 0.425, 0.275,
+       0.175, 0.175, 0.15, 0.125, 0.1,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum5 d_SMBDR_2(clock, SMBVR, URYVR, ADEL, RICL,
+       RMDVR, 0.05, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin9 g_SMBDR(clock, AVKR, ALNL, SIADR, RIBR,
+       AVKL, SAAVL, SMBVR, ALML, SMDDR,
+       0.09, 0.03, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.01, 0.01);
+neuron2G SMBDR(clock, d_SMBDR_1, d_SMBDR_2, g_SMBDR, 0.25,
+       0.1, -0.1, 2005289);
+dsum16 d_SMBVL_1(clock, AIZL, SDQR, PLNL, ADFL,
+       PLNR, ADLL, DVA, AIML, AWBL,
+       VB01, ADEL, RMGL, SIAVL, SMBDL,
+       CEPVL, URBL, 0.525, 0.275, 0.25,
+       0.225, 0.175, 0.125, 0.125, 0.1,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum3 d_SMBVL_2(clock, AVFL, AVHR, SIBDL, 0.025,
+       0.025, 0.025, 1.);
+glin3 g_SMBVL(clock, SAAVR, AVKL, SIBVL, 0.16,
+       0.06, 0.02);
+neuron2G SMBVL(clock, d_SMBVL_1, d_SMBVL_2, g_SMBVL, 0.24,
+       0.1, -0.1, 2013208);
+dsum16 d_SMBVR_1(clock, ADFR, PLNL, PLNR, AIZR,
+       ASHR, URXR, DVA, ADLR, AVHL,
+       PVCL, CEPVR, RIAR, RMDL, SIAVR,
+       RMGR, URBR, 0.475, 0.325, 0.25,
+       0.25, 0.175, 0.175, 0.15, 0.125,
+       0.1, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+dsum1 d_SMBVR_2(clock, SAADR, 0.025, 1.);
+glin8 g_SMBVR(clock, SAAVL, AVKR, RMGR, AVKL,
+       SMBDR, ADFR, AIMR, URBR, 0.17,
+       0.06, 0.03, 0.02, 0.02, 0.01,
+       0.01, 0.01);
+neuron2G SMBVR(clock, d_SMBVR_1, d_SMBVR_2, g_SMBVR, 0.33,
+       0.1, -0.1, 2021127);
+dsum16 d_SMDDL_1(clock, RIAR, RIAL, AIBR, SAAVR,
+       SIADL, SMDVR, URYDR, RICL, RIML,
+       SIBDL, RICR, RIMR, OLLL, SMBDL,
+       RIVR, SMDDR, 0.8, 0.55, 0.425,
+       0.425, 0.425, 0.35, 0.275, 0.275,
+       0.275, 0.25, 0.225, 0.225, 0.2,
+       0.175, 0.15, 0.1, 1.);
+dsum9 d_SMDDL_2(clock, OLLR, RMHR, URYDL, RIBR,
+       ALMR, RIS, RMGL, RMED, SIBVL,
+       0.075, 0.075, 0.05, 0.05, 0.025,
+       -0.025, 0.025, -0.025, 0.025, 1.);
+glin11 g_SMDDL(clock, RIBR, SAAVR, RIBL, RMDDL,
+       SIBVL, AIBR, RIS, RMDL, ALNR,
+       RIAR, RMHL, 0.04, 0.04, 0.03,
+       0.03, 0.03, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01);
+neuron2G SMDDL(clock, d_SMDDL_1, d_SMDDL_2, g_SMDDL, 0.26,
+       0.1, -0.1, 2029046);
+dsum16 d_SMDDR_1(clock, RIAL, RIAR, SMDVL, SAAVL,
+       SIADR, AIBL, RIML, RIMR, SIBDR,
+       OLLL, RICR, RICL, RIVL, RIS,
+       AIZR, RMED, 0.825, 0.65, 0.55,
+       0.45, 0.425, 0.4, 0.35, 0.35,
+       0.25, 0.225, 0.225, 0.2, 0.2,
+       -0.15, 0.1, -0.1, 1.);
+dsum11 d_SMDDR_2(clock, SMBDR, URYDL, AVKR, CEPVR,
+       RMGL, OLLR, ALNR, RMDL, RMDR,
+       RMEV, SMDDL, 0.1, 0.075, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, -0.025, 0.025, 1.);
+glin10 g_SMDDR(clock, RIS, VD01, ALNL, RIBR,
+       AIBL, AVER, RMDDR, SIADR, SMBDR,
+       SMDVL, 0.05, 0.05, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01);
+neuron2G SMDDR(clock, d_SMDDR_1, d_SMDDR_2, g_SMDDR, 0.2,
+       0.1, -0.1, 2036965);
+dsum16 d_SMDVL_1(clock, RIAR, SIBVL, RIAL, OLLR,
+       URYVR, RIML, SIAVR, AIBR, RICR,
+       SAADR, SMDDR, AIZL, ALNR, PLNR,
+       RIBR, RIMR, 1.075, 0.55, 0.35,
+       0.275, 0.275, 0.275, 0.25, 0.175,
+       0.15, 0.125, 0.125, 0.075, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum12 d_SMDVL_2(clock, RIVL, ADFL, AWCL, ALNL,
+       BAGR, ADAR, RIS, RMFL, DVA,
+       RMEV, SAAVL, SMDVR, 0.05, 0.025,
+       0.025, 0.025, 0.025, 0.025, -0.025,
+       0.025, 0.025, -0.025, 0.025, 0.025,
+       1.);
+glin8 g_SMDVL(clock, SAAVL, RIAL, RIS, RIVL,
+       ALNL, RMEV, SIBVL, SMDDR, 0.08,
+       0.04, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01);
+neuron2G SMDVL(clock, d_SMDVL_1, d_SMDVL_2, g_SMDVL, 0.2,
+       0.1, -0.1, 2044884);
+dsum16 d_SMDVR_1(clock, RIAL, RIAR, SIBVR, SMDDL,
+       URYVL, OLLL, SIAVL, RIBL, OLLR,
+       AIBL, URYDR, ADAL, RICR, RIMR,
+       RIVR, PLNL, 0.8, 0.65, 0.55,
+       0.425, 0.325, 0.25, 0.25, 0.15,
+       0.1, 0.1, 0.075, 0.075, 0.075,
+       0.075, 0.075, 0.05, 1.);
+dsum8 d_SMDVR_2(clock, RIBR, SMDVL, CEPVL, ADER,
+       RICL, RIS, AVKR, AVAR, 0.05,
+       0.05, 0.025, 0.025, 0.025, -0.025,
+       0.025, 0.025, 1.);
+glin5 g_SMDVR(clock, RMDVR, RIVR, ADFR, RIAR,
+       AVEL, 0.08, 0.08, 0.02, 0.01,
+       0.01);
+neuron2G SMDVR(clock, d_SMDVR_1, d_SMDVR_2, g_SMDVR, 0.2,
+       0.1, -0.1, 2052803);
+
+// -------- PHARYNGEAL NEURONS (20): 20 pcs --------
+dsum4 d_I1L_1(clock, I2L, I5, I3, MI,
+       0.05, 0.05, 0.025, 0.025, 1.);
+glin6 g_I1L(clock, NSML, I2L, M3L, RIPL,
+       MCR, pm4vl, 0.03, 0.02, 0.02,
+       0.02, 0.01, 0.01);
+neuron1G I1L(clock, d_I1L_1, g_I1L, 0.11, 0.1,
+       -0.1, 1023333);
+dsum2 d_I1R_1(clock, I2R, I6, 0.025, 0.025,
+       1.);
+glin7 g_I1R(clock, MCR, pm3vr, NSMR, pm4vr,
+       RIPR, I2R, I3, 0.04, 0.03,
+       0.02, 0.02, 0.02, 0.01, 0.01);
+neuron1G I1R(clock, d_I1R_1, g_I1R, 0.15, 0.1,
+       -0.1, 1031252);
+dsum6 d_I2L_1(clock, I1L, I2R, I5, M1,
+       I6, NSMR, 0.25, 0.075, 0.075,
+       0.075, 0.025, 0.025, 1.);
+glin3 g_I2L(clock, I1L, I4, M2L, 0.02,
+       0.01, 0.01);
+neuron1G I2L(clock, d_I2L_1, g_I2L, 0.04, 0.1,
+       -0.1, 1039171);
+dsum7 d_I2R_1(clock, I4, I1R, I6, I2L,
+       M1, I5, NSMR, 0.175, 0.15,
+       0.1, 0.075, 0.05, 0.025, 0.025,
+       1.);
+glin5 g_I2R(clock, NSMR, I1R, M1, M2R,
+       MCR, 0.02, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G I2R(clock, d_I2R_1, g_I2R, 0.06, 0.1,
+       -0.1, 1047090);
+dsum7 d_I3_1(clock, I6, M1, I1L, M2L,
+       MI, I1R, I5, 0.3, 0.2,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       1.);
+glin5 g_I3(clock, pm4d, I1R, M1, MI,
+       pm5d, 0.03, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G I3(clock, d_I3_1, g_I3, 0.07, 0.1,
+       -0.1, 1055009);
+dsum10 d_I4_1(clock, I2R, I2L, M2L, I5,
+       M4, NSMR, M1, M2R, MI,
+       NSML, 0.5, 0.325, 0.2, 0.175,
+       0.125, 0.075, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin4 g_I4(clock, M2R, I2L, M4, pm5vl,
+       0.02, 0.01, 0.01, 0.01);
+neuron1G I4(clock, d_I4_1, g_I4, 0.05, 0.1,
+       -0.1, 1062928);
+dsum10 d_I5_1(clock, M2R, I1L, I1R, I2L,
+       I2R, I3, I4, M1, M2L,
+       M4, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.025, 1.);
+glin3 g_I5(clock, M2L, M2R, M5, 0.01,
+       0.01, 0.01);
+neuron1G I5(clock, d_I5_1, g_I5, 0.03, 0.1,
+       -0.1, 1070847);
+dsum3 d_I6_1(clock, NSMR, I1L, I3, 0.1,
+       0.025, 0.025, 1.);
+glin1 g_I6(clock, M4, 0.05);
+neuron1G I6(clock, d_I6_1, g_I6, 0.05, 0.1,
+       -0.1, 1078766);
+dsum6 d_M1_1(clock, MI, I2R, I5, I3,
+       I1R, I2L, 0.175, 0.075, 0.075,
+       0.05, 0.025, 0.025, 1.);
+glin3 g_M1(clock, pm5d, I2R, I3, 0.03,
+       0.01, 0.01);
+neuron1G M1(clock, d_M1_1, g_M1, 0.05, 0.1,
+       -0.1, 1197551);
+dsum7 d_M2L_1(clock, I4, I5, I1L, MI,
+       I3, I1R, M4, 0.125, 0.1,
+       0.075, 0.075, 0.05, 0.025, 0.025,
+       1.);
+glin6 g_M2L(clock, I2L, I5, M4, MCL,
+       pm4vl, pm5vl, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+neuron1G M2L(clock, d_M2L_1, g_M2L, 0.06, 0.1,
+       -0.1, 1205470);
+dsum3 d_M2R_1(clock, I1R, I2R, MI, 0.075,
+       0.05, 0.05, 1.);
+glin7 g_M2R(clock, MCR, MI, I4, I2R,
+       I5, M3R, pm5d, 0.11, 0.05,
+       0.02, 0.01, 0.01, 0.01, 0.01);
+neuron1G M2R(clock, d_M2R_1, g_M2R, 0.22, 0.1,
+       -0.1, 1213389);
+dsum11 d_M3L_1(clock, NSML, I6, I1L, I4,
+       I5, M2L, I3, M2R, MI,
+       I1R, M4, 0.525, 0.25, 0.2,
+       0.15, 0.1, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+glin5 g_M3L(clock, I1L, pm4d, NSMR, pm5d,
+       pm5vl, 0.02, 0.02, 0.01, 0.01,
+       0.01);
+neuron1G M3L(clock, d_M3L_1, g_M3L, 0.07, 0.1,
+       -0.1, 1221308);
+dsum10 d_M3R_1(clock, NSMR, I4, I1R, I1L,
+       I2R, I3, I5, M2L, M2R,
+       NSML, 0.6, 0.55, 0.15, 0.05,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin5 g_M3R(clock, NSMR, M2R, pm4vr, pm5d,
+       pm5vr, 0.02, 0.01, 0.01, 0.01,
+       0.01);
+neuron1G M3R(clock, d_M3R_1, g_M3R, 0.06, 0.1,
+       -0.1, 1229227);
+dsum7 d_M4_1(clock, I5, I6, M4, NSML,
+       I2R, I3, M3R, 0.475, 0.375,
+       0.375, 0.325, 0.075, 0.05, 0.05,
+       1.);
+glin8 g_M4(clock, I6, M5, I4, M2L,
+       M4, pm5d, pm5vl, pm5vr, 0.05,
+       0.02, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+neuron1G M4(clock, d_M4_1, g_M4, 0.13, 0.1,
+       -0.1, 1237146);
+glin5 g_M5(clock, M4, pm5vl, pm6vr, I5,
+       M5, 0.02, 0.02, 0.02, 0.01,
+       0.01);
+neuron0G M5(clock, g_M5, 0.08, 0.1, -0.1,
+       1245065);
+dsum6 d_MCL_1(clock, I1R, MI, I1L, I2R,
+       I3, M4, 0.075, 0.075, 0.05,
+       0.025, 0.025, 0.025, 1.);
+glin1 g_MCL(clock, M2L, 0.01);
+neuron1G MCL(clock, d_MCL_1, g_MCL, 0.01, 0.1,
+       -0.1, 1252984);
+dsum3 d_MCR_1(clock, I1R, I1L, I3, 0.1,
+       0.05, 0.05, 1.);
+glin4 g_MCR(clock, M2R, I1R, I1L, I2R,
+       0.11, 0.04, 0.01, 0.01);
+neuron1G MCR(clock, d_MCR_1, g_MCR, 0.17, 0.1,
+       -0.1, 1260903);
+dsum6 d_MI_1(clock, M1, I5, I1L, I1R,
+       I3, I4, 0.15, 0.1, 0.05,
+       0.025, 0.025, 0.025, 1.);
+glin3 g_MI(clock, M2R, pm4d, I3, 0.05,
+       0.03, 0.01);
+neuron1G MI(clock, d_MI_1, g_MI, 0.09, 0.1,
+       -0.1, 1268822);
+dsum10 d_NSML_1(clock, I2R, I6, I2L, I4,
+       I1L, M1, I1R, I5, M3L,
+       MI, 0.85, 0.6, 0.35, 0.2,
+       0.075, 0.05, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin2 g_NSML(clock, I1L, NSMR, 0.03, 0.02);
+neuron1G NSML(clock, d_NSML_1, g_NSML, 0.05, 0.1,
+       -0.1, 1276741);
+dsum10 d_NSMR_1(clock, I2L, I6, I4, I2R,
+       NSML, I5, I1R, I3, MI,
+       M2R, 0.6, 0.575, 0.375, 0.175,
+       0.175, 0.125, 0.05, 0.05, 0.05,
+       0.025, 1.);
+glin6 g_NSMR(clock, I1R, I2R, M3R, NSML,
+       pm5d, M3L, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.01);
+neuron1G NSMR(clock, d_NSMR_1, g_NSMR, 0.11, 0.1,
+       -0.1, 1284660);
+
+// -------- BODY MUSCLES (95, dBWM: dorsal/ventral L/R): 95 pcs --------
+dsum8 d_dBWML1_1(clock, SABD, IL1DL, SMBDR, SMDDL,
+       SMDVL, RMDDR, URADL, RMEV, 0.375,
+       0.275, 0.125, 0.1, 0.075, 0.05,
+       0.05, -0.025, 1.);
+glin2 g_dBWML1(clock, dBWML2, dBWML3, 0.15, 0.15);
+muscle1G dBWML1(clock, d_dBWML1_1, g_dBWML1, 0.3, 0.15);
+dsum10 d_dBWML10_1(clock, DA03, SMBDR, SIADR, AS03,
+       SMDDR, AS04, DB02, DD02, SIBDR,
+       DA02, 0.425, 0.225, 0.2, 0.175,
+       0.15, 0.125, 0.1, -0.1, 0.075,
+       0.05, 1.);
+glin2 g_dBWML10(clock, dBWML9, dBWML11, 0.15, 0.15);
+muscle1G dBWML10(clock, d_dBWML10_1, g_dBWML10, 0.3, 0.15);
+dsum12 d_dBWML11_1(clock, DA03, SMBDR, DD02, SIADR,
+       SMDDR, DA04, DB03, DB02, AS04,
+       SIBDR, AS05, DA06, 0.3, 0.225,
+       -0.225, 0.2, 0.15, 0.15, 0.15,
+       0.125, 0.125, 0.075, 0.05, 0.025,
+       1.);
+glin2 g_dBWML11(clock, dBWML10, dBWML12, 0.15, 0.15);
+muscle1G dBWML11(clock, d_dBWML11_1, g_dBWML11, 0.3, 0.15);
+dsum13 d_dBWML12_1(clock, DA04, SMBDR, SIADR, AS05,
+       SMDDR, DD02, DD03, SIBDR, AS04,
+       DA05, DA06, DB02, DB03, 0.25,
+       0.225, 0.2, 0.2, 0.15, -0.15,
+       -0.1, 0.075, 0.05, 0.025, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_dBWML12(clock, dBWML11, dBWML13, 0.15, 0.15);
+muscle1G dBWML12(clock, d_dBWML12_1, g_dBWML12, 0.3, 0.15);
+dsum12 d_dBWML13_1(clock, DA05, SMBDR, SIADR, SMDDR,
+       DD03, DA06, DB04, SIBDR, DB03,
+       AS06, RID, DA04, 0.25, 0.225,
+       0.2, 0.15, -0.15, 0.125, 0.1,
+       0.075, 0.075, 0.05, 0.025, 0.025,
+       1.);
+glin2 g_dBWML13(clock, dBWML12, dBWML14, 0.15, 0.15);
+muscle1G dBWML13(clock, d_dBWML13_1, g_dBWML13, 0.3, 0.15);
+dsum13 d_dBWML14_1(clock, SMBDR, SIADR, DA05, SMDDR,
+       DA06, SIBDR, DA07, AS06, DB05,
+       DD03, RID, DB03, DB04, 0.225,
+       0.2, 0.175, 0.15, 0.1, 0.075,
+       0.075, 0.075, 0.05, -0.05, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_dBWML14(clock, dBWML13, dBWML15, 0.15, 0.15);
+muscle1G dBWML14(clock, d_dBWML14_1, g_dBWML14, 0.3, 0.15);
+dsum10 d_dBWML15_1(clock, SMBDR, SIADR, SMDDR, DD03,
+       DA06, SIBDR, DA07, DB04, DB05,
+       AS07, 0.225, 0.2, 0.15, -0.125,
+       0.1, 0.075, 0.075, 0.075, 0.05,
+       0.05, 1.);
+glin2 g_dBWML15(clock, dBWML14, dBWML16, 0.15, 0.15);
+muscle1G dBWML15(clock, d_dBWML15_1, g_dBWML15, 0.3, 0.15);
+dsum12 d_dBWML16_1(clock, DD04, DA06, SIADR, SMBDR,
+       DA07, DA08, DB04, AS07, SMDDR,
+       DB05, DB06, SIBDR, -0.125, 0.1,
+       0.075, 0.075, 0.075, 0.075, 0.075,
+       0.075, 0.05, 0.05, 0.05, 0.025,
+       1.);
+glin2 g_dBWML16(clock, dBWML15, dBWML17, 0.15, 0.15);
+muscle1G dBWML16(clock, d_dBWML16_1, g_dBWML16, 0.3, 0.15);
+dsum6 d_dBWML17_1(clock, DD04, DA07, DA08, DB05,
+       DB06, AS08, -0.225, 0.075, 0.075,
+       0.05, 0.05, 0.05, 1.);
+glin2 g_dBWML17(clock, dBWML16, dBWML18, 0.15, 0.15);
+muscle1G dBWML17(clock, d_dBWML17_1, g_dBWML17, 0.3, 0.15);
+dsum6 d_dBWML18_1(clock, DD04, DA07, DA08, AS08,
+       DB05, DB06, -0.125, 0.1, 0.075,
+       0.075, 0.05, 0.05, 1.);
+glin2 g_dBWML18(clock, dBWML17, dBWML19, 0.15, 0.15);
+muscle1G dBWML18(clock, d_dBWML18_1, g_dBWML18, 0.3, 0.15);
+dsum8 d_dBWML19_1(clock, DD05, DA07, DA08, DA09,
+       AS09, DB05, DB06, DB07, -0.125,
+       0.075, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 1.);
+glin2 g_dBWML19(clock, dBWML18, dBWML20, 0.15, 0.15);
+muscle1G dBWML19(clock, d_dBWML19_1, g_dBWML19, 0.3, 0.15);
+dsum8 d_dBWML2_1(clock, RMDDR, SMBDR, URADL, RMEV,
+       IL1DL, SMDDL, SMDDR, SMDVL, 0.3,
+       0.275, 0.175, -0.125, 0.1, 0.075,
+       0.075, 0.075, 1.);
+glin2 g_dBWML2(clock, dBWML1, dBWML3, 0.15, 0.15);
+muscle1G dBWML2(clock, d_dBWML2_1, g_dBWML2, 0.3, 0.15);
+dsum7 d_dBWML20_1(clock, DD05, DA08, DA09, AS10,
+       DB06, DB07, AS09, -0.225, 0.1,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       1.);
+glin2 g_dBWML20(clock, dBWML19, dBWML21, 0.15, 0.15);
+muscle1G dBWML20(clock, d_dBWML20_1, g_dBWML20, 0.3, 0.15);
+dsum8 d_dBWML21_1(clock, DD05, PDA, DA08, DA09,
+       AS11, DB06, DB07, AS10, -0.125,
+       0.1, 0.075, 0.075, 0.075, 0.05,
+       0.05, 0.05, 1.);
+glin2 g_dBWML21(clock, dBWML20, dBWML22, 0.15, 0.15);
+muscle1G dBWML21(clock, d_dBWML21_1, g_dBWML21, 0.3, 0.15);
+dsum5 d_dBWML22_1(clock, DD06, PDA, DA09, DB07,
+       AS11, -0.125, 0.1, 0.075, 0.05,
+       0.05, 1.);
+glin2 g_dBWML22(clock, dBWML21, dBWML23, 0.15, 0.15);
+muscle1G dBWML22(clock, d_dBWML22_1, g_dBWML22, 0.3, 0.15);
+dsum5 d_dBWML23_1(clock, DD06, PDA, DA09, DB07,
+       PDB, -0.225, 0.125, 0.075, 0.05,
+       0.05, 1.);
+glin2 g_dBWML23(clock, dBWML22, dBWML24, 0.15, 0.15);
+muscle1G dBWML23(clock, d_dBWML23_1, g_dBWML23, 0.3, 0.15);
+dsum5 d_dBWML24_1(clock, PDA, DD06, DA09, PDB,
+       DB07, 0.15, -0.125, 0.1, 0.075,
+       0.05, 1.);
+glin1 g_dBWML24(clock, dBWML23, 0.15);
+muscle1G dBWML24(clock, d_dBWML24_1, g_dBWML24, 0.15, 0.15);
+dsum9 d_dBWML3_1(clock, SABD, RMER, IL1L, SAADR,
+       IL1DL, RMDVR, RMDDR, RMDL, RMHR,
+       1.675, -1.125, 0.4, 0.175, 0.125,
+       0.125, 0.025, 0.025, 0.025, 1.);
+glin3 g_dBWML3(clock, dBWML1, dBWML2, dBWML4, 0.15,
+       0.15, 0.15);
+muscle1G dBWML3(clock, d_dBWML3_1, g_dBWML3, 0.45, 0.15);
+dsum8 d_dBWML4_1(clock, SABD, RMDDR, IL1L, RMGL,
+       RMHR, RMER, SAADR, SMBDR, 1.575,
+       0.425, 0.375, 0.175, 0.175, -0.1,
+       0.075, 0.075, 1.);
+glin2 g_dBWML4(clock, dBWML3, dBWML5, 0.15, 0.15);
+muscle1G dBWML4(clock, d_dBWML4_1, g_dBWML4, 0.3, 0.15);
+dsum13 d_dBWML5_1(clock, SMBDR, RIMR, SMDDR, RMHR,
+       SIADR, IL1L, BDUL, SIBDR, CEPDL,
+       RIFL, RMDL, RMDR, RMGL, 0.5,
+       0.375, 0.275, 0.2, 0.2, 0.175,
+       0.075, 0.075, 0.05, 0.05, 0.05,
+       0.05, 0.025, 1.);
+glin2 g_dBWML5(clock, dBWML4, dBWML6, 0.15, 0.15);
+muscle1G dBWML5(clock, d_dBWML5_1, g_dBWML5, 0.3, 0.15);
+dsum14 d_dBWML6_1(clock, SABD, URADL, IL1DL, DA01,
+       SMBDR, SMDDR, AS01, RMDDR, SIADR,
+       DB01, SAADR, OLQDL, SIBDR, DD01,
+       0.5, 0.275, 0.225, 0.225, 0.175,
+       0.1, 0.1, 0.075, 0.075, 0.075,
+       0.05, 0.025, 0.025, -0.025, 1.);
+glin2 g_dBWML6(clock, dBWML5, dBWML7, 0.15, 0.15);
+muscle1G dBWML6(clock, d_dBWML6_1, g_dBWML6, 0.3, 0.15);
+dsum10 d_dBWML7_1(clock, SMBDR, SIADR, DA01, SMDDR,
+       AS01, DD01, SIBDR, AS02, SMDDL,
+       DA02, 0.225, 0.2, 0.2, 0.15,
+       0.15, -0.1, 0.075, 0.05, 0.025,
+       0.025, 1.);
+glin2 g_dBWML7(clock, dBWML6, dBWML8, 0.15, 0.15);
+muscle1G dBWML7(clock, d_dBWML7_1, g_dBWML7, 0.3, 0.15);
+dsum9 d_dBWML8_1(clock, SIADR, SMBDR, DD01, SMDDR,
+       DA02, AS02, SIBDR, DA01, DB01,
+       0.3, 0.3, -0.225, 0.2, 0.125,
+       0.125, 0.1, 0.075, 0.075, 1.);
+glin2 g_dBWML8(clock, dBWML7, dBWML9, 0.15, 0.15);
+muscle1G dBWML8(clock, d_dBWML8_1, g_dBWML8, 0.3, 0.15);
+dsum11 d_dBWML9_1(clock, DD01, SMBDR, SIADR, SMDDR,
+       DB01, AS02, DA02, SIBDR, DA03,
+       DB02, AS03, -0.325, 0.225, 0.2,
+       0.15, 0.15, 0.15, 0.1, 0.075,
+       0.075, 0.05, 0.025, 1.);
+glin3 g_dBWML9(clock, dBWML8, dBWML10, VD02, 0.15,
+       0.15, 0.01);
+muscle1G dBWML9(clock, d_dBWML9_1, g_dBWML9, 0.31, 0.15);
+dsum9 d_dBWMR1_1(clock, URADR, SABD, IL1DR, RMEV,
+       RMDDL, SMBDL, RMDDR, SMBDR, SMDDL,
+       0.375, 0.375, 0.35, -0.225, 0.2,
+       0.1, 0.075, 0.075, 0.075, 1.);
+glin2 g_dBWMR1(clock, dBWMR2, dBWMR3, 0.15, 0.15);
+muscle1G dBWMR1(clock, d_dBWMR1_1, g_dBWMR1, 0.3, 0.15);
+dsum11 d_dBWMR10_1(clock, DA03, SMBDL, SIADL, SMDDL,
+       DB02, AS03, SIBDL, DD01, DD02,
+       RID, DA06, 0.35, 0.225, 0.2,
+       0.15, 0.15, 0.125, 0.075, -0.05,
+       -0.05, 0.025, 0.025, 1.);
+glin2 g_dBWMR10(clock, dBWMR9, dBWMR11, 0.15, 0.15);
+muscle1G dBWMR10(clock, d_dBWMR10_1, g_dBWMR10, 0.3, 0.15);
+dsum12 d_dBWMR11_1(clock, DD02, SMBDL, SIADL, DB02,
+       SMDDL, DA04, DA03, AS04, SIBDL,
+       DB03, DA06, DD03, -0.25, 0.225,
+       0.2, 0.2, 0.15, 0.125, 0.1,
+       0.1, 0.075, 0.05, 0.025, -0.025,
+       1.);
+glin2 g_dBWMR11(clock, dBWMR10, dBWMR12, 0.15, 0.15);
+muscle1G dBWMR11(clock, d_dBWMR11_1, g_dBWMR11, 0.3, 0.15);
+dsum13 d_dBWMR12_1(clock, DB03, SMBDL, SIADL, DD03,
+       SMDDL, AS04, DA04, SIBDL, DA03,
+       DA05, AS05, DA06, DD02, 0.325,
+       0.225, 0.2, -0.2, 0.15, 0.125,
+       0.1, 0.075, 0.05, 0.05, 0.05,
+       0.025, -0.025, 1.);
+glin2 g_dBWMR12(clock, dBWMR11, dBWMR13, 0.15, 0.15);
+muscle1G dBWMR12(clock, d_dBWMR12_1, g_dBWMR12, 0.3, 0.15);
+dsum12 d_dBWMR13_1(clock, SMBDL, DA04, SIADL, DD03,
+       DA05, SMDDL, DA06, AS06, SIBDL,
+       DB04, DB03, DD04, 0.225, 0.225,
+       0.2, -0.2, 0.175, 0.15, 0.125,
+       0.125, 0.075, 0.075, 0.025, -0.025,
+       1.);
+glin2 g_dBWMR13(clock, dBWMR12, dBWMR14, 0.15, 0.15);
+muscle1G dBWMR13(clock, d_dBWMR13_1, g_dBWMR13, 0.3, 0.15);
+dsum12 d_dBWMR14_1(clock, SMBDL, AS06, SIADL, DA05,
+       SMDDL, DB04, DA06, SIBDL, DA07,
+       DD03, DB05, DD04, 0.225, 0.225,
+       0.2, 0.2, 0.15, 0.125, 0.1,
+       0.075, 0.075, -0.075, 0.05, -0.05,
+       1.);
+glin2 g_dBWMR14(clock, dBWMR13, dBWMR15, 0.15, 0.15);
+muscle1G dBWMR14(clock, d_dBWMR14_1, g_dBWMR14, 0.3, 0.15);
+dsum11 d_dBWMR15_1(clock, SMBDL, SIADL, SMDDL, DD03,
+       DA06, SIBDL, DA07, DB04, DB05,
+       AS07, DD04, 0.225, 0.2, 0.15,
+       -0.125, 0.1, 0.075, 0.075, 0.075,
+       0.05, 0.05, -0.05, 1.);
+glin2 g_dBWMR15(clock, dBWMR14, dBWMR16, 0.15, 0.15);
+muscle1G dBWMR15(clock, d_dBWMR15_1, g_dBWMR15, 0.3, 0.15);
+dsum12 d_dBWMR16_1(clock, DD04, DA06, SIADL, SMBDL,
+       DA07, DA08, DB04, AS07, SMDDL,
+       DB05, DB06, SIBDL, -0.125, 0.1,
+       0.075, 0.075, 0.075, 0.075, 0.075,
+       0.075, 0.05, 0.05, 0.05, 0.025,
+       1.);
+glin2 g_dBWMR16(clock, dBWMR15, dBWMR17, 0.15, 0.15);
+muscle1G dBWMR16(clock, d_dBWMR16_1, g_dBWMR16, 0.3, 0.15);
+dsum6 d_dBWMR17_1(clock, DD04, DA07, DA08, DB05,
+       DB06, AS08, -0.225, 0.075, 0.075,
+       0.05, 0.05, 0.05, 1.);
+glin2 g_dBWMR17(clock, dBWMR16, dBWMR18, 0.15, 0.15);
+muscle1G dBWMR17(clock, d_dBWMR17_1, g_dBWMR17, 0.3, 0.15);
+dsum6 d_dBWMR18_1(clock, DD04, DA07, DA08, AS08,
+       DB05, DB06, -0.125, 0.1, 0.075,
+       0.075, 0.05, 0.05, 1.);
+glin2 g_dBWMR18(clock, dBWMR17, dBWMR19, 0.15, 0.15);
+muscle1G dBWMR18(clock, d_dBWMR18_1, g_dBWMR18, 0.3, 0.15);
+dsum8 d_dBWMR19_1(clock, DD05, DA07, DA08, DA09,
+       DB05, DB06, DB07, AS09, -0.125,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.05, 1.);
+glin2 g_dBWMR19(clock, dBWMR18, dBWMR20, 0.15, 0.15);
+muscle1G dBWMR19(clock, d_dBWMR19_1, g_dBWMR19, 0.3, 0.15);
+dsum8 d_dBWMR2_1(clock, SMBDL, RMDDR, IL1DR, RMEV,
+       URADR, RMDDL, SMBDR, URYDR, 0.275,
+       0.175, 0.15, -0.125, 0.125, 0.1,
+       0.075, 0.05, 1.);
+glin2 g_dBWMR2(clock, dBWMR1, dBWMR3, 0.15, 0.15);
+muscle1G dBWMR2(clock, d_dBWMR2_1, g_dBWMR2, 0.3, 0.15);
+dsum6 d_dBWMR20_1(clock, DD05, DA08, DA09, AS09,
+       DB06, DB07, -0.225, 0.1, 0.075,
+       0.075, 0.05, 0.05, 1.);
+glin2 g_dBWMR20(clock, dBWMR19, dBWMR21, 0.15, 0.15);
+muscle1G dBWMR20(clock, d_dBWMR20_1, g_dBWMR20, 0.3, 0.15);
+dsum7 d_dBWMR21_1(clock, DD05, PDA, DA08, DA09,
+       AS10, DB06, DB07, -0.125, 0.1,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       1.);
+glin2 g_dBWMR21(clock, dBWMR20, dBWMR22, 0.15, 0.15);
+muscle1G dBWMR21(clock, d_dBWMR21_1, g_dBWMR21, 0.3, 0.15);
+dsum6 d_dBWMR22_1(clock, DD06, PDA, DA09, AS11,
+       DB07, AS10, -0.125, 0.1, 0.075,
+       0.075, 0.05, 0.05, 1.);
+glin2 g_dBWMR22(clock, dBWMR21, dBWMR23, 0.15, 0.15);
+muscle1G dBWMR22(clock, d_dBWMR22_1, g_dBWMR22, 0.3, 0.15);
+dsum6 d_dBWMR23_1(clock, DD06, PDA, DA09, PDB,
+       DB07, AS11, -0.225, 0.125, 0.075,
+       0.075, 0.05, 0.05, 1.);
+glin2 g_dBWMR23(clock, dBWMR22, dBWMR24, 0.15, 0.15);
+muscle1G dBWMR23(clock, d_dBWMR23_1, g_dBWMR23, 0.3, 0.15);
+dsum5 d_dBWMR24_1(clock, PDA, DD06, DA09, DB07,
+       PDB, 0.15, -0.125, 0.1, 0.05,
+       0.05, 1.);
+glin1 g_dBWMR24(clock, dBWMR23, 0.15);
+muscle1G dBWMR24(clock, d_dBWMR24_1, g_dBWMR24, 0.15, 0.15);
+dsum11 d_dBWMR3_1(clock, SABD, RMEL, IL1R, IL1DR,
+       RMDDL, RMHL, SAADL, SMBDL, CEPDR,
+       RMDL, URADR, 1.675, -0.55, 0.4,
+       0.3, 0.2, 0.175, 0.175, 0.15,
+       0.125, 0.1, 0.1, 1.);
+glin3 g_dBWMR3(clock, dBWMR1, dBWMR2, dBWMR4, 0.15,
+       0.15, 0.15);
+muscle1G dBWMR3(clock, d_dBWMR3_1, g_dBWMR3, 0.45, 0.15);
+dsum12 d_dBWMR4_1(clock, SABD, RMDDL, SMBDL, RMDL,
+       URADR, IL1R, SAADL, RMHL, ADER,
+       SIBDR, SMBVR, SMDDL, 1.575, 0.3,
+       0.225, 0.15, 0.1, 0.075, 0.075,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin2 g_dBWMR4(clock, dBWMR3, dBWMR5, 0.15, 0.15);
+muscle1G dBWMR4(clock, d_dBWMR4_1, g_dBWMR4, 0.3, 0.15);
+dsum12 d_dBWMR5_1(clock, IL1R, RMDDL, SMBDL, SIADL,
+       RMEL, URADR, RIML, SMDDL, RMGR,
+       SIBDL, CEPDR, RMHL, 0.325, 0.325,
+       0.225, 0.2, -0.175, 0.175, 0.15,
+       0.15, 0.075, 0.075, 0.05, 0.05,
+       1.);
+glin2 g_dBWMR5(clock, dBWMR4, dBWMR6, 0.15, 0.15);
+muscle1G dBWMR5(clock, d_dBWMR5_1, g_dBWMR5, 0.3, 0.15);
+dsum13 d_dBWMR6_1(clock, SABD, SMBDL, AS01, DA01,
+       RMEV, RMDDR, SIADL, DD01, RMDDL,
+       SAADL, SMDDL, BDUR, SIBDL, 0.5,
+       0.25, 0.25, 0.2, -0.125, 0.075,
+       0.075, -0.075, 0.05, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin2 g_dBWMR6(clock, dBWMR5, dBWMR7, 0.15, 0.15);
+muscle1G dBWMR6(clock, d_dBWMR6_1, g_dBWMR6, 0.3, 0.15);
+dsum14 d_dBWMR7_1(clock, AS01, SMBDL, SMBDR, DA01,
+       SIADL, SMDDL, RMEV, RMDDR, SIBDL,
+       DA02, AS02, IL1DL, DD01, RIVR,
+       0.25, 0.225, 0.225, 0.225, 0.2,
+       0.15, -0.1, 0.075, 0.075, 0.075,
+       0.075, 0.05, -0.05, 0.025, 1.);
+glin2 g_dBWMR7(clock, dBWMR6, dBWMR8, 0.15, 0.15);
+muscle1G dBWMR7(clock, d_dBWMR7_1, g_dBWMR7, 0.3, 0.15);
+dsum8 d_dBWMR8_1(clock, SIADL, SMBDL, DD01, SMDDL,
+       DA02, DB01, SIBDL, AS02, 0.3,
+       0.3, -0.25, 0.2, 0.15, 0.15,
+       0.1, 0.1, 1.);
+glin2 g_dBWMR8(clock, dBWMR7, dBWMR9, 0.15, 0.15);
+muscle1G dBWMR8(clock, d_dBWMR8_1, g_dBWMR8, 0.3, 0.15);
+dsum11 d_dBWMR9_1(clock, SMBDL, SIADL, AS03, DD01,
+       DA02, SMDDL, SIBDL, DA03, DB01,
+       AS02, DB02, 0.225, 0.2, 0.2,
+       -0.2, 0.175, 0.15, 0.075, 0.075,
+       0.05, 0.05, 0.025, 1.);
+glin2 g_dBWMR9(clock, dBWMR8, dBWMR10, 0.15, 0.15);
+muscle1G dBWMR9(clock, d_dBWMR9_1, g_dBWMR9, 0.3, 0.15);
+dsum11 d_vBWML1_1(clock, RMDVR, IL1L, URAVL, IL1VL,
+       SABVL, RMER, RMDL, RMHR, SMBVL,
+       RMDDR, RMDDL, 0.525, 0.5, 0.5,
+       0.375, 0.375, -0.35, 0.1, 0.075,
+       0.075, 0.05, 0.025, 1.);
+glin2 g_vBWML1(clock, vBWML2, vBWML3, 0.15, 0.15);
+muscle1G vBWML1(clock, d_vBWML1_1, g_vBWML1, 0.3, 0.15);
+dsum12 d_vBWML10_1(clock, SMDVR, VA03, SIBVR, VD03,
+       AVL, SIAVL, VB02, PVPL, SMBVL,
+       AVFL, AVG, VB03, 0.375, 0.275,
+       0.25, -0.15, -0.125, 0.1, 0.1,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       1.);
+glin2 g_vBWML10(clock, vBWML9, vBWML11, 0.15, 0.15);
+muscle1G vBWML10(clock, d_vBWML10_1, g_vBWML10, 0.3, 0.15);
+dsum16 d_vBWML11_1(clock, SMDVR, SIBVR, VB03, VD03,
+       PVNL, AVL, SIAVL, AVKL, VA03,
+       AVG, SMBVL, AVFL, AVFR, AVKR,
+       VB02, HSNL, 0.375, 0.25, 0.2,
+       -0.2, 0.125, -0.1, 0.1, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       0.025, 0.025, 0.025, 1.);
+dsum3 d_vBWML11_2(clock, VC01, VC02, VC03, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_vBWML11(clock, vBWML10, vBWML12, 0.15, 0.15);
+muscle2G vBWML11(clock, d_vBWML11_1, d_vBWML11_2, g_vBWML11, 0.3,
+       0.15);
+dsum14 d_vBWML12_1(clock, SMDVR, SIBVR, VB03, VA04,
+       VD04, SIAVL, VD05, VA05, VB04,
+       VB05, SMBVL, AVFR, AVL, VC03,
+       0.375, 0.25, 0.2, 0.125, -0.125,
+       0.1, -0.1, 0.075, 0.075, 0.075,
+       0.05, 0.025, -0.025, 0.025, 1.);
+glin2 g_vBWML12(clock, vBWML11, vBWML13, 0.15, 0.15);
+muscle1G vBWML12(clock, d_vBWML12_1, g_vBWML12, 0.3, 0.15);
+dsum16 d_vBWML13_1(clock, SMDVR, SIBVR, VD05, VA05,
+       VD04, VB04, SIAVL, VA04, VB03,
+       SMBVL, VA06, AVFL, VB05, VD06,
+       VC02, VC03, 0.375, 0.25, -0.175,
+       0.15, -0.15, 0.125, 0.1, 0.075,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       -0.025, 0.025, 0.025, 1.);
+glin2 g_vBWML13(clock, vBWML12, vBWML14, 0.15, 0.15);
+muscle1G vBWML13(clock, d_vBWML13_1, g_vBWML13, 0.3, 0.15);
+dsum12 d_vBWML14_1(clock, SMDVR, SIBVR, VA06, VD06,
+       VB05, SIAVL, VC02, SMBVL, VA07,
+       VD05, VD07, VC03, 0.375, 0.25,
+       0.25, -0.25, 0.2, 0.1, 0.075,
+       0.05, 0.05, -0.025, -0.025, 0.025,
+       1.);
+glin2 g_vBWML14(clock, vBWML13, vBWML15, 0.15, 0.15);
+muscle1G vBWML14(clock, d_vBWML14_1, g_vBWML14, 0.3, 0.15);
+dsum15 d_vBWML15_1(clock, SMDVR, SIBVR, VA07, VD07,
+       VB05, SIAVL, VB06, VD08, VC05,
+       VD06, HSNL, VC03, SMBVL, AVL,
+       VA06, 0.375, 0.25, 0.2, -0.2,
+       0.175, 0.1, 0.1, -0.1, 0.1,
+       -0.075, 0.075, 0.075, 0.05, -0.025,
+       0.025, 1.);
+glin2 g_vBWML15(clock, vBWML14, vBWML16, 0.15, 0.15);
+muscle1G vBWML15(clock, d_vBWML15_1, g_vBWML15, 0.3, 0.15);
+dsum16 d_vBWML16_1(clock, SMDVR, VD07, VA07, SIBVR,
+       VB07, VD08, VA08, VB06, AVG,
+       VC03, AVBR, SIAVL, SMBVL, VD06,
+       HSNL, VC04, 0.175, -0.175, 0.15,
+       0.1, 0.1, -0.1, 0.075, 0.075,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       -0.025, 0.025, 0.025, 1.);
+dsum1 d_vBWML16_2(clock, VC05, 0.025, 1.);
+glin2 g_vBWML16(clock, vBWML15, vBWML17, 0.15, 0.15);
+muscle2G vBWML16(clock, d_vBWML16_1, d_vBWML16_2, g_vBWML16, 0.3,
+       0.15);
+dsum6 d_vBWML17_1(clock, VA08, VB07, VD08, VD09,
+       VA09, VC06, 0.1, 0.1, -0.1,
+       -0.1, 0.075, 0.025, 1.);
+glin2 g_vBWML17(clock, vBWML16, vBWML18, 0.15, 0.15);
+muscle1G vBWML17(clock, d_vBWML17_1, g_vBWML17, 0.3, 0.15);
+dsum7 d_vBWML18_1(clock, VA08, VA09, VB07, VB08,
+       VD09, VD10, VA10, 0.1, 0.1,
+       0.1, 0.1, -0.1, -0.1, 0.075,
+       1.);
+glin2 g_vBWML18(clock, vBWML17, vBWML19, 0.15, 0.15);
+muscle1G vBWML18(clock, d_vBWML18_1, g_vBWML18, 0.3, 0.15);
+dsum8 d_vBWML19_1(clock, VA09, VA10, VB08, VB09,
+       VD09, VD10, VD11, VA11, 0.1,
+       0.1, 0.1, 0.1, -0.1, -0.1,
+       -0.1, 0.075, 1.);
+glin2 g_vBWML19(clock, vBWML18, vBWML20, 0.15, 0.15);
+muscle1G vBWML19(clock, d_vBWML19_1, g_vBWML19, 0.3, 0.15);
+dsum10 d_vBWML2_1(clock, IL1VL, URAVL, RMDVR, RMED,
+       SMDVR, SMBVL, SMDDL, IL1L, SMDDR,
+       SIBVL, 0.45, 0.425, 0.375, -0.375,
+       0.225, 0.2, 0.175, 0.15, 0.075,
+       0.025, 1.);
+glin2 g_vBWML2(clock, vBWML1, vBWML3, 0.15, 0.15);
+muscle1G vBWML2(clock, d_vBWML2_1, g_vBWML2, 0.3, 0.15);
+dsum8 d_vBWML20_1(clock, VA10, VA11, VB08, VB09,
+       VB10, VD10, VD11, VD12, 0.1,
+       0.1, 0.1, 0.1, 0.1, -0.1,
+       -0.1, -0.1, 1.);
+glin2 g_vBWML20(clock, vBWML19, vBWML21, 0.15, 0.15);
+muscle1G vBWML20(clock, d_vBWML20_1, g_vBWML20, 0.3, 0.15);
+dsum8 d_vBWML21_1(clock, VA11, VB09, VB10, VB11,
+       VD11, VD12, VD13, VA12, 0.1,
+       0.1, 0.1, 0.1, -0.1, -0.1,
+       -0.1, 0.075, 1.);
+glin2 g_vBWML21(clock, vBWML20, vBWML22, 0.15, 0.15);
+muscle1G vBWML21(clock, d_vBWML21_1, g_vBWML21, 0.3, 0.15);
+dsum5 d_vBWML22_1(clock, VA12, VB10, VB11, VD12,
+       VD13, 0.1, 0.1, 0.1, -0.1,
+       -0.1, 1.);
+glin2 g_vBWML22(clock, vBWML21, vBWML23, 0.15, 0.15);
+muscle1G vBWML22(clock, d_vBWML22_1, g_vBWML22, 0.3, 0.15);
+dsum3 d_vBWML23_1(clock, VA12, VB11, VD13, 0.1,
+       0.1, -0.1, 1.);
+glin1 g_vBWML23(clock, vBWML22, 0.15);
+muscle1G vBWML23(clock, d_vBWML23_1, g_vBWML23, 0.15, 0.15);
+dsum9 d_vBWML3_1(clock, SABVL, RMED, SMDVR, RMDVR,
+       SAAVR, SMDDL, URAVL, SMBVL, RIVR,
+       1.675, -0.25, 0.225, 0.2, 0.175,
+       0.175, 0.125, 0.125, 0.05, 1.);
+glin3 g_vBWML3(clock, vBWML1, vBWML2, vBWML4, 0.15,
+       0.15, 0.15);
+muscle1G vBWML3(clock, d_vBWML3_1, g_vBWML3, 0.45, 0.15);
+dsum10 d_vBWML4_1(clock, SABVL, RMDVR, RMER, SMBVL,
+       RIMR, SMDVR, IL1L, SAAVR, RMDR,
+       RIVR, 1.575, 0.475, -0.175, 0.15,
+       0.125, 0.125, 0.1, 0.075, 0.05,
+       0.025, 1.);
+glin2 g_vBWML4(clock, vBWML3, vBWML5, 0.15, 0.15);
+muscle1G vBWML4(clock, d_vBWML4_1, g_vBWML4, 0.3, 0.15);
+dsum8 d_vBWML5_1(clock, SMDVR, SIBVR, RMDVR, SMBVL,
+       SIAVL, RMGL, RMDR, CEPVL, 0.475,
+       0.25, 0.2, 0.125, 0.1, 0.05,
+       0.05, 0.025, 1.);
+glin2 g_vBWML5(clock, vBWML4, vBWML6, 0.15, 0.15);
+muscle1G vBWML5(clock, d_vBWML5_1, g_vBWML5, 0.3, 0.15);
+dsum8 d_vBWML6_1(clock, SABVL, SMBVL, SMDVR, RMDVR,
+       SIBVR, RIAR, SAAVR, SIAVL, 0.5,
+       0.425, 0.35, 0.125, 0.075, 0.05,
+       0.05, 0.025, 1.);
+glin2 g_vBWML6(clock, vBWML5, vBWML7, 0.15, 0.15);
+muscle1G vBWML6(clock, d_vBWML6_1, g_vBWML6, 0.3, 0.15);
+dsum14 d_vBWML7_1(clock, SMDVR, VA01, VD01, SIBVR,
+       RIVR, SMBVL, SIAVL, CEPVL, RMDVR,
+       VB01, VD02, AIZL, VA02, VC01,
+       0.375, 0.325, -0.275, 0.25, 0.225,
+       0.225, 0.1, 0.05, 0.05, 0.05,
+       -0.05, 0.025, 0.025, 0.025, 1.);
+glin2 g_vBWML7(clock, vBWML6, vBWML8, 0.15, 0.15);
+muscle1G vBWML7(clock, d_vBWML7_1, g_vBWML7, 0.3, 0.15);
+dsum11 d_vBWML8_1(clock, SMDVR, SIBVR, VA02, VD02,
+       SIAVL, VD01, SMBVL, VB02, VC02,
+       VA01, VA03, 0.475, 0.325, 0.25,
+       -0.2, 0.125, -0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 1.);
+glin3 g_vBWML8(clock, vBWML7, vBWML9, DD01, 0.15,
+       0.15, 0.02);
+muscle1G vBWML8(clock, d_vBWML8_1, g_vBWML8, 0.32, 0.15);
+dsum12 d_vBWML9_1(clock, SMDVR, VB02, VD02, SIBVR,
+       SIAVL, VA03, VC02, VA02, AVKR,
+       SMBVL, SAAVL, VC01, 0.375, 0.35,
+       -0.3, 0.25, 0.1, 0.1, 0.1,
+       0.075, 0.05, 0.05, 0.025, 0.025,
+       1.);
+glin3 g_vBWML9(clock, vBWML8, vBWML10, vBWMR8, 0.15,
+       0.15, 0.02);
+muscle1G vBWML9(clock, d_vBWML9_1, g_vBWML9, 0.32, 0.15);
+dsum2 d_vBWMR1_1(clock, SABVR, SMBVR, 0.375, 0.175,
+       1.);
+glin2 g_vBWMR1(clock, vBWMR2, vBWMR3, 0.15, 0.15);
+muscle1G vBWMR1(clock, d_vBWMR1_1, g_vBWMR1, 0.3, 0.15);
+dsum13 d_vBWMR10_1(clock, SMDVL, SIBVL, VB02, VD03,
+       VA03, SIAVR, VB03, HSNR, PVM,
+       SMBVR, AVFR, PVPR, PVQL, 0.375,
+       0.25, 0.25, -0.15, 0.125, 0.1,
+       0.1, 0.1, 0.05, 0.05, 0.025,
+       0.025, 0.025, 1.);
+glin2 g_vBWMR10(clock, vBWMR9, vBWMR11, 0.15, 0.15);
+muscle1G vBWMR10(clock, d_vBWMR10_1, g_vBWMR10, 0.3, 0.15);
+dsum15 d_vBWMR11_1(clock, SMDVL, VD03, SIBVL, VA04,
+       VA03, VB02, VB03, SIAVR, VD04,
+       SMBVR, VC03, PVPR, PVR, HSNL,
+       VC02, 0.375, -0.3, 0.25, 0.2,
+       0.175, 0.15, 0.15, 0.1, -0.1,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       0.025, 1.);
+glin2 g_vBWMR11(clock, vBWMR10, vBWMR12, 0.15, 0.15);
+muscle1G vBWMR11(clock, d_vBWMR11_1, g_vBWMR11, 0.3, 0.15);
+dsum13 d_vBWMR12_1(clock, SMDVL, SIBVL, VB03, VA05,
+       VA04, SIAVR, VD04, VB04, VD05,
+       VC01, SMBVR, VA06, VC02, 0.375,
+       0.25, 0.2, 0.15, 0.125, 0.1,
+       -0.1, 0.075, -0.075, 0.075, 0.05,
+       0.05, 0.025, 1.);
+glin2 g_vBWMR12(clock, vBWMR11, vBWMR13, 0.15, 0.15);
+muscle1G vBWMR12(clock, d_vBWMR12_1, g_vBWMR12, 0.3, 0.15);
+dsum15 d_vBWMR13_1(clock, SMDVL, SIBVL, VD05, VB05,
+       SIAVR, VA05, VB03, VD06, VB04,
+       VD04, VC02, SMBVR, VA04, VA06,
+       VC03, 0.375, 0.25, -0.25, 0.175,
+       0.1, 0.1, 0.1, -0.1, 0.075,
+       -0.075, 0.075, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin2 g_vBWMR13(clock, vBWMR12, vBWMR14, 0.15, 0.15);
+muscle1G vBWMR13(clock, d_vBWMR13_1, g_vBWMR13, 0.3, 0.15);
+dsum13 d_vBWMR14_1(clock, SMDVL, SIBVL, VD06, VB05,
+       VB06, VD07, VA06, SIAVR, VA05,
+       VB04, VA07, AVFR, SMBVR, 0.375,
+       0.25, -0.175, 0.15, 0.15, -0.15,
+       0.125, 0.1, 0.1, 0.1, 0.075,
+       0.05, 0.05, 1.);
+glin2 g_vBWMR14(clock, vBWMR13, vBWMR15, 0.15, 0.15);
+muscle1G vBWMR14(clock, d_vBWMR14_1, g_vBWMR14, 0.3, 0.15);
+dsum13 d_vBWMR15_1(clock, SMDVL, VB06, SIBVL, VA07,
+       VD07, SIAVR, SMBVR, VC03, VA06,
+       VA08, VB05, VD06, HSNR, 0.375,
+       0.3, 0.25, 0.25, -0.175, 0.1,
+       0.05, 0.05, 0.025, 0.025, 0.025,
+       -0.025, 0.025, 1.);
+glin2 g_vBWMR15(clock, vBWMR14, vBWMR16, 0.15, 0.15);
+muscle1G vBWMR15(clock, d_vBWMR15_1, g_vBWMR15, 0.3, 0.15);
+dsum12 d_vBWMR16_1(clock, SMDVL, SIBVL, VB06, VB07,
+       VD08, VA08, VC04, VA07, HSNR,
+       SIAVR, SMBVR, VD07, 0.175, 0.1,
+       0.1, 0.1, -0.1, 0.075, 0.075,
+       0.05, 0.05, 0.025, 0.025, -0.025,
+       1.);
+glin2 g_vBWMR16(clock, vBWMR15, vBWMR17, 0.15, 0.15);
+muscle1G vBWMR16(clock, d_vBWMR16_1, g_vBWMR16, 0.3, 0.15);
+dsum5 d_vBWMR17_1(clock, VA08, VB07, VD08, VA09,
+       VC06, 0.1, 0.1, -0.1, 0.075,
+       0.025, 1.);
+glin2 g_vBWMR17(clock, vBWMR16, vBWMR18, 0.15, 0.15);
+muscle1G vBWMR17(clock, d_vBWMR17_1, g_vBWMR17, 0.3, 0.15);
+dsum7 d_vBWMR18_1(clock, VA08, VA09, VB07, VB08,
+       VD08, VD09, VA10, 0.1, 0.1,
+       0.1, 0.1, -0.1, -0.1, 0.075,
+       1.);
+glin2 g_vBWMR18(clock, vBWMR17, vBWMR19, 0.15, 0.15);
+muscle1G vBWMR18(clock, d_vBWMR18_1, g_vBWMR18, 0.3, 0.15);
+dsum6 d_vBWMR19_1(clock, VA09, VB08, VB09, VD09,
+       VD10, VA10, 0.1, 0.1, 0.1,
+       -0.1, -0.1, 0.075, 1.);
+glin2 g_vBWMR19(clock, vBWMR18, vBWMR20, 0.15, 0.15);
+muscle1G vBWMR19(clock, d_vBWMR19_1, g_vBWMR19, 0.3, 0.15);
+dsum7 d_vBWMR2_1(clock, RMED, RMDVL, IL1VR, URAVR,
+       SMDVL, SMDDR, SMBVR, -0.625, 0.5,
+       0.4, 0.35, 0.175, 0.15, 0.075,
+       1.);
+glin2 g_vBWMR2(clock, vBWMR1, vBWMR3, 0.15, 0.15);
+muscle1G vBWMR2(clock, d_vBWMR2_1, g_vBWMR2, 0.3, 0.15);
+dsum9 d_vBWMR20_1(clock, VB08, VB09, VB10, VD09,
+       VD10, VD11, VA10, VA11, DVC,
+       0.1, 0.1, 0.1, -0.1, -0.1,
+       -0.1, 0.075, 0.075, 0.05, 1.);
+glin2 g_vBWMR20(clock, vBWMR19, vBWMR21, 0.15, 0.15);
+muscle1G vBWMR20(clock, d_vBWMR20_1, g_vBWMR20, 0.3, 0.15);
+dsum8 d_vBWMR21_1(clock, VB09, VB10, VB11, VD10,
+       VD11, VD12, VA11, VA10, 0.1,
+       0.1, 0.1, -0.1, -0.1, -0.1,
+       0.075, 0.05, 1.);
+glin2 g_vBWMR21(clock, vBWMR20, vBWMR22, 0.15, 0.15);
+muscle1G vBWMR21(clock, d_vBWMR21_1, g_vBWMR21, 0.3, 0.15);
+dsum7 d_vBWMR22_1(clock, VB10, VB11, VD11, VD12,
+       VD13, VA11, VA12, 0.1, 0.1,
+       -0.1, -0.1, -0.1, 0.075, 0.075,
+       1.);
+glin2 g_vBWMR22(clock, vBWMR21, vBWMR23, 0.15, 0.15);
+muscle1G vBWMR22(clock, d_vBWMR22_1, g_vBWMR22, 0.3, 0.15);
+dsum5 d_vBWMR23_1(clock, VA12, VB11, VD12, VD13,
+       VA11, 0.1, 0.1, -0.1, -0.1,
+       0.05, 1.);
+glin2 g_vBWMR23(clock, vBWMR22, vBWMR24, 0.15, 0.15);
+muscle1G vBWMR23(clock, d_vBWMR23_1, g_vBWMR23, 0.3, 0.15);
+dsum2 d_vBWMR24_1(clock, VA12, VD13, 0.1, -0.1,
+       1.);
+glin1 g_vBWMR24(clock, vBWMR23, 0.15);
+muscle1G vBWMR24(clock, d_vBWMR24_1, g_vBWMR24, 0.15, 0.15);
+dsum9 d_vBWMR3_1(clock, SABVR, RMED, RMDVL, SMBVR,
+       SMDVL, URAVR, SAAVL, RMDVR, CEPVR,
+       1.675, -0.65, 0.275, 0.25, 0.2,
+       0.175, 0.175, 0.05, 0.025, 1.);
+glin3 g_vBWMR3(clock, vBWMR1, vBWMR2, vBWMR4, 0.15,
+       0.15, 0.15);
+muscle1G vBWMR3(clock, d_vBWMR3_1, g_vBWMR3, 0.45, 0.15);
+dsum10 d_vBWMR4_1(clock, SABVR, RMDVL, IL1VR, IL1R,
+       URAVR, SMBVR, RMEL, RMDL, SAAVL,
+       RIML, 1.575, 0.775, 0.6, 0.475,
+       0.45, 0.3, -0.225, 0.2, 0.075,
+       0.05, 1.);
+glin2 g_vBWMR4(clock, vBWMR3, vBWMR5, 0.15, 0.15);
+muscle1G vBWMR4(clock, d_vBWMR4_1, g_vBWMR4, 0.3, 0.15);
+dsum6 d_vBWMR5_1(clock, SMDVL, SIBVL, RIVL, SIAVR,
+       CEPVR, SMBVR, 0.375, 0.25, 0.15,
+       0.1, 0.05, 0.05, 1.);
+glin2 g_vBWMR5(clock, vBWMR4, vBWMR6, 0.15, 0.15);
+muscle1G vBWMR5(clock, d_vBWMR5_1, g_vBWMR5, 0.3, 0.15);
+dsum14 d_vBWMR6_1(clock, SABVR, RMDVL, SMDVL, SMBVR,
+       RIVR, RIVL, SIBVL, AVKL, RMDVR,
+       RMED, SAAVL, SMDDR, URAVR, SIAVR,
+       0.5, 0.45, 0.4, 0.3, 0.2,
+       0.075, 0.075, 0.05, 0.05, -0.05,
+       0.05, 0.05, 0.025, 0.025, 1.);
+glin2 g_vBWMR6(clock, vBWMR5, vBWMR7, 0.15, 0.15);
+muscle1G vBWMR6(clock, d_vBWMR6_1, g_vBWMR6, 0.3, 0.15);
+dsum13 d_vBWMR7_1(clock, RIVL, SMDVL, RIVR, SMBVR,
+       SIBVL, VA02, VB01, SIAVR, RMDVL,
+       VD02, RMDVR, VA01, SDQR, 0.45,
+       0.375, 0.35, 0.3, 0.25, 0.125,
+       0.125, 0.1, 0.075, -0.075, 0.05,
+       0.05, 0.025, 1.);
+glin2 g_vBWMR7(clock, vBWMR6, vBWMR8, 0.15, 0.15);
+muscle1G vBWMR7(clock, d_vBWMR7_1, g_vBWMR7, 0.3, 0.15);
+dsum13 d_vBWMR8_1(clock, SMDVL, SIBVL, VD02, VA02,
+       VB02, SIAVR, SMBVR, AVL, CEPVR,
+       RMGR, VA01, RMDL, VC02, 0.5,
+       0.325, -0.3, 0.175, 0.15, 0.125,
+       0.125, -0.1, 0.05, 0.05, 0.05,
+       0.025, 0.025, 1.);
+glin3 g_vBWMR8(clock, vBWMR7, vBWMR9, vBWML9, 0.15,
+       0.15, 0.02);
+muscle1G vBWMR8(clock, d_vBWMR8_1, g_vBWMR8, 0.32, 0.15);
+dsum11 d_vBWMR9_1(clock, SMDVL, SIBVL, VA02, VD02,
+       SIAVR, VA03, SMBVR, VC02, AVHR,
+       VB01, HSNR, 0.375, 0.25, 0.125,
+       -0.125, 0.1, 0.075, 0.05, 0.05,
+       0.025, 0.025, 0.025, 1.);
+glin2 g_vBWMR9(clock, vBWMR8, vBWMR10, 0.15, 0.15);
+muscle1G vBWMR9(clock, d_vBWMR9_1, g_vBWMR9, 0.3, 0.15);
+
+// -------- PHARYNGEAL MUSCLES (pm1-pm8): 22 pcs --------
+glin1 g_pm1d(clock, pm2d, 0.02);
+muscle0G pm1d(clock, g_pm1d, 0.02, 0.15);
+dsum1 d_pm1vl_1(clock, I1L, 0.05, 1.);
+glin1 g_pm1vl(clock, pm2vl, 0.02);
+muscle1G pm1vl(clock, d_pm1vl_1, g_pm1vl, 0.02, 0.15);
+dsum2 d_pm1vr_1(clock, I1R, I2R, 0.025, 0.025,
+       1.);
+glin1 g_pm1vr(clock, pm2vr, 0.02);
+muscle1G pm1vr(clock, d_pm1vr_1, g_pm1vr, 0.02, 0.15);
+dsum1 d_pm2d_1(clock, M1, 0.025, 1.);
+glin2 g_pm2d(clock, pm1d, pm3d, 0.02, 0.02);
+muscle1G pm2d(clock, d_pm2d_1, g_pm2d, 0.04, 0.15);
+glin2 g_pm2vl(clock, pm1vl, pm3vl, 0.02, 0.02);
+muscle0G pm2vl(clock, g_pm2vl, 0.04, 0.15);
+glin2 g_pm2vr(clock, pm1vr, pm3vr, 0.02, 0.02);
+muscle0G pm2vr(clock, g_pm2vr, 0.04, 0.15);
+glin4 g_pm3d(clock, pm2d, pm4d, mc1dl, mc1dr,
+       0.02, 0.02, 0.02, 0.02);
+muscle0G pm3d(clock, g_pm3d, 0.08, 0.15);
+dsum3 d_pm3vl_1(clock, I1L, I2L, M1, 0.175,
+       0.025, 0.025, 1.);
+glin4 g_pm3vl(clock, pm2vl, pm4vl, mc1dl, mc1v,
+       0.02, 0.02, 0.02, 0.02);
+muscle1G pm3vl(clock, d_pm3vl_1, g_pm3vl, 0.08, 0.15);
+dsum2 d_pm3vr_1(clock, I1R, I2R, 0.125, 0.025,
+       1.);
+glin4 g_pm3vr(clock, I1R, pm2vr, pm4vr, mc1v,
+       0.03, 0.02, 0.02, 0.02);
+muscle1G pm3vr(clock, d_pm3vr_1, g_pm3vr, 0.09, 0.15);
+dsum12 d_pm4d_1(clock, M3L, M3R, M2L, M2R,
+       NSMR, I2R, I3, MI, I1L,
+       I1R, I4, M1, 0.425, 0.15,
+       0.075, 0.075, 0.075, 0.05, 0.05,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       1.);
+glin7 g_pm4d(clock, I3, MI, M3L, pm3d,
+       pm5d, mc1dl, mc1dr, 0.03, 0.03,
+       0.02, 0.02, 0.02, 0.02, 0.02);
+muscle1G pm4d(clock, d_pm4d_1, g_pm4d, 0.16, 0.15);
+dsum7 d_pm4vl_1(clock, M2L, M3L, I1L, I2L,
+       NSML, I2R, MI, 0.225, 0.15,
+       0.05, 0.05, 0.05, 0.025, 0.025,
+       1.);
+glin6 g_pm4vl(clock, pm3vl, pm5vl, mc1dl, mc1v,
+       I1L, M2L, 0.02, 0.02, 0.02,
+       0.02, 0.01, 0.01);
+muscle1G pm4vl(clock, d_pm4vl_1, g_pm4vl, 0.1, 0.15);
+dsum5 d_pm4vr_1(clock, MI, M2R, I1R, M3R,
+       M4, 0.175, 0.075, 0.05, 0.025,
+       0.025, 1.);
+glin6 g_pm4vr(clock, mc1dr, I1R, pm3vr, pm5vr,
+       mc1v, M3R, 0.04, 0.02, 0.02,
+       0.02, 0.02, 0.01);
+muscle1G pm4vr(clock, d_pm4vr_1, g_pm4vr, 0.13, 0.15);
+dsum10 d_pm5d_1(clock, M4, NSML, I6, NSMR,
+       MI, I3, M3L, M1, M2L,
+       I2L, 1.725, 0.95, 0.325, 0.225,
+       0.125, 0.1, 0.1, 0.075, 0.05,
+       0.025, 1.);
+glin11 g_pm5d(clock, M1, NSMR, pm4d, pm6d,
+       mc2dl, mc2dr, I3, M2R, M3L,
+       M3R, M4, 0.03, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+muscle1G pm5d(clock, d_pm5d_1, g_pm5d, 0.18, 0.15);
+dsum10 d_pm5vl_1(clock, NSML, M4, M2L, I4,
+       I5, I2L, M3L, I2R, M5,
+       NSMR, 1.575, 1.25, 0.525, 0.275,
+       0.1, 0.05, 0.05, 0.025, 0.025,
+       0.025, 1.);
+glin9 g_pm5vl(clock, M5, pm4vl, pm6vl, mc2dl,
+       mc2v, I4, M2L, M3L, M4,
+       0.02, 0.02, 0.02, 0.02, 0.02,
+       0.01, 0.01, 0.01, 0.01);
+muscle1G pm5vl(clock, d_pm5vl_1, g_pm5vl, 0.14, 0.15);
+dsum10 d_pm5vr_1(clock, M4, NSMR, I5, M2R,
+       NSML, I2R, M5, I4, I1R,
+       I2L, 1.8, 1.325, 0.35, 0.3,
+       0.2, 0.1, 0.075, 0.05, 0.025,
+       0.025, 1.);
+glin6 g_pm5vr(clock, pm4vr, pm6vr, mc2dr, mc2v,
+       M3R, M4, 0.02, 0.02, 0.02,
+       0.02, 0.01, 0.01);
+muscle1G pm5vr(clock, d_pm5vr_1, g_pm5vr, 0.1, 0.15);
+dsum1 d_pm6d_1(clock, M5, 0.05, 1.);
+glin3 g_pm6d(clock, pm5d, mc3dl, mc3dr, 0.02,
+       0.02, 0.02);
+muscle1G pm6d(clock, d_pm6d_1, g_pm6d, 0.06, 0.15);
+dsum1 d_pm6vl_1(clock, M5, 0.05, 1.);
+glin3 g_pm6vl(clock, pm5vl, mc3dl, mc3v, 0.02,
+       0.02, 0.02);
+muscle1G pm6vl(clock, d_pm6vl_1, g_pm6vl, 0.06, 0.15);
+dsum1 d_pm6vr_1(clock, M5, 0.05, 1.);
+glin4 g_pm6vr(clock, M5, pm5vr, mc3dr, mc3v,
+       0.02, 0.02, 0.02, 0.02);
+muscle1G pm6vr(clock, d_pm6vr_1, g_pm6vr, 0.08, 0.15);
+dsum1 d_pm7d_1(clock, M5, 0.075, 1.);
+glin3 g_pm7d(clock, pm8, mc3dl, mc3dr, 0.02,
+       0.02, 0.02);
+muscle1G pm7d(clock, d_pm7d_1, g_pm7d, 0.06, 0.15);
+glin3 g_pm7vl(clock, pm8, mc3dl, mc3v, 0.02,
+       0.02, 0.02);
+muscle0G pm7vl(clock, g_pm7vl, 0.06, 0.15);
+dsum1 d_pm7vr_1(clock, M5, 0.05, 1.);
+glin3 g_pm7vr(clock, pm8, mc3dr, mc3v, 0.02,
+       0.02, 0.02);
+muscle1G pm7vr(clock, d_pm7vr_1, g_pm7vr, 0.06, 0.15);
+glin6 g_pm8(clock, pm7d, pm7vl, pm7vr, mc3dl,
+       mc3dr, mc3v, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02);
+muscle0G pm8(clock, g_pm8, 0.12, 0.15);
+
+// -------- OTHER TARGETS (hypodermis, vulva/uterus, anus, mc, intestine): 31 pcs --------
+glin3 g_anal(clock, intL, intR, sph, 0.04,
+       0.04, 0.04);
+muscle0G anal(clock, g_anal, 0.12, 0.15);
+dsum16 d_hyp_1(clock, SABD, SABVL, SABVR, DVB,
+       PVNR, PVDL, PVDR, PVNL, PHBL,
+       AVKR, AVDR, SAADL, SAADR, SAAVL,
+       SAAVR, DA09, 3.55, 1.775, 1.775,
+       -0.3, 0.225, 0.175, 0.15, 0.075,
+       0.05, 0.05, 0.05, 0.05, 0.05,
+       0.05, 0.05, 0.05, 1.);
+dsum9 d_hyp_2(clock, VA12, AVFL, AVFR, DVA,
+       AVAR, AVBL, LUAR, PDA, HSNL,
+       0.05, 0.025, 0.025, 0.025, 0.025,
+       0.025, 0.025, 0.025, 0.025, 1.);
+glin16 g_hyp_1(clock, PVPL, AVHL, AVKR, AS11,
+       hyp, PVR, AVHR, PDB, AVFL,
+       LUAR, AS10, AVG, PVWL, AVBR,
+       VD12, PHBR, 0.47, 0.35, 0.34,
+       0.31, 0.13, 0.12, 0.11, 0.11,
+       0.08, 0.07, 0.07, 0.06, 0.06,
+       0.05, 0.05, 0.04);
+glin16 g_hyp_2(clock, DVA, PVPR, PVWR, PVCL,
+       AVAR, PLML, ALNL, PLNL, PHBL,
+       AVFR, AVJL, AVJR, PVQL, PVCR,
+       AVAL, AVDL, 0.04, 0.04, 0.04,
+       0.04, 0.04, 0.03, 0.03, 0.03,
+       0.03, 0.03, 0.03, 0.03, 0.03,
+       0.03, 0.03, 0.03);
+glin16 g_hyp_3(clock, PLNR, DVC, PVNL, PDA,
+       VA10, VD11, ADLL, PLMR, PQR,
+       PDER, PHAL, PHAR, PHCL, AVKL,
+       DVB, PVNR, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02, 0.01, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01, 0.01);
+glin8 g_hyp_4(clock, PVQR, PVT, DA08, DA09,
+       DB07, VA02, VA11, VB11, 0.01,
+       0.01, 0.01, 0.01, 0.01, 0.01,
+       0.01, 0.01);
+glin4 g_hyp(clock, g_hyp_1, g_hyp_2, g_hyp_3, g_hyp_4,
+       1., 1., 1., 1.);
+muscle2G hyp(clock, d_hyp_1, d_hyp_2, g_hyp, 3.25,
+       0.15);  // hypodermis (main non-synaptic target)
+dsum1 d_intL_1(clock, DVB, -0.075, 1.);
+glin3 g_intL(clock, intR, sph, anal, 0.04,
+       0.04, 0.04);
+muscle1G intL(clock, d_intL_1, g_intL, 0.12, 0.15);
+glin3 g_intR(clock, intL, sph, anal, 0.04,
+       0.04, 0.04);
+muscle0G intR(clock, g_intR, 0.12, 0.15);
+dsum4 d_intestine_1(clock, DVB, AVFL, AVL, VD13,
+       -0.225, 0.025, -0.025, -0.025, 1.);
+muscle1 intestine(clock, d_intestine_1, 0.15);
+glin5 g_mc1dl(clock, pm3d, pm3vl, pm4d, pm4vl,
+       mc2dl, 0.02, 0.02, 0.02, 0.02,
+       0.02);
+muscle0G mc1dl(clock, g_mc1dl, 0.1, 0.15);
+glin4 g_mc1dr(clock, pm4vr, pm3d, pm4d, mc2dr,
+       0.04, 0.02, 0.02, 0.02);
+muscle0G mc1dr(clock, g_mc1dr, 0.1, 0.15);
+glin4 g_mc1v(clock, pm3vl, pm3vr, pm4vl, pm4vr,
+       0.02, 0.02, 0.02, 0.02);
+muscle0G mc1v(clock, g_mc1v, 0.08, 0.15);
+dsum1 d_mc2dl_1(clock, MCR, 0.15, 1.);
+glin4 g_mc2dl(clock, pm5d, pm5vl, mc1dl, mc3dl,
+       0.02, 0.02, 0.02, 0.02);
+muscle1G mc2dl(clock, d_mc2dl_1, g_mc2dl, 0.08, 0.15);
+dsum2 d_mc2dr_1(clock, MCL, MCR, 0.175, 0.1,
+       1.);
+glin4 g_mc2dr(clock, pm5d, pm5vr, mc1dr, mc3dr,
+       0.02, 0.02, 0.02, 0.02);
+muscle1G mc2dr(clock, d_mc2dr_1, g_mc2dr, 0.08, 0.15);
+dsum2 d_mc2v_1(clock, MCL, MCR, 0.325, 0.275,
+       1.);
+glin2 g_mc2v(clock, pm5vl, pm5vr, 0.02, 0.02);
+muscle1G mc2v(clock, d_mc2v_1, g_mc2v, 0.04, 0.15);
+glin6 g_mc3dl(clock, pm6d, pm6vl, pm7d, pm7vl,
+       pm8, mc2dl, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02);
+muscle0G mc3dl(clock, g_mc3dl, 0.12, 0.15);
+glin6 g_mc3dr(clock, pm6d, pm6vr, pm7d, pm7vr,
+       pm8, mc2dr, 0.02, 0.02, 0.02,
+       0.02, 0.02, 0.02);
+muscle0G mc3dr(clock, g_mc3dr, 0.12, 0.15);
+glin5 g_mc3v(clock, pm6vl, pm6vr, pm7vl, pm7vr,
+       pm8, 0.02, 0.02, 0.02, 0.02,
+       0.02);
+muscle0G mc3v(clock, g_mc3v, 0.1, 0.15);
+glin3 g_sph(clock, intL, intR, anal, 0.04,
+       0.04, 0.04);
+muscle0G sph(clock, g_sph, 0.12, 0.15);
+glin4 g_um1aL(clock, um2aL, um1aR, um1pL, vm2aL,
+       0.04, 0.04, 0.04, 0.04);
+muscle0G um1aL(clock, g_um1aL, 0.16, 0.15);
+glin4 g_um1aR(clock, um2aR, um1aL, um1pR, vm2aR,
+       0.04, 0.04, 0.04, 0.04);
+muscle0G um1aR(clock, g_um1aR, 0.16, 0.15);
+glin4 g_um1pL(clock, um1aL, um1pR, um2pL, vm2pL,
+       0.04, 0.04, 0.04, 0.04);
+muscle0G um1pL(clock, g_um1pL, 0.16, 0.15);
+glin4 g_um1pR(clock, um1aR, um1pL, um2pR, vm2pR,
+       0.04, 0.04, 0.04, 0.04);
+muscle0G um1pR(clock, g_um1pR, 0.16, 0.15);
+glin2 g_um2aL(clock, um2aR, um1aL, 0.04, 0.04);
+muscle0G um2aL(clock, g_um2aL, 0.08, 0.15);
+glin2 g_um2aR(clock, um2aL, um1aR, 0.04, 0.04);
+muscle0G um2aR(clock, g_um2aR, 0.08, 0.15);
+glin2 g_um2pL(clock, um1pL, um2pR, 0.04, 0.04);
+muscle0G um2pL(clock, g_um2pL, 0.08, 0.15);
+glin2 g_um2pR(clock, um1pR, um2pL, 0.04, 0.04);
+muscle0G um2pR(clock, g_um2pR, 0.08, 0.15);
+glin3 g_vm1aL(clock, vm2aL, vm1aR, vm1pL, 0.04,
+       0.04, 0.04);
+muscle0G vm1aL(clock, g_vm1aL, 0.12, 0.15);
+glin3 g_vm1aR(clock, vm2aR, vm1aL, vm1pR, 0.04,
+       0.04, 0.04);
+muscle0G vm1aR(clock, g_vm1aR, 0.12, 0.15);
+glin3 g_vm1pL(clock, vm1aL, vm1pR, vm2pL, 0.04,
+       0.04, 0.04);
+muscle0G vm1pL(clock, g_vm1pL, 0.12, 0.15);
+glin3 g_vm1pR(clock, vm1aR, vm1pL, vm2pR, 0.04,
+       0.04, 0.04);
+muscle0G vm1pR(clock, g_vm1pR, 0.12, 0.15);
+dsum4 d_vm2aL_1(clock, HSNL, HSNR, VC04, VC05,
+       0.15, 0.15, 0.05, 0.05, 1.);
+glin4 g_vm2aL(clock, um1aL, vm2aR, vm1aL, VC03,
+       0.04, 0.04, 0.04, 0.02);
+muscle1G vm2aL(clock, d_vm2aL_1, g_vm2aL, 0.14, 0.15);
+dsum4 d_vm2aR_1(clock, HSNL, HSNR, VC04, VC05,
+       0.15, 0.15, 0.075, 0.05, 1.);
+glin4 g_vm2aR(clock, um1aR, vm2aL, vm1aR, VC03,
+       0.04, 0.04, 0.04, 0.02);
+muscle1G vm2aR(clock, d_vm2aR_1, g_vm2aR, 0.14, 0.15);
+dsum4 d_vm2pL_1(clock, HSNL, HSNR, VC05, VC04,
+       0.15, 0.15, 0.075, 0.05, 1.);
+glin4 g_vm2pL(clock, um1pL, vm1pL, vm2pR, VC03,
+       0.04, 0.04, 0.04, 0.02);
+muscle1G vm2pL(clock, d_vm2pL_1, g_vm2pL, 0.14, 0.15);
+dsum4 d_vm2pR_1(clock, HSNL, HSNR, VC04, VC05,
+       0.15, 0.15, 0.05, 0.05, 1.);
+glin4 g_vm2pR(clock, um1pR, vm1pR, vm2pL, VC03,
+       0.04, 0.04, 0.04, 0.02);
+muscle1G vm2pR(clock, d_vm2pR_1, g_vm2pR, 0.14, 0.15);
+
+// -------- monitors (4 prints per second) --------
+monitor m_aval(clock, "AVAL", AVAL);
+monitor m_avar(clock, "AVAR", AVAR);
+monitor m_avbl(clock, "AVBL", AVBL);
+monitor m_avbr(clock, "AVBR", AVBR);
+monitor m_pvcl(clock, "PVCL", PVCL);
+monitor m_pvcr(clock, "PVCR", PVCR);
+monitor m_avdl(clock, "AVDL", AVDL);
+monitor m_avdr(clock, "AVDR", AVDR);
+monitor m_avel(clock, "AVEL", AVEL);
+monitor m_aver(clock, "AVER", AVER);
+monitor m_dorsal(clock, "dorsal_BWM", dBWML1);
+monitor m_ventral(clock, "ventral_BWM", vBWML1);

@@ -1,0 +1,650 @@
+// =============================================================================
+// elegans_std_full — standard library for the FULL connectome
+// C. elegans (hermaphrodite, 302 neurons + 148 targets, Cook et al. 2019)
+//
+// Descriptor arities are inferred from the data.
+// Conventions: chemistry weight = count/40 (see elegans_connectome.txt header),
+// gap conductance = count/100, -1 sign for GABAergic
+// (DD, VD, RME, AVL, DVB, RIS), spike threshold 1.0.
+//
+// Layers:
+// dsumN — dendritic aggregator: weighted sum of graded spikes
+// (memoized per clock tick)
+// glinN — linear gap aggregator: Σ g_j * p_j
+// neuron* — neuron: (Σ dendrites) + bias + noise + gapagg - G*v, leakage to u
+// sensorn* — nose sensor: neuron + stimulus input stim*gain
+// muscle* — muscle/target: leakage to (Σ dendrites + gapagg - G*f)
+// simtime/random_touch/first_defined/monitor — from nose_touch (tested)
+// =====================================================================
+
+// -------- pure functions --------
+function rel(x, thr) { return sigmoid(x, 5.0, thr); }
+function u01(x)      { return ((f64)(x >> 11) + .5) / 9007199254740992.; }
+
+// -------- time --------
+simtime(speed) {
+    if(this.real == undefined) {
+        set_cycle_sleep_seconds(.001);
+        this.real = steady_clock();
+        this.t = 0.;
+    }
+    now = steady_clock();
+    dt = (now - this.real) * speed;
+    this.real = now;
+    if(dt < 0.) dt = 0.;
+    this.t += dt;
+    return this.t;
+}
+
+// -------- autonomous stimulus (hostless interpreter) --------
+random_touch() {
+    if(!this.initialized) {
+        dt = randf();
+        this.exp_time = steady_clock() + dt;
+        this.force = randf();
+        this.initialized = true;
+        console.println("========== touch nose ", this.force, " for ", dt, " s.");
+    }
+    if(this.force > 0.) {
+        if(steady_clock() > this.exp_time) {
+             this.force = 0.;
+             this.exp_time = steady_clock() + (randf() + 1) * 5.0;
+             console.println("----------- untouch nose! ----------");
+        }
+    } else if(steady_clock() > this.exp_time) {
+         dt = randf();
+         this.exp_time = steady_clock() + dt;
+         this.force = randf();
+         console.println("========== touch nose ", this.force, " for ", dt, " s.");
+    }
+    emit this.force;
+    delay(0.01);
+}
+
+first_defined(a, b) return a == undefined ? b : a;
+
+// -------- monitor --------
+monitor(clock, label, val) {
+    println(label, " = ", val);
+    delay(.25);
+}
+// -------- dendritic aggregators: chemistry (weighted emission) --------
+
+dsum1(clock, c1, w1, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr);
+    return this.r;
+}
+
+dsum2(clock, c1, c2, w1, w2, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr);
+    return this.r;
+}
+
+dsum3(clock, c1, c2, c3, w1, w2, w3, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 * rel(c2, thr)
+         + w3 * rel(c3, thr);
+    return this.r;
+}
+
+dsum4(clock, c1, c2, c3, c4, w1, w2, w3, w4, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr);
+    return this.r;
+}
+
+dsum5(clock, c1, c2, c3, c4, c5, w1, w2, w3, w4, w5, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr);
+    return this.r;
+}
+
+dsum6(clock, c1, c2, c3, c4, c5, c6, w1, w2, w3, w4, w5, w6, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr)
+         + w6 *   rel(c6, thr);
+    return this.r;
+}
+
+dsum7(clock, c1, c2, c3, c4, c5, c6, c7, w1, w2, w3, w4, w5, w6, w7, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr)
+         + w6 *   rel(c6, thr)
+         + w7 *   rel(c7, thr);
+    return this.r;
+}
+
+dsum8(clock, c1, c2, c3, c4, c5, c6, c7, c8, w1, w2, w3, w4, w5, w6, w7, w8, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr)
+         + w6 *   rel(c6, thr)
+         + w7 *   rel(c7, thr)
+         + w8 *   rel(c8, thr);
+    return this.r;
+}
+
+dsum9(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, w1, w2, w3, w4, w5, w6, w7, w8, w9, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr)
+         + w6 *   rel(c6, thr)
+         + w7 *   rel(c7, thr)
+         + w8 *   rel(c8, thr)
+         + w9 *   rel(c9, thr);
+    return this.r;
+}
+
+dsum10(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr)
+         + w6 *   rel(c6, thr)
+         + w7 *   rel(c7, thr)
+         + w8 *   rel(c8, thr)
+         + w9 *   rel(c9, thr)
+         + w10 *  rel(c10, thr);
+    return this.r;
+}
+
+dsum11(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 *   rel(c2, thr)
+         + w3 *   rel(c3, thr)
+         + w4 *   rel(c4, thr)
+         + w5 *   rel(c5, thr)
+         + w6 *   rel(c6, thr)
+         + w7 *   rel(c7, thr)
+         + w8 *   rel(c8, thr)
+         + w9 *   rel(c9, thr)
+         + w10 *  rel(c10, thr)
+         + w11 *  rel(c11, thr);
+    return this.r;
+}
+
+dsum12(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 * rel(c2, thr)
+         + w3 * rel(c3, thr)
+         + w4 * rel(c4, thr)
+         + w5 * rel(c5, thr)
+         + w6 * rel(c6, thr)
+         + w7 * rel(c7, thr)
+         + w8 * rel(c8, thr)
+         + w9 * rel(c9, thr)
+         + w10 * rel(c10, thr)
+         + w11 * rel(c11, thr)
+         + w12 * rel(c12, thr);
+    return this.r;
+}
+
+dsum13(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 * rel(c2, thr)
+         + w3 * rel(c3, thr)
+         + w4 * rel(c4, thr)
+         + w5 * rel(c5, thr)
+         + w6 * rel(c6, thr)
+         + w7 * rel(c7, thr)
+         + w8 * rel(c8, thr)
+         + w9 * rel(c9, thr)
+         + w10 * rel(c10, thr)
+         + w11 * rel(c11, thr)
+         + w12 * rel(c12, thr)
+         + w13 * rel(c13, thr);
+    return this.r;
+}
+
+dsum14(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 * rel(c2, thr)
+         + w3 * rel(c3, thr)
+         + w4 * rel(c4, thr)
+         + w5 * rel(c5, thr)
+         + w6 * rel(c6, thr)
+         + w7 * rel(c7, thr)
+         + w8 * rel(c8, thr)
+         + w9 * rel(c9, thr)
+         + w10 * rel(c10, thr)
+         + w11 * rel(c11, thr)
+         + w12 * rel(c12, thr)
+         + w13 * rel(c13, thr)
+         + w14 * rel(c14, thr);
+    return this.r;
+}
+
+dsum15(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 * rel(c2, thr)
+         + w3 * rel(c3, thr)
+         + w4 * rel(c4, thr)
+         + w5 * rel(c5, thr)
+         + w6 * rel(c6, thr)
+         + w7 * rel(c7, thr)
+         + w8 * rel(c8, thr)
+         + w9 * rel(c9, thr)
+         + w10 * rel(c10, thr)
+         + w11 * rel(c11, thr)
+         + w12 * rel(c12, thr)
+         + w13 * rel(c13, thr)
+         + w14 * rel(c14, thr)
+         + w15 * rel(c15, thr);
+    return this.r;
+}
+
+dsum16(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, thr) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = w1 * rel(c1, thr)
+         + w2 * rel(c2, thr)
+         + w3 * rel(c3, thr)
+         + w4 * rel(c4, thr)
+         + w5 * rel(c5, thr)
+         + w6 * rel(c6, thr)
+         + w7 * rel(c7, thr)
+         + w8 * rel(c8, thr)
+         + w9 * rel(c9, thr)
+         + w10 * rel(c10, thr)
+         + w11 * rel(c11, thr)
+         + w12 * rel(c12, thr)
+         + w13 * rel(c13, thr)
+         + w14 * rel(c14, thr)
+         + w15 * rel(c15, thr)
+         + w16 * rel(c16, thr);
+    return this.r;
+}
+
+// -------- gap-агрегаторы: Σ g_j * p_j --------
+
+glin1(clock, p1, g1) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1;
+    return this.r;
+}
+
+glin2(clock, p1, p2, g1, g2) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2;
+    return this.r;
+}
+
+glin3(clock, p1, p2, p3, g1, g2, g3) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3;
+    return this.r;
+}
+
+glin4(clock, p1, p2, p3, p4, g1, g2, g3, g4) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4;
+    return this.r;
+}
+
+glin5(clock, p1, p2, p3, p4, p5, g1, g2, g3, g4, g5) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5;
+    return this.r;
+}
+
+glin6(clock, p1, p2, p3, p4, p5, p6, g1, g2, g3, g4, g5, g6) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6;
+    return this.r;
+}
+
+glin7(clock, p1, p2, p3, p4, p5, p6, p7, g1, g2, g3, g4, g5, g6, g7) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7;
+    return this.r;
+}
+
+glin8(clock, p1, p2, p3, p4, p5, p6, p7, p8, g1, g2, g3, g4, g5, g6, g7, g8) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8;
+    return this.r;
+}
+
+glin9(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, g1, g2, g3, g4, g5, g6, g7, g8, g9) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9;
+    return this.r;
+}
+
+glin10(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10;
+    return this.r;
+}
+
+glin11(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11;
+    return this.r;
+}
+
+glin12(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12;
+    return this.r;
+}
+
+glin13(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13;
+    return this.r;
+}
+
+glin14(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14;
+    return this.r;
+}
+
+glin15(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14 + g15 * p15;
+    return this.r;
+}
+
+glin16(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16) {
+    if(clock == undefined) return 0.;
+    if(this.t == clock) return this.r;
+    this.t = clock;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14 + g15 * p15 + g16 * p16;
+    return this.r;
+}
+
+// -------- нейроны / сенсоры / мышцы (арности под данные) --------
+
+// neuron0: 0 дендрит(ов)
+neuron0(clock, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = bias + (u01(this.s) - .5) * 0.1;
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// neuron0G: 0 дендрит(ов) + gap
+neuron0G(clock, gapagg, gsum, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// muscle0G: 0 дендрит(ов) + gap
+muscle0G(clock, gapagg, gsum, tau) {
+    if(clock == undefined) return 0.;
+    if(this.f == undefined) { this.f = 0.; this.t = clock; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.f;
+    u = (gapagg == undefined ? 0. : gapagg - gsum * this.f);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.f += (u - this.f) * k;
+    return this.f;
+}
+
+// neuron1: 1 дендрит(ов)
+neuron1(clock, d1, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = d1 + bias + (u01(this.s) - .5) * 0.1;
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// muscle1: 1 дендрит(ов)
+muscle1(clock, d1, tau) {
+    if(clock == undefined) return 0.;
+    if(this.f == undefined) { this.f = 0.; this.t = clock; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.f;
+    u = d1;
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.f += (u - this.f) * k;
+    return this.f;
+}
+
+// neuron1G: 1 дендрит(ов) + gap
+neuron1G(clock, d1, gapagg, gsum, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = d1 + bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// muscle1G: 1 дендрит(ов) + gap
+muscle1G(clock, d1, gapagg, gsum, tau) {
+    if(clock == undefined) return 0.;
+    if(this.f == undefined) { this.f = 0.; this.t = clock; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.f;
+    u = d1 + (gapagg == undefined ? 0. : gapagg - gsum * this.f);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.f += (u - this.f) * k;
+    return this.f;
+}
+
+// sensorn1G: 1 дендрит(ов) + gap + стимул
+sensorn1G(clock, d1, gapagg, gsum, stim, gain, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = (stim == undefined ? 0. : stim * gain) + d1 + bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// neuron2G: 2 дендрит(ов) + gap
+neuron2G(clock, d1, d2, gapagg, gsum, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = d1 + d2 + bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// muscle2G: 2 дендрит(ов) + gap
+muscle2G(clock, d1, d2, gapagg, gsum, tau) {
+    if(clock == undefined) return 0.;
+    if(this.f == undefined) { this.f = 0.; this.t = clock; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.f;
+    u = d1 + d2 + (gapagg == undefined ? 0. : gapagg - gsum * this.f);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.f += (u - this.f) * k;
+    return this.f;
+}
+
+// sensorn2G: 2 дендрит(ов) + gap + стимул
+sensorn2G(clock, d1, d2, gapagg, gsum, stim, gain, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = (stim == undefined ? 0. : stim * gain) + d1 + d2 + bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// neuron3G: 3 дендрит(ов) + gap
+neuron3G(clock, d1, d2, d3, gapagg, gsum, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = d1 + d2 + d3 + bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
+
+// neuron4G: 4 дендрит(ов) + gap
+neuron4G(clock, d1, d2, d3, d4, gapagg, gsum, tau, bias, seed) {
+    if(clock == undefined) return 0.;
+    if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
+    dt = clock - this.t;
+    this.t = clock;
+    if(dt <= 0.) return this.v;
+    if(this.s == 0.) this.s = 1.;
+    this.s ^= this.s << 13; this.s ^= this.s >> 7; this.s ^= this.s << 17;
+    u = d1 + d2 + d3 + d4 + bias + (u01(this.s) - .5) * 0.1 + (gapagg == undefined ? 0. : gapagg - gsum * this.v);
+    k = dt / tau;
+    if(k > .5) k = .5;
+    this.v += (u - this.v) * k;
+    return this.v;
+}
