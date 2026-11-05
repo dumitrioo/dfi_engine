@@ -90,9 +90,7 @@ dsum3(clock, c1, c2, c3, w1, w2, w3, thr) {
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 * rel(c2, thr)
-         + w3 * rel(c3, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr);
     return this.r;
 }
 
@@ -100,10 +98,7 @@ dsum4(clock, c1, c2, c3, c4, w1, w2, w3, w4, thr) {
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr);
     return this.r;
 }
 
@@ -111,11 +106,7 @@ dsum5(clock, c1, c2, c3, c4, c5, w1, w2, w3, w4, w5, thr) {
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr);
     return this.r;
 }
 
@@ -123,12 +114,7 @@ dsum6(clock, c1, c2, c3, c4, c5, c6, w1, w2, w3, w4, w5, w6, thr) {
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr)
-         + w6 *   rel(c6, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr);
     return this.r;
 }
 
@@ -136,13 +122,7 @@ dsum7(clock, c1, c2, c3, c4, c5, c6, c7, w1, w2, w3, w4, w5, w6, w7, thr) {
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr)
-         + w6 *   rel(c6, thr)
-         + w7 *   rel(c7, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr);
     return this.r;
 }
 
@@ -150,14 +130,7 @@ dsum8(clock, c1, c2, c3, c4, c5, c6, c7, c8, w1, w2, w3, w4, w5, w6, w7, w8, thr
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr)
-         + w6 *   rel(c6, thr)
-         + w7 *   rel(c7, thr)
-         + w8 *   rel(c8, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr);
     return this.r;
 }
 
@@ -165,15 +138,7 @@ dsum9(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, w1, w2, w3, w4, w5, w6, w7, w8,
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr)
-         + w6 *   rel(c6, thr)
-         + w7 *   rel(c7, thr)
-         + w8 *   rel(c8, thr)
-         + w9 *   rel(c9, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr);
     return this.r;
 }
 
@@ -181,16 +146,8 @@ dsum10(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, w1, w2, w3, w4, w5, w6, w
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr)
-         + w6 *   rel(c6, thr)
-         + w7 *   rel(c7, thr)
-         + w8 *   rel(c8, thr)
-         + w9 *   rel(c9, thr)
-         + w10 *  rel(c10, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr);
     return this.r;
 }
 
@@ -198,17 +155,8 @@ dsum11(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, w1, w2, w3, w4, w5, 
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 *   rel(c2, thr)
-         + w3 *   rel(c3, thr)
-         + w4 *   rel(c4, thr)
-         + w5 *   rel(c5, thr)
-         + w6 *   rel(c6, thr)
-         + w7 *   rel(c7, thr)
-         + w8 *   rel(c8, thr)
-         + w9 *   rel(c9, thr)
-         + w10 *  rel(c10, thr)
-         + w11 *  rel(c11, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr) + w11 * rel(c11, thr);
     return this.r;
 }
 
@@ -216,18 +164,8 @@ dsum12(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, w1, w2, w3, w4,
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 * rel(c2, thr)
-         + w3 * rel(c3, thr)
-         + w4 * rel(c4, thr)
-         + w5 * rel(c5, thr)
-         + w6 * rel(c6, thr)
-         + w7 * rel(c7, thr)
-         + w8 * rel(c8, thr)
-         + w9 * rel(c9, thr)
-         + w10 * rel(c10, thr)
-         + w11 * rel(c11, thr)
-         + w12 * rel(c12, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr) + w11 * rel(c11, thr) + w12 * rel(c12, thr);
     return this.r;
 }
 
@@ -235,19 +173,8 @@ dsum13(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, w1, w2, w3
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 * rel(c2, thr)
-         + w3 * rel(c3, thr)
-         + w4 * rel(c4, thr)
-         + w5 * rel(c5, thr)
-         + w6 * rel(c6, thr)
-         + w7 * rel(c7, thr)
-         + w8 * rel(c8, thr)
-         + w9 * rel(c9, thr)
-         + w10 * rel(c10, thr)
-         + w11 * rel(c11, thr)
-         + w12 * rel(c12, thr)
-         + w13 * rel(c13, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr) + w11 * rel(c11, thr) + w12 * rel(c12, thr) + w13 * rel(c13, thr);
     return this.r;
 }
 
@@ -255,20 +182,8 @@ dsum14(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, w1, w
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 * rel(c2, thr)
-         + w3 * rel(c3, thr)
-         + w4 * rel(c4, thr)
-         + w5 * rel(c5, thr)
-         + w6 * rel(c6, thr)
-         + w7 * rel(c7, thr)
-         + w8 * rel(c8, thr)
-         + w9 * rel(c9, thr)
-         + w10 * rel(c10, thr)
-         + w11 * rel(c11, thr)
-         + w12 * rel(c12, thr)
-         + w13 * rel(c13, thr)
-         + w14 * rel(c14, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr) + w11 * rel(c11, thr) + w12 * rel(c12, thr) + w13 * rel(c13, thr) + w14 * rel(c14, thr);
     return this.r;
 }
 
@@ -276,21 +191,8 @@ dsum15(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, 
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 * rel(c2, thr)
-         + w3 * rel(c3, thr)
-         + w4 * rel(c4, thr)
-         + w5 * rel(c5, thr)
-         + w6 * rel(c6, thr)
-         + w7 * rel(c7, thr)
-         + w8 * rel(c8, thr)
-         + w9 * rel(c9, thr)
-         + w10 * rel(c10, thr)
-         + w11 * rel(c11, thr)
-         + w12 * rel(c12, thr)
-         + w13 * rel(c13, thr)
-         + w14 * rel(c14, thr)
-         + w15 * rel(c15, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr) + w11 * rel(c11, thr) + w12 * rel(c12, thr) + w13 * rel(c13, thr) + w14 * rel(c14, thr) + w15 * rel(c15, thr);
     return this.r;
 }
 
@@ -298,22 +200,8 @@ dsum16(clock, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, 
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = w1 * rel(c1, thr)
-         + w2 * rel(c2, thr)
-         + w3 * rel(c3, thr)
-         + w4 * rel(c4, thr)
-         + w5 * rel(c5, thr)
-         + w6 * rel(c6, thr)
-         + w7 * rel(c7, thr)
-         + w8 * rel(c8, thr)
-         + w9 * rel(c9, thr)
-         + w10 * rel(c10, thr)
-         + w11 * rel(c11, thr)
-         + w12 * rel(c12, thr)
-         + w13 * rel(c13, thr)
-         + w14 * rel(c14, thr)
-         + w15 * rel(c15, thr)
-         + w16 * rel(c16, thr);
+    this.r = w1 * rel(c1, thr) + w2 * rel(c2, thr) + w3 * rel(c3, thr) + w4 * rel(c4, thr) + w5 * rel(c5, thr) + w6 * rel(c6, thr) + w7 * rel(c7, thr) + w8 * rel(c8, thr) + w9 * rel(c9, thr) +
+            w10 * rel(c10, thr) + w11 * rel(c11, thr) + w12 * rel(c12, thr) + w13 * rel(c13, thr) + w14 * rel(c14, thr) + w15 * rel(c15, thr) + w16 * rel(c16, thr);
     return this.r;
 }
 
@@ -395,7 +283,8 @@ glin10(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, g1, g2, g3, g4, g5, g6, g
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10;
     return this.r;
 }
 
@@ -403,7 +292,8 @@ glin11(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, g1, g2, g3, g4, g5, 
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10 + g11 * p11;
     return this.r;
 }
 
@@ -411,7 +301,8 @@ glin12(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, g1, g2, g3, g4,
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10 + g11 * p11 + g12 * p12;
     return this.r;
 }
 
@@ -419,7 +310,8 @@ glin13(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, g1, g2, g3
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13;
     return this.r;
 }
 
@@ -427,7 +319,8 @@ glin14(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, g1, g
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14;
     return this.r;
 }
 
@@ -435,7 +328,8 @@ glin15(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, 
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14 + g15 * p15;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14 + g15 * p15;
     return this.r;
 }
 
@@ -443,7 +337,8 @@ glin16(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, 
     if(clock == undefined) return 0.;
     if(this.t == clock) return this.r;
     this.t = clock;
-    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 + g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14 + g15 * p15 + g16 * p16;
+    this.r = g1 * p1 + g2 * p2 + g3 * p3 + g4 * p4 + g5 * p5 + g6 * p6 + g7 * p7 + g8 * p8 + g9 * p9 +
+            g10 * p10 + g11 * p11 + g12 * p12 + g13 * p13 + g14 * p14 + g15 * p15 + g16 * p16;
     return this.r;
 }
 
