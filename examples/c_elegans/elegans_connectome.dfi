@@ -7,25 +7,25 @@
 // CONVENTIONS
 // - chemical weight synapse = synapse count / 40: the operating point is chosen so that
 // the bilateral sensory pathway FLP->AVA (~114 total, ~57 per cell)
-// has a total weight of ~1.4 — comparable to 1.0 of the tested nose-touch
+// has a total weight of ~1.4 - comparable to 1.0 of the tested nose-touch
 // circuit (there, the L+R pools were merged and the normalization was /114)
 // - gap junction conductance = contact count / 100
 // - sign: -1 for GABAergic (DD01-06, VD01-13, RMED/L/R/V, AVL, DVB, RIS)
 // - release threshold rel = 1.0, slope 5, tau=0.1 s, bias=-0.1, noise 0.1
-// - gap: g*(p-v) = glin(Σ g_j p_j) - G*v, G = Σ g_j — cell literal
+// - gap: g*(p-v) = glin(Σ g_j p_j) - G*v, G = Σ g_j - cell literal
 // - dendritic aggregators d_*_N (chemistry) and g_* (gap) are memoized per tick
 // - 48 autosynapses from the data (M4->M4 x15, RIML->RIML x11, ...) are retained
 //
 // RUN
-// - with host: publish 'touch' (0..1) — nose touch; read 'AVAL'...'AVER'
+// - with host: publish 'touch' (0..1) - nose touch; read 'AVAL'...'AVER'
 // - without host: autonomous random_touch (strength U[0,1], pause 5-10 sec) +
 // monitors print command neurons 4 times per second
 //
 // CHECKED WITH MIRROR SIMULATION (Python, same equations, 120 sec):
 // - stable: max|v| = 3.1, no divergence
 // - rest: 0% active neurons, AVA=-0.07, AVB=-0.08
-// - nose touch: dose-response as in nose-touch: force <0.3 — no response,
-// 0.5-0.9 — reversal (AVA up to 1.8, AVB suppressed to 0.2), 8/14 touches —
+// - nose touch: dose-response as in nose-touch: force <0.3 - no response,
+// 0.5-0.9 - reversal (AVA up to 1.8, AVB suppressed to 0.2), 8/14 touches -
 // reversal, return to rest in ~2 s
 // =========================================================================
 

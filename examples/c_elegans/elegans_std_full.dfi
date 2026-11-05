@@ -1,5 +1,5 @@
 // =============================================================================
-// elegans_std_full — standard library for the FULL connectome
+// elegans_std_full - standard library for the FULL connectome
 // C. elegans (hermaphrodite, 302 neurons + 148 targets, Cook et al. 2019)
 //
 // Descriptor arities are inferred from the data.
@@ -8,13 +8,13 @@
 // (DD, VD, RME, AVL, DVB, RIS), spike threshold 1.0.
 //
 // Layers:
-// dsumN — dendritic aggregator: weighted sum of graded spikes
+// dsumN - dendritic aggregator: weighted sum of graded spikes
 // (memoized per clock tick)
-// glinN — linear gap aggregator: Σ g_j * p_j
-// neuron* — neuron: (Σ dendrites) + bias + noise + gapagg - G*v, leakage to u
-// sensorn* — nose sensor: neuron + stimulus input stim*gain
-// muscle* — muscle/target: leakage to (Σ dendrites + gapagg - G*f)
-// simtime/random_touch/first_defined/monitor — from nose_touch (tested)
+// glinN - linear gap aggregator: Σ g_j * p_j
+// neuron* - neuron: (Σ dendrites) + bias + noise + gapagg - G*v, leakage to u
+// sensorn* - nose sensor: neuron + stimulus input stim*gain
+// muscle* - muscle/target: leakage to (Σ dendrites + gapagg - G*f)
+// simtime/random_touch/first_defined/monitor - from nose_touch (tested)
 // =====================================================================
 
 // -------- pure functions --------
