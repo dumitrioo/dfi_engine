@@ -342,9 +342,9 @@ glin16(clock, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, 
     return this.r;
 }
 
-// -------- нейроны / сенсоры / мышцы (арности под данные) --------
+// -------- neurons / sensors / muscles (arities for data) --------
 
-// neuron0: 0 дендрит(ов)
+// neuron0: 0 dendrites
 neuron0(clock, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -360,7 +360,7 @@ neuron0(clock, tau, bias, seed) {
     return this.v;
 }
 
-// neuron0G: 0 дендрит(ов) + gap
+// neuron0G: 0 dendrites + gap
 neuron0G(clock, gapagg, gsum, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -376,7 +376,7 @@ neuron0G(clock, gapagg, gsum, tau, bias, seed) {
     return this.v;
 }
 
-// muscle0G: 0 дендрит(ов) + gap
+// muscle0G: 0 dendrites + gap
 muscle0G(clock, gapagg, gsum, tau) {
     if(clock == undefined) return 0.;
     if(this.f == undefined) { this.f = 0.; this.t = clock; }
@@ -390,7 +390,7 @@ muscle0G(clock, gapagg, gsum, tau) {
     return this.f;
 }
 
-// neuron1: 1 дендрит(ов)
+// neuron1: 1 dendrite
 neuron1(clock, d1, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -406,7 +406,7 @@ neuron1(clock, d1, tau, bias, seed) {
     return this.v;
 }
 
-// muscle1: 1 дендрит(ов)
+// muscle1: 1 dendrite
 muscle1(clock, d1, tau) {
     if(clock == undefined) return 0.;
     if(this.f == undefined) { this.f = 0.; this.t = clock; }
@@ -420,7 +420,7 @@ muscle1(clock, d1, tau) {
     return this.f;
 }
 
-// neuron1G: 1 дендрит(ов) + gap
+// neuron1G: 1 dendrite + gap
 neuron1G(clock, d1, gapagg, gsum, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -436,7 +436,7 @@ neuron1G(clock, d1, gapagg, gsum, tau, bias, seed) {
     return this.v;
 }
 
-// muscle1G: 1 дендрит(ов) + gap
+// muscle1G: 1 dendrite + gap
 muscle1G(clock, d1, gapagg, gsum, tau) {
     if(clock == undefined) return 0.;
     if(this.f == undefined) { this.f = 0.; this.t = clock; }
@@ -450,7 +450,7 @@ muscle1G(clock, d1, gapagg, gsum, tau) {
     return this.f;
 }
 
-// sensorn1G: 1 дендрит(ов) + gap + стимул
+// sensorn1G: 1 dendrite + gap + stimulus
 sensorn1G(clock, d1, gapagg, gsum, stim, gain, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -466,7 +466,7 @@ sensorn1G(clock, d1, gapagg, gsum, stim, gain, tau, bias, seed) {
     return this.v;
 }
 
-// neuron2G: 2 дендрит(ов) + gap
+// neuron2G: 2 дендрита + gap
 neuron2G(clock, d1, d2, gapagg, gsum, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -482,7 +482,7 @@ neuron2G(clock, d1, d2, gapagg, gsum, tau, bias, seed) {
     return this.v;
 }
 
-// muscle2G: 2 дендрит(ов) + gap
+// muscle2G: 2 dendrites + gap
 muscle2G(clock, d1, d2, gapagg, gsum, tau) {
     if(clock == undefined) return 0.;
     if(this.f == undefined) { this.f = 0.; this.t = clock; }
@@ -496,7 +496,7 @@ muscle2G(clock, d1, d2, gapagg, gsum, tau) {
     return this.f;
 }
 
-// sensorn2G: 2 дендрит(ов) + gap + стимул
+// sensorn2G: 2 dendrites + gap + stimulus
 sensorn2G(clock, d1, d2, gapagg, gsum, stim, gain, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -512,7 +512,7 @@ sensorn2G(clock, d1, d2, gapagg, gsum, stim, gain, tau, bias, seed) {
     return this.v;
 }
 
-// neuron3G: 3 дендрит(ов) + gap
+// neuron3G: 3 dendrites + gap
 neuron3G(clock, d1, d2, d3, gapagg, gsum, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
@@ -528,7 +528,7 @@ neuron3G(clock, d1, d2, d3, gapagg, gsum, tau, bias, seed) {
     return this.v;
 }
 
-// neuron4G: 4 дендрит(ов) + gap
+// neuron4G: 4 dendrites + gap
 neuron4G(clock, d1, d2, d3, d4, gapagg, gsum, tau, bias, seed) {
     if(clock == undefined) return 0.;
     if(this.v == undefined) { this.v = bias; this.t = clock; this.s = seed; }
