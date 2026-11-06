@@ -1,4 +1,4 @@
-# C. elegans - models of the nervous system in node language
+# C. elegans - models of the nervous system in DFI language
 
 ## Full connectome
 
