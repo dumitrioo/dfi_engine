@@ -127,10 +127,10 @@ QMAKE_CFLAGS_RELEASE += -O3
 LIBS += -lpthread -ldl
 
 DISTFILES += \
-    ../c_elegans/elegans_std.dfi \
-    ../c_elegans/nose_touch_edges.csv \
-    ../c_elegans/worm_remote.dfi \
-    ../c_elegans/nose_touch.dfi \
+    ../c_elegans/README.md \
+    ../c_elegans/elegans_std_full.dfi \
+    ../c_elegans/elegans_connectome.dfi \
+    ../c_elegans/gen_connectome.py \
     ../hello_world.dfi \
     ../../README.md \
     ../alu74181.dfi \
