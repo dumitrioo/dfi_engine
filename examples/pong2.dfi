@@ -14,7 +14,7 @@ win() {
         set_cycle_sleep_seconds(0.0001);
         set_inactive_sleep_seconds(0.01);
         ray_init_window(1280, 720, "Pong");
-        ray_set_target_fps(120);
+        ray_set_target_fps(60);
         this.tid = thread_id();
     }
     if(this.tid == thread_id()) {
