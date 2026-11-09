@@ -43,7 +43,7 @@ namespace dfi {
         static std::array<T, 256> constexpr fresh_table() {
             std::array<T, 256> res{};
             for(size_t dividend{0}; dividend < 256; ++dividend) {
-                T remainder{static_cast<T>(dividend) << (WIDTH - 8)};
+                T remainder{static_cast<T>(static_cast<T>(dividend) << (WIDTH - 8))};
                 for(size_t bit = 8; bit > 0; --bit) {
                     if(remainder & TOPBIT) {
                         remainder = (remainder << 1) ^ POLYNOMIAL;
