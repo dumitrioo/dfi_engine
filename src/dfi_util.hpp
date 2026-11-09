@@ -158,6 +158,7 @@ namespace dfi {
                str == L"while" ||
                str == L"emit" ||
                str == L"delay" ||
+               str == L"extension" ||
                str == L"return" ||
                str == L"break" ||
                str == L"continue" ||
@@ -178,6 +179,7 @@ namespace dfi {
                str != L"while" &&
                str != L"emit" &&
                str != L"delay" &&
+               str != L"extension" &&
                str != L"return" &&
                str != L"break" &&
                str != L"continue" &&
