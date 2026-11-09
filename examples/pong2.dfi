@@ -105,8 +105,27 @@ game(pads, scr) {
     }
 }
 
-///////////////////////// sensors: keys -> paddles, reset
-paddles(scr) {
+///////////////////////// sensors: keys -> paddles, reset, fullscreen
+left_force(scr) {
+    if(scr != undefined && scr.t == thread_id()) {
+        a = ray_is_key_down(RAY_KEY_A); z = ray_is_key_down(RAY_KEY_Z);
+        return a && !z ? -1. : !a && z ? 1. : 0.;
+    }
+}
+
+right_force(scr) {
+    if(scr != undefined && scr.t == thread_id()) {
+        u = ray_is_key_down(RAY_KEY_UP); d = ray_is_key_down(RAY_KEY_DOWN);
+        return u && !d ? -1. : !u && d ? 1. : 0.;
+    }
+}
+
+game_reset(scr) return scr != undefined ? ray_is_key_pressed(RAY_KEY_R) : false;
+
+fullscr_switch(scr) return scr != undefined ? ray_is_key_pressed(RAY_KEY_F11) : false;
+
+///////////////////////// sensors -> controls
+paddles(scr, lfrc, rfrc, rst, fss) {
     if(scr != undefined) {
         if(this.l == undefined) {
             this.lw = scr.w;
@@ -120,8 +139,7 @@ paddles(scr) {
             this.t = steady_clock();
         }
         if(this.lw != scr.w || this.lh != scr.h) {
-            this.lw = scr.w;
-            this.lh = scr.h;
+            this.lw = scr.w; this.lh = scr.h;
             this.l.x = scr.w / 180.;
             this.r.x = scr.w - 2. * scr.w / 180.;
             this.l.w = scr.w / 180.;
@@ -135,22 +153,20 @@ paddles(scr) {
         dt = now - this.t;
         this.t = now;
         sp = scr.h * 1.9;
-        if(ray_is_key_down(RAY_KEY_A)) this.l.y -= sp * dt;
-        if(ray_is_key_down(RAY_KEY_Z)) this.l.y += sp * dt;
+        this.l.y += lfrc * sp * dt;
+
         if(this.l.y < 0) this.l.y = 0.;
         if(this.l.y + this.l.h > scr.h) this.l.y = scr.h - this.l.h;
-        if(ray_is_key_down(RAY_KEY_UP)) this.r.y -= sp * dt;
-        if(ray_is_key_down(RAY_KEY_DOWN)) this.r.y += sp * dt;
+        this.r.y += rfrc * sp * dt;
+
         if(this.r.y < 0) this.r.y = 0.;
         if(this.r.y + this.r.h > scr.h) this.r.y = scr.h - this.r.h;
 
-        kr = ray_is_key_pressed(RAY_KEY_R);
-        if(kr && !this.pr) ++this.rst;
-        this.pr = kr;
+        if(rst && !this.pr) ++this.rst;
+        this.pr = rst;
 
-        kf = ray_is_key_pressed(RAY_KEY_F11);
-        if(kf && !this.pf) ray_toggle_full_screen();
-        this.pf = kf;
+        if(fss && !this.pf) ray_toggle_full_screen();
+        this.pf = fss;
 
         return {l: this.l, r: this.r, rst: this.rst};
     }
@@ -195,7 +211,11 @@ renderer(scr, pads, game) {
     }
 }
 
-win      scr();              // window owner, exports tid + size
-paddles  ctl(scr);           // sensors (keys), window thread
-game     phy(ctl, scr);      // physics, any thread
-renderer gui(scr, ctl, phy); // HMI, window thread
+win            scr(); // window owner, exports tid + size
+left_force     lfrc(scr); // left paddle keys status
+right_force    rfrc(scr); // right paddle keys status
+game_reset     rst(scr); // reset
+fullscr_switch fss(scr); // toggle full screen
+paddles        ctl(scr, lfrc, rfrc, rst, fss); // apply user control
+game           phy(ctl, scr); // physics
+renderer       gui(scr, ctl, phy); // window drawing
