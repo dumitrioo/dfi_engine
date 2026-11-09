@@ -11,7 +11,7 @@ function serve_ball(scr, side) {
 ///////////////////////// window creator
 win() {
     if(this.tid == undefined) {
-        set_cycle_sleep_seconds(0.001);
+        set_cycle_sleep_seconds(0.0001);
         set_inactive_sleep_seconds(0.01);
         ray_init_window(1280, 720, "Pong");
         ray_set_target_fps(120);
@@ -29,7 +29,7 @@ win() {
 
 ///////////////////////// physics: ball, score, flash timestamp (any thread)
 game(pads, scr) {
-    if(pads != undefined && scr != undefined) {
+    if(pads != undefined && scr != undefined && scr.t != thread_id()) {
         r = scr.h / 40;
         if(this.b == undefined) {
             this.rst_seen = pads.rst;
