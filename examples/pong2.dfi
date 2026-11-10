@@ -107,14 +107,14 @@ game(pads, scr) {
 
 ///////////////////////// sensors: keys -> paddles, reset, fullscreen
 left_force(scr) {
-    if(scr != undefined && scr.t == thread_id()) {
+    if(scr != undefined) {
         a = ray_is_key_down(RAY_KEY_A); z = ray_is_key_down(RAY_KEY_Z);
         return a && !z ? -1. : !a && z ? 1. : 0.;
     }
 }
 
 right_force(scr) {
-    if(scr != undefined && scr.t == thread_id()) {
+    if(scr != undefined) {
         u = ray_is_key_down(RAY_KEY_UP); d = ray_is_key_down(RAY_KEY_DOWN);
         return u && !d ? -1. : !u && d ? 1. : 0.;
     }
