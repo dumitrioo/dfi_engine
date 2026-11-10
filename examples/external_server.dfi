@@ -18,23 +18,23 @@ changing_value() {
     delay(0.5);
     choice = rand() % 9;
     res = 0;
-    if(choice == 0) res = rnd_str(rand() % 32 + 1);
-    if(choice == 1) res = rand() % 100 + 1;
+    if(choice == 0) res = rnd_str(rand() % 32 + 1); else
+    if(choice == 1) res = rand() % 100 + 1; else
     if(choice == 2)
         res = vec4(
             200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
             200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5)
-        );
+        ); else
     if(choice == 3) res = mat4(
         200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
         200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
         200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5),
         200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5), 200.0 * (randf() - 0.5)
-    );
-    if(choice == 4) res = [200.0 * (randf() - 0.5), rnd_str(12)];
-    if(choice == 5) { res = {key: 200.0 * (randf() - 0.5)}; }
-    if(choice == 6) res = sin;
-    if(choice == 7) res = timestamp();
+    ); else
+    if(choice == 4) res = [200.0 * (randf() - 0.5), rnd_str(12)]; else
+    if(choice == 5) res = {key: 200.0 * (randf() - 0.5)}; else
+    if(choice == 6) res = sin; else
+    if(choice == 7) res = timestamp(); else
     if(choice == 8) res = matrix([1,2,3,4]);
     console.print("original value changed to: ", res);
     return res;
