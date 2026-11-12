@@ -526,227 +526,106 @@ namespace dfi::str_util {
         return static_cast<uint32_t>(c) < 128 && digits[c] < 16;
     }
 
-    static std::int64_t utf8_to_ucs(void const *ut8, int *increment) {
-        const unsigned char *utf8{reinterpret_cast<const unsigned char *>(ut8)};
+    static std::optional<std::uint64_t> utf8_to_ucs(void const *ut8, std::size_t max_len, int *increment = nullptr) {
+        static constexpr std::int8_t seqlen[256] = {
+            // 0x00 .. 0x7F — ASCII, single-byte sequences
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x00-0x0F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x10-0x1F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x20-0x2F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x30-0x3F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x40-0x4F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x50-0x5F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x60-0x6F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x70-0x7F
+            // 0x80 .. 0xBF — continuation bytes (10xxxxxx), could not be leading
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x80-0x8F
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x90-0x9F
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0xA0-0xAF
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0xB0-0xBF
+            // 0xC0 .. 0xDF — two-byte (110xxxxx)
+            2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  // 0xC0-0xCF
+            2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  // 0xD0-0xDF
+            // 0xE0 .. 0xEF — three-byte (1110xxxx)
+            3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,  // 0xE0-0xEF
+            // 0xF0 .. 0xF7 — four-byte (11110xxx)
+            4,4,4,4,4,4,4,4,                  // 0xF0-0xF7
+            // 0xF8 .. 0xFB — five-byte (111110xx), old spec only
+            5,5,5,5,                          // 0xF8-0xFB
+            // 0xFC .. 0xFD — six-byte (1111110x), old spec only
+            6,6,                              // 0xFC-0xFD
+            // 0xFE, 0xFF — disallowed
+            0,0                               // 0xFE-0xFF
+        };
+        static auto cont{[](std::uint8_t c, int off = 0) -> std::uint64_t { std::uint64_t res{c}; res &= 0x3f; res <<= off; return res; }};
+        static auto first2{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x1f; res <<= 6; return res; }};
+        static auto first3{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x0f; res <<= 12; return res; }};
+        static auto first4{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x07; res <<= 18; return res; }};
+        static auto first5{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x03; res <<= 24; return res; }};
+        static auto first6{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x01; res <<= 30; return res; }};
+        static auto chck{[](std::uint8_t c) -> bool { return (c & 0xc0) == 0x80; }};
 
-        if(utf8[0] < 0x80) {
-            if(increment) *increment = 1;
-            return utf8[0] & 0xff;
+        if(ut8 == nullptr || max_len == 0) {
+            if(increment != nullptr) { *increment = 0; }
+            return {};
         }
 
-        if(((utf8[0] & 0xe0) == 0xc0)) {
-            if(increment) *increment = 2;
-            return (((std::uint64_t)utf8[0] & 0x1f) << 6) |
-                   (((std::uint64_t)utf8[1] & 0x3f));
-        }
-
-        if(((utf8[0] & 0xf0) == 0xe0)) {
-            if(increment) *increment = 3;
-            return (((std::uint64_t)utf8[0] & 0x0f) << 12) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[2] & 0x3f));
-        }
-
-        if(((utf8[0] & 0xf8) == 0xf0)) {
-            if(increment) *increment = 4;
-            return (((std::uint64_t)utf8[0] & 0x07) << 18) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[3] & 0x3f));
-        }
-
-        if(((utf8[0] & 0xfc) == 0xf8)) {
-            if(increment) *increment = 5;
-            return (((std::uint64_t)utf8[0] & 0x03) << 24) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 18) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[3] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[4] & 0x3f));
-        }
-
-        if(((utf8[0] & 0xfe) == 0xfc)) {
-            if(increment) *increment = 6;
-            return (((std::uint64_t)utf8[0] & 0x01) << 30) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 24) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 18) |
-                   (((std::uint64_t)utf8[3] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[4] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[5] & 0x3f));
-        }
-
-        if(utf8[0] == 0xfe) {
-            if(increment) *increment = 7;
-            return (((std::uint64_t)utf8[1] & 0x3f) << 30) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 24) |
-                   (((std::uint64_t)utf8[3] & 0x3f) << 18) |
-                   (((std::uint64_t)utf8[4] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[5] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[6] & 0x3f));
-        }
-
-        if(utf8[0] == 0xff && utf8[1] == 0x80) {
-            if(increment) *increment = 13;
-            return (std::uint64_t)(((std::uint64_t)(utf8[2]  & 0x3f) << 60)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[3]  & 0x3f) << 54)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[4]  & 0x3f) << 48)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[5]  & 0x3f) << 42)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[6]  & 0x3f) << 36)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[7]  & 0x3f) << 30)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[8]  & 0x3f) << 24)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[9]  & 0x3f) << 18)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[10] & 0x3f) << 12)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[11] & 0x3f) <<  6)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[12] & 0x3f) <<  0));
-        }
-
-        if(increment) *increment = 1;
-        return utf8[0];
-    }
-
-    static std::int64_t utf8_to_ucs_maxlen(void const *ut8, std::int64_t max_len, int *increment) {
         std::uint8_t const *utf8{reinterpret_cast<std::uint8_t const *>(ut8)};
-
-        if(max_len < 1) {
-            if(increment) { *increment = 0; }
-            return -1;
+        std::uint8_t const c0{utf8[0]};
+        int offs{seqlen[c0]};
+        if(increment != nullptr) { *increment = offs; }
+        switch(offs) {
+            case 1:
+                return static_cast<std::uint64_t>(c0);
+            case 2:
+                if(max_len < 2 || !chck(utf8[1])) {
+                    if(increment != nullptr) { *increment = 1; } return {};
+                }
+                return first2(c0) | cont(utf8[1]);
+            case 3:
+                if(max_len < 3 || !chck(utf8[1]) || !chck(utf8[2])) {
+                    if(increment != nullptr) { *increment = 1; } return {};
+                }
+                return first3(c0) | cont(utf8[1], 6) | cont(utf8[2]);
+            case 4:
+                if(max_len < 4 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3])) {
+                    if(increment != nullptr) { *increment = 1; } return {};
+                }
+                return first4(c0) | cont(utf8[1], 12) | cont(utf8[2], 6) | cont(utf8[3]);
+            case 5:
+                if(max_len < 5 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3]) || !chck(utf8[4])) {
+                    if(increment != nullptr) { *increment = 1; } return {};
+                }
+                return first5(c0) | cont(utf8[1], 18) | cont(utf8[2], 12) | cont(utf8[3], 6) | cont(utf8[4]);
+            case 6:
+                if(max_len < 6 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3]) || !chck(utf8[4]) || !chck(utf8[5])) {
+                    if(increment != nullptr) { *increment = 1; } return {};
+                }
+                return first6(c0) | cont(utf8[1], 24) | cont(utf8[2], 18) | cont(utf8[3], 12) | cont(utf8[4], 6) | cont(utf8[5]);
+            default:
+                if(increment != nullptr) { *increment = 1; }
+                return {};
         }
-
-        if(utf8[0] < 0x80) {
-            if(increment) *increment = 1;
-            return utf8[0] & 0xff;
-        }
-
-        if(max_len < 2) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(((utf8[0] & 0xe0) == 0xc0)) {
-            if(increment) *increment = 2;
-            return (((std::uint64_t)utf8[0] & 0x1f) << 6) |
-                   (((std::uint64_t)utf8[1] & 0x3f));
-        }
-
-        if(max_len < 3) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(((utf8[0] & 0xf0) == 0xe0)) {
-            if(increment) *increment = 3;
-            return (((std::uint64_t)utf8[0] & 0x0f) << 12) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[2] & 0x3f));
-        }
-
-        if(max_len < 4) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(((utf8[0] & 0xf8) == 0xf0)) {
-            if(increment) *increment = 4;
-            return (((std::uint64_t)utf8[0] & 0x07) << 18) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[3] & 0x3f));
-        }
-
-        if(max_len < 5) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(((utf8[0] & 0xfc) == 0xf8)) {
-            if(increment) *increment = 5;
-            return (((std::uint64_t)utf8[0] & 0x03) << 24) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 18) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[3] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[4] & 0x3f));
-        }
-
-        if(max_len < 6) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(((utf8[0] & 0xfe) == 0xfc)) {
-            if(increment) *increment = 6;
-            return (((std::uint64_t)utf8[0] & 0x01) << 30) |
-                   (((std::uint64_t)utf8[1] & 0x3f) << 24) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 18) |
-                   (((std::uint64_t)utf8[3] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[4] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[5] & 0x3f));
-        }
-
-        if(max_len < 7) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(utf8[0] == 0xfe) {
-            if(increment) *increment = 7;
-            return (((std::uint64_t)utf8[1] & 0x3f) << 30) |
-                   (((std::uint64_t)utf8[2] & 0x3f) << 24) |
-                   (((std::uint64_t)utf8[3] & 0x3f) << 18) |
-                   (((std::uint64_t)utf8[4] & 0x3f) << 12) |
-                   (((std::uint64_t)utf8[5] & 0x3f) << 6) |
-                   (((std::uint64_t)utf8[6] & 0x3f));
-        }
-
-        if(max_len < 13) {
-            if(increment) { *increment = 0; }
-            return -1;
-        }
-
-        if(utf8[0] == 0xff && utf8[1] == 0x80) {
-            if(increment) *increment = 13;
-            return (std::uint64_t)(((std::uint64_t)(utf8[2]  & 0x3f) << 60)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[3]  & 0x3f) << 54)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[4]  & 0x3f) << 48)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[5]  & 0x3f) << 42)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[6]  & 0x3f) << 36)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[7]  & 0x3f) << 30)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[8]  & 0x3f) << 24)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[9]  & 0x3f) << 18)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[10] & 0x3f) << 12)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[11] & 0x3f) <<  6)) |
-                   (std::uint64_t)(((std::uint64_t)(utf8[12] & 0x3f) <<  0));
-        }
-
-        if(increment) {
-            *increment = 1;
-        }
-
-        return utf8[0];
     }
-
 
     static int ucs_to_utf8(std::uint64_t c, void *ut8) {
         std::uint8_t *utf8{(std::uint8_t *)ut8};
         if(c <= 0x7fULL) {
             utf8[0] = (std::uint8_t) c & 0x7f;
-            utf8[1] = (std::uint8_t) 0;
             return 1;
         } else if(c <= 0x7'ffULL) {
             utf8[0] = (std::uint8_t)((c >> 6) & 0x1f) | 0xc0;
             utf8[1] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[2] = (std::uint8_t) 0;
             return 2;
         } else if(c <= 0xff'ffULL) {
             utf8[0] = (std::uint8_t)((c >> 12) & 0xf) | 0xe0;
             utf8[1] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
             utf8[2] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[3] = (std::uint8_t) 0;
             return 3;
         } else if(c <= 0x1f'ff'ffULL) {
             utf8[0] = (std::uint8_t)((c >> 18) & 7) | 0xf0;
             utf8[1] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
             utf8[2] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
             utf8[3] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[4] = (std::uint8_t) 0;
             return 4;
         } else if(c <= 0x3'ff'ff'ffULL) {
             utf8[0] = (std::uint8_t)((c >> 24) & 3) | 0xf8;
@@ -754,7 +633,6 @@ namespace dfi::str_util {
             utf8[2] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
             utf8[3] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
             utf8[4] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[5] = (std::uint8_t) 0;
             return 5;
         } else if(c <= 0x7f'ff'ff'ffULL) {
             utf8[0] = (std::uint8_t)((c >> 30) & 1) | 0xfc;
@@ -763,34 +641,7 @@ namespace dfi::str_util {
             utf8[3] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
             utf8[4] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
             utf8[5] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[6] = (std::uint8_t) 0;
             return 6;
-        } else if(c <= 0xf'ff'ff'ff'ffULL) {
-            utf8[0] = 0xfe;
-            utf8[1] = (std::uint8_t)(((c >> 30) & 0x3f) | 0x80);
-            utf8[2] = (std::uint8_t)(((c >> 24) & 0x3f) | 0x80);
-            utf8[3] = (std::uint8_t)(((c >> 18) & 0x3f) | 0x80);
-            utf8[4] = (std::uint8_t)(((c >> 12) & 0x3f) | 0x80);
-            utf8[5] = (std::uint8_t)(((c >> 6) & 0x3f) | 0x80);
-            utf8[6] = (std::uint8_t)((c & 0x3f) | 0x80);
-            utf8[7] = (std::uint8_t) 0;
-            return 7;
-        } else if(c <= 0x7f'ff'ff'ff'ff'ff'ff'ffULL) {
-            utf8[0] = 0xff;
-            utf8[1] = 0x80;
-            utf8[2] = (std::uint8_t) (((c >> 60) & 0x3f) | 0x80);
-            utf8[3] = (std::uint8_t) (((c >> 54) & 0x3f) | 0x80);
-            utf8[4] = (std::uint8_t) (((c >> 48) & 0x3f) | 0x80);
-            utf8[5] = (std::uint8_t) (((c >> 42) & 0x3f) | 0x80);
-            utf8[6] = (std::uint8_t) (((c >> 36) & 0x3f) | 0x80);
-            utf8[7] = (std::uint8_t) (((c >> 30) & 0x3f) | 0x80);
-            utf8[8] = (std::uint8_t) (((c >> 24) & 0x3f) | 0x80);
-            utf8[9] = (std::uint8_t) (((c >> 18) & 0x3f) | 0x80);
-            utf8[10] = (std::uint8_t)(((c >> 12) & 0x3f) | 0x80);
-            utf8[11] = (std::uint8_t)(((c >>  6) & 0x3f) | 0x80);
-            utf8[12] = (std::uint8_t)(((c >>  0) & 0x3f) | 0x80);
-            utf8[13] = (std::uint8_t) 0;
-            return 13;
         }
         return 0;
     }
@@ -799,85 +650,6 @@ namespace dfi::str_util {
         std::array<char, 32> buff{};
         int num{ucs_to_utf8(c, &buff[0])};
         return std::string{buff.begin(), buff.begin() + num};
-    }
-
-    static int ucs_to_utf8_maxlen(std::uint64_t c, void *ut8, std::int64_t max_len) {
-        std::uint8_t *utf8{(std::uint8_t *)ut8};
-        if(c <= 0x7fULL) {
-            if(max_len < 2) { return 0; }
-            utf8[0] = (std::uint8_t) c & 0x7f;
-            utf8[1] = (std::uint8_t) 0;
-            return 1;
-        } else if(c <= 0x7'ffULL) {
-            if(max_len < 3) { return 0; }
-            utf8[0] = (std::uint8_t)((c >> 6) & 0x1f) | 0xc0;
-            utf8[1] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[2] = (std::uint8_t) 0;
-            return 2;
-        } else if(c <= 0xff'ffULL) {
-            if(max_len < 4) { return 0; }
-            utf8[0] = (std::uint8_t)((c >> 12) & 0xf) | 0xe0;
-            utf8[1] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
-            utf8[2] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[3] = (std::uint8_t) 0;
-            return 3;
-        } else if(c <= 0x1f'ff'ffULL) {
-            if(max_len < 5) { return 0; }
-            utf8[0] = (std::uint8_t)((c >> 18) & 7) | 0xf0;
-            utf8[1] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
-            utf8[2] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
-            utf8[3] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[4] = (std::uint8_t) 0;
-            return 4;
-        } else if(c <= 0x3'ff'ff'ffULL) {
-            if(max_len < 6) { return 0; }
-            utf8[0] = (std::uint8_t)((c >> 24) & 3) | 0xf8;
-            utf8[1] = (std::uint8_t)((c >> 18) & 0x3f) | 0x80;
-            utf8[2] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
-            utf8[3] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
-            utf8[4] = (std::uint8_t)(c & 0x3f) | 0x80;
-            utf8[5] = (std::uint8_t) 0;
-            return 5;
-        } else if(c <= 0x7f'ff'ff'ffULL) {
-            if(max_len < 7) { return 0; }
-            utf8[0] = (std::uint8_t)(((c >> 30) & 1) | 0xfc);
-            utf8[1] = (std::uint8_t)(((c >> 24) & 0x3f) | 0x80);
-            utf8[2] = (std::uint8_t)(((c >> 18) & 0x3f) | 0x80);
-            utf8[3] = (std::uint8_t)(((c >> 12) & 0x3f) | 0x80);
-            utf8[4] = (std::uint8_t)(((c >> 6) & 0x3f) | 0x80);
-            utf8[5] = (std::uint8_t)((c & 0x3f) | 0x80);
-            utf8[6] = (std::uint8_t) 0;
-            return 6;
-        } else if(c <= 0xf'ff'ff'ff'ffULL) {
-            if(max_len < 8) { return 0; }
-            utf8[0] = 0xfe;
-            utf8[1] = (std::uint8_t)(((c >> 30) & 0x3f) | 0x80);
-            utf8[2] = (std::uint8_t)(((c >> 24) & 0x3f) | 0x80);
-            utf8[3] = (std::uint8_t)(((c >> 18) & 0x3f) | 0x80);
-            utf8[4] = (std::uint8_t)(((c >> 12) & 0x3f) | 0x80);
-            utf8[5] = (std::uint8_t)(((c >> 6) & 0x3f) | 0x80);
-            utf8[6] = (std::uint8_t)((c & 0x3f) | 0x80);
-            utf8[7] = (std::uint8_t) 0;
-            return 7;
-        } else if(c <= 0x7f'ff'ff'ff'ff'ff'ff'ffULL) {
-            if(max_len < 14) { return 0; }
-            utf8[0] = 0xff;
-            utf8[1] = 0x80;
-            utf8[2] =  static_cast<std::uint8_t>(((c >> 60) & 0x0f) | 0x80);
-            utf8[3] =  static_cast<std::uint8_t>(((c >> 54) & 0x3f) | 0x80);
-            utf8[4] =  static_cast<std::uint8_t>(((c >> 48) & 0x3f) | 0x80);
-            utf8[5] =  static_cast<std::uint8_t>(((c >> 42) & 0x3f) | 0x80);
-            utf8[6] =  static_cast<std::uint8_t>(((c >> 36) & 0x3f) | 0x80);
-            utf8[7] =  static_cast<std::uint8_t>(((c >> 30) & 0x3f) | 0x80);
-            utf8[8] =  static_cast<std::uint8_t>(((c >> 24) & 0x3f) | 0x80);
-            utf8[9] =  static_cast<std::uint8_t>(((c >> 18) & 0x3f) | 0x80);
-            utf8[10] = static_cast<std::uint8_t>(((c >> 12) & 0x3f) | 0x80);
-            utf8[11] = static_cast<std::uint8_t>(((c >>  6) & 0x3f) | 0x80);
-            utf8[12] = static_cast<std::uint8_t>(((c >>  0) & 0x3f) | 0x80);
-            utf8[13] = static_cast<std::uint8_t>(0);
-            return 13;
-        }
-        return 0;
     }
 
     template<typename STR_T = std::wstring>
@@ -935,14 +707,13 @@ namespace dfi::str_util {
         STR_T result{};
         result.reserve(s.size());
         int increment{};
-        wchar_t c{};
         std::int64_t len{(std::int64_t)s.size()};
-        for(
-            char const *utf8{s.data()};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) >= 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s.data()}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
         return result;
     }
@@ -952,14 +723,13 @@ namespace dfi::str_util {
         STR_T result{};
         result.reserve(s.size());
         int increment{};
-        wchar_t c{};
         std::int64_t len{(std::int64_t)s.size()};
-        for(
-            char const *utf8{s.data()};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) >= 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s.data()}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
         return result;
     }
@@ -968,50 +738,45 @@ namespace dfi::str_util {
     STR_T from_utf8(char const *s) {
         STR_T result{};
         int increment{};
-        int c{};
         std::int64_t len{(std::int64_t)std::strlen(s)};
         result.reserve(len);
-        for(
-            char const *utf8{s};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) > 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
         return result;
     }
-
 
     template<typename STR_T = std::wstring>
     STR_T from_utf8(char const *s, std::size_t len) {
         STR_T result{};
         int increment{};
-        int c{};
         result.reserve(len);
-        for(
-            char const *utf8{s};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) >= 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
         return result;
     }
-
 
     template<typename STR_T = std::wstring>
     void from_utf8(const std::string &s, STR_T &result) {
         result.clear();
         int increment{};
-        int c{};
         std::int64_t len{(std::int64_t)s.size()};
         result.reserve(len);
-        for(
-            char const *utf8{s.data()};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) >= 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s.data()}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
     }
 
@@ -1019,15 +784,14 @@ namespace dfi::str_util {
     void from_utf8(const std::string_view &s, STR_T &result) {
         result.clear();
         int increment{};
-        int c{};
         std::int64_t len{(std::int64_t)s.size()};
         result.reserve(len);
-        for(
-            char const *utf8{s.data()};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) >= 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s.data()}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
     }
 
@@ -1035,16 +799,174 @@ namespace dfi::str_util {
     void from_utf8(const char *s, STR_T &result) {
         result.clear();
         int increment{};
-        int c{};
         std::int64_t len{(std::int64_t)std::strlen(s)};
         result.reserve(len);
-        for(
-            char const *utf8{s};
-            len > 0 && ((c = utf8_to_ucs_maxlen(utf8, len, &increment)) > 0);
-            utf8 += increment, len -= increment
-        ) {
-            result += static_cast<typename STR_T::value_type>(c);
+        for(char const *utf8{s}; len > 0; utf8 += increment, len -= increment) {
+            if(auto c{utf8_to_ucs(utf8, len, &increment)}) {
+                result += static_cast<typename STR_T::value_type>(*c);
+            } else {
+                result += static_cast<typename STR_T::value_type>(L'\ufffd');
+            }
         }
+    }
+
+    static std::uint64_t deserialize_number(void const *ut8, std::size_t max_len, int *increment) {
+        static constexpr std::int8_t seqlen[256] = {
+            // 0x00 .. 0x7F — ASCII, single-byte sequences
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x00-0x0F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x10-0x1F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x20-0x2F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x30-0x3F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x40-0x4F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x50-0x5F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x60-0x6F
+            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x70-0x7F
+            // 0x80 .. 0xBF — continuation bytes (10xxxxxx), could not be leading
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x80-0x8F
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x90-0x9F
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0xA0-0xAF
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0xB0-0xBF
+            // 0xC0 .. 0xDF — two-byte (110xxxxx)
+            2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  // 0xC0-0xCF
+            2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  // 0xD0-0xDF
+            // 0xE0 .. 0xEF — three-byte (1110xxxx)
+            3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,  // 0xE0-0xEF
+            // 0xF0 .. 0xF7 — four-byte (11110xxx)
+            4,4,4,4,4,4,4,4,                  // 0xF0-0xF7
+            // 0xF8 .. 0xFB — five-byte (111110xx), old spec only
+            5,5,5,5,                          // 0xF8-0xFB
+            // 0xFC .. 0xFD — six-byte (1111110x), old spec only
+            6,6,                              // 0xFC-0xFD
+            // 0xFE, 0xFF — disallowed
+            7,13                              // 0xFE-0xFF
+        };
+        static auto cont{[](std::uint8_t c, int off = 0) -> std::uint64_t { std::uint64_t res{c}; res &= 0x3f; res <<= off; return res; }};
+        static auto first2{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x1f; res <<= 6; return res; }};
+        static auto first3{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x0f; res <<= 12; return res; }};
+        static auto first4{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x07; res <<= 18; return res; }};
+        static auto first5{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x03; res <<= 24; return res; }};
+        static auto first6{[](std::uint8_t c) -> std::uint64_t { std::uint64_t res{c}; res &= 0x01; res <<= 30; return res; }};
+        static auto chck{[](std::uint8_t c) -> bool { return (c & 0xc0) == 0x80; }};
+
+        if(ut8 == nullptr || max_len == 0) { throw std::runtime_error{"invalid input"}; }
+
+        std::uint8_t const *utf8{reinterpret_cast<std::uint8_t const *>(ut8)};
+        std::uint8_t const c0{utf8[0]};
+        int offs{seqlen[c0]};
+        if(increment != nullptr) { *increment = offs; }
+        switch(offs) {
+            case 1:
+                return c0;
+            case 2:
+                if(max_len < 2 || !chck(utf8[1])) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return first2(c0) | cont(utf8[1]);
+            case 3:
+                if(max_len < 3 || !chck(utf8[1]) || !chck(utf8[2])) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return first3(c0) | cont(utf8[1], 6) | cont(utf8[2]);
+            case 4:
+                if(max_len < 4 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3])) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return first4(c0) | cont(utf8[1], 12) | cont(utf8[2], 6) | cont(utf8[3]);
+            case 5:
+                if(max_len < 5 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3]) || !chck(utf8[4])) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return first5(c0) | cont(utf8[1], 18) | cont(utf8[2], 12) | cont(utf8[3], 6) | cont(utf8[4]);
+            case 6:
+                if(max_len < 6 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3]) || !chck(utf8[4]) || !chck(utf8[5])) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return first6(c0) | cont(utf8[1], 24) | cont(utf8[2], 18) | cont(utf8[3], 12) | cont(utf8[4], 6) | cont(utf8[5]);
+            case 7:
+                if(max_len < 7 || !chck(utf8[1]) || !chck(utf8[2]) || !chck(utf8[3]) || !chck(utf8[4]) || !chck(utf8[5]) || !chck(utf8[6])) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return cont(utf8[1], 30) | cont(utf8[2], 24) | cont(utf8[3], 18) | cont(utf8[4], 12) | cont(utf8[5], 6) | cont(utf8[6]);
+            case 13:
+                if(
+                    max_len < 13 || utf8[1] != 0x80 || !chck(utf8[2]) || !chck(utf8[3]) || !chck(utf8[4]) || !chck(utf8[5]) || !chck(utf8[6])
+                    || !chck(utf8[7]) || !chck(utf8[8]) || !chck(utf8[9]) || !chck(utf8[10]) || !chck(utf8[11]) || !chck(utf8[12])
+                ) {
+                    throw std::runtime_error{"invalid serial sequence"};
+                }
+                return cont(utf8[1], 30) | cont(utf8[2], 24) | cont(utf8[3], 18) | cont(utf8[4], 12) | cont(utf8[5], 6) | cont(utf8[6]);
+            default:
+                throw std::runtime_error{"invalid serial sequence"};
+        }
+    }
+
+    static int serialize_number(std::uint64_t c, void *ut8) {
+        std::uint8_t *utf8{(std::uint8_t *)ut8};
+        if(c <= 0x7fULL) {
+            utf8[0] = (std::uint8_t) c & 0x7f;
+            return 1;
+        } else if(c <= 0x7'ffULL) {
+            utf8[0] = (std::uint8_t)((c >> 6) & 0x1f) | 0xc0;
+            utf8[1] = (std::uint8_t)(c & 0x3f) | 0x80;
+            return 2;
+        } else if(c <= 0xff'ffULL) {
+            utf8[0] = (std::uint8_t)((c >> 12) & 0xf) | 0xe0;
+            utf8[1] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
+            utf8[2] = (std::uint8_t)(c & 0x3f) | 0x80;
+            return 3;
+        } else if(c <= 0x1f'ff'ffULL) {
+            utf8[0] = (std::uint8_t)((c >> 18) & 7) | 0xf0;
+            utf8[1] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
+            utf8[2] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
+            utf8[3] = (std::uint8_t)(c & 0x3f) | 0x80;
+            return 4;
+        } else if(c <= 0x3'ff'ff'ffULL) {
+            utf8[0] = (std::uint8_t)((c >> 24) & 3) | 0xf8;
+            utf8[1] = (std::uint8_t)((c >> 18) & 0x3f) | 0x80;
+            utf8[2] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
+            utf8[3] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
+            utf8[4] = (std::uint8_t)(c & 0x3f) | 0x80;
+            return 5;
+        } else if(c <= 0x7f'ff'ff'ffULL) {
+            utf8[0] = (std::uint8_t)((c >> 30) & 1) | 0xfc;
+            utf8[1] = (std::uint8_t)((c >> 24) & 0x3f) | 0x80;
+            utf8[2] = (std::uint8_t)((c >> 18) & 0x3f) | 0x80;
+            utf8[3] = (std::uint8_t)((c >> 12) & 0x3f) | 0x80;
+            utf8[4] = (std::uint8_t)((c >> 6) & 0x3f) | 0x80;
+            utf8[5] = (std::uint8_t)(c & 0x3f) | 0x80;
+            return 6;
+        } else if(c <= 0xf'ff'ff'ff'ffULL) {
+            utf8[0] = 0xfe;
+            utf8[1] = (std::uint8_t)(((c >> 30) & 0x3f) | 0x80);
+            utf8[2] = (std::uint8_t)(((c >> 24) & 0x3f) | 0x80);
+            utf8[3] = (std::uint8_t)(((c >> 18) & 0x3f) | 0x80);
+            utf8[4] = (std::uint8_t)(((c >> 12) & 0x3f) | 0x80);
+            utf8[5] = (std::uint8_t)(((c >> 6) & 0x3f) | 0x80);
+            utf8[6] = (std::uint8_t)((c & 0x3f) | 0x80);
+            return 7;
+        } else if(c <= 0x7f'ff'ff'ff'ff'ff'ff'ffULL) {
+            utf8[0] = 0xff;
+            utf8[1] = 0x80;
+            utf8[2] = (std::uint8_t) (((c >> 60) & 0x3f) | 0x80);
+            utf8[3] = (std::uint8_t) (((c >> 54) & 0x3f) | 0x80);
+            utf8[4] = (std::uint8_t) (((c >> 48) & 0x3f) | 0x80);
+            utf8[5] = (std::uint8_t) (((c >> 42) & 0x3f) | 0x80);
+            utf8[6] = (std::uint8_t) (((c >> 36) & 0x3f) | 0x80);
+            utf8[7] = (std::uint8_t) (((c >> 30) & 0x3f) | 0x80);
+            utf8[8] = (std::uint8_t) (((c >> 24) & 0x3f) | 0x80);
+            utf8[9] = (std::uint8_t) (((c >> 18) & 0x3f) | 0x80);
+            utf8[10] = (std::uint8_t)(((c >> 12) & 0x3f) | 0x80);
+            utf8[11] = (std::uint8_t)(((c >>  6) & 0x3f) | 0x80);
+            utf8[12] = (std::uint8_t)(((c >>  0) & 0x3f) | 0x80);
+            return 13;
+        }
+        return 0;
+    }
+
+    static std::string serialize_number(std::int64_t c) {
+        std::array<char, 32> buff{};
+        int num{serialize_number(c, buff.data())};
+        return std::string{buff.begin(), buff.begin() + num};
     }
 
     template<typename string_class>
@@ -1145,9 +1067,10 @@ namespace dfi::str_util {
                             int last{dfi::str_util::ucs_to_utf8(c + 0x2400, u)};
                             u[last] = 0;
                         } else if(c >= 128) {
-                            dfi::str_util::ucs_to_utf8(c, u);
+                            int last{dfi::str_util::ucs_to_utf8(c, u)};
+                            u[last] = 0;
                         } else {
-                            u[0] = c;
+                            u[0] = c; u[1] = 0;
                         }
                     }
                     res << std::string{u};

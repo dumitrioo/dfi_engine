@@ -1445,16 +1445,16 @@ namespace dfi {
                 parse_rules_5,
                 [&](dfi::fsm_tokenizer<std::wstring>::token const &a) { d.accept_token(a); }
             };
-            for(size_t pos{0}; pos < s.size();) {
+            auto ssize{s.size()};
+            for(size_t pos{0}; pos < ssize;) {
                 int increment{};
-                std::int64_t uc{dfi::str_util::utf8_to_ucs(s.data() + pos, &increment)};
-                if(uc < 0) {
-                    ++pos;
-                    uc = '?';
+                auto uc{dfi::str_util::utf8_to_ucs(s.data() + pos, ssize - pos, &increment)};
+                pos += increment;
+                if(!uc) {
+                    t.accept_char(L'\ufffd');
                 } else {
-                    pos += increment;
+                    t.accept_char(*uc);
                 }
-                t.accept_char(uc);
             }
             t.finalize();
             return d.harvest_result();

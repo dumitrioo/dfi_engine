@@ -189,7 +189,7 @@ namespace dfi::net {
         bytevec output_data_to_network_frame(void const *data, std::size_t data_size) {
             bytevec res{};
             if(data && data_size) {
-                std::string ss{str_util::ucs_to_utf8(data_size)};
+                std::string ss{str_util::serialize_number(data_size)};
                 res.insert(res.end(), ss.begin(), ss.end());
                 res.insert(res.end(), (std::uint8_t const *)data, (std::uint8_t const *)data + data_size);
             }
@@ -241,10 +241,13 @@ namespace dfi::net {
                 size_t ss{size_size(input_buf_.peek_byte(0))};
                 if(ss > 0 && input_buf_.size() >= ss) {
                     auto hdr{input_buf_.peek_bytevec(ss)};
-                    std::int64_t s{str_util::utf8_to_ucs_maxlen(hdr.data(), hdr.size(), nullptr)};
-                    if(input_buf_.size() >= ss + s) {
-                        input_buf_.pop_bytevec(ss);
-                        return input_buf_.pop_bytevec(s);
+                    try {
+                        std::uint64_t s{str_util::deserialize_number(hdr.data(), hdr.size(), nullptr)};
+                        if(input_buf_.size() >= ss + s) {
+                            input_buf_.pop_bytevec(ss);
+                            return input_buf_.pop_bytevec(s);
+                        }
+                    } catch (...) {
                     }
                 }
             }
