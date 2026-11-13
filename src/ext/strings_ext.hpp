@@ -322,18 +322,10 @@ namespace dfi {
             });
 
             rt_->add_function("replace_substr", DFIFUN(args) {
-                DFI_CHCK_FUN_PARMS_NUM_IN_RANGE(args, 2, 3)
-                if(args.size() == 2) {
-                    return str_util::to_utf8(str_util::replace_substring<std::wstring>(
-                        args[0].cast_to_wstring(), args[1].cast_to_wstring(), std::wstring{}
-                        ));
-                }
-                if(args.size() == 3) {
+                DFI_CHCK_FUN_PARMS_NUM_EQ(args, 3)
                     return str_util::to_utf8(str_util::replace_substring<std::wstring>(
                         args[0].cast_to_wstring(), args[1].cast_to_wstring(), args[2].cast_to_wstring()
-                        ));
-                }
-                return std::string{};
+                    ));
             });
 
             rt_->add_function("substr", DFIFUN(args) {
@@ -485,33 +477,33 @@ namespace dfi {
                 if(args[0].is_string()) {
                     if(args[1].is_string()) {
                         if(args.size() == 3) {
-                            return str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].as_string(), args[2].cast_to_u64());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].as_string(), args[2].cast_to_u64()));
                         } else {
-                            return str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].as_string());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].as_string()));
                         }
                     } else {
                         if(args.size() == 3) {
-                            return str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].cast_to_string(), args[2].cast_to_u64());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].cast_to_string(), args[2].cast_to_u64()));
                         } else {
-                            return str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].cast_to_string());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_string(), args[1].cast_to_string()));
                         }
                     }
                 } else if(args[0].is_wstring()) {
                     if(args[1].is_wstring()) {
                         if(args.size() == 3) {
-                            return str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].as_wstring(), args[2].cast_to_u64());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].as_wstring(), args[2].cast_to_u64()));
                         } else {
-                            return str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].as_wstring());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].as_wstring()));
                         }
                     } else {
                         if(args.size() == 3) {
-                            return str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].cast_to_wstring(), args[2].cast_to_u64());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].cast_to_wstring(), args[2].cast_to_u64()));
                         } else {
-                            return str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].cast_to_wstring());
+                            return static_cast<std::int64_t>(str_util::substr_finder_rk{}.find(args[0].as_wstring(), args[1].cast_to_wstring()));
                         }
                     }
                 } else {
-                    return static_cast<int64_t>(-1);
+                    return static_cast<std::int64_t>(-1);
                 }
             });
 

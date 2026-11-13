@@ -66,6 +66,129 @@ namespace dfi::str_util {
 
 #endif
 
+    // Dumb yet faster than std::string::find() algorithm (in waste majority of cases)
+    class substr_finder_dumb {
+    public:
+        template<typename STR_T>
+        static std::size_t find(STR_T const &s, STR_T const &sub, size_t starting_point = 0) {
+            size_t m{sub.size()};
+            size_t ss{s.size()};
+            if(ss == 0 || m == 0 || ss < m + starting_point) { return static_cast<std::size_t>(-1); }
+            std::size_t sub_cksum{dumb_cksum(sub.data(), m)};
+            std::size_t curr_cksum{dumb_cksum(s.data() + starting_point, m)};
+            for(size_t i{starting_point}; i <= ss - m; ++i) {
+                if(i > starting_point) {
+                    curr_cksum -= static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i - 1]);
+                    curr_cksum += static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i + m - 1]);
+                }
+                if(
+                    curr_cksum == sub_cksum &&
+                    std::memcmp(sub.data(), s.data() + i, m * sizeof(typename STR_T::value_type)) == 0
+                ) {
+                    return i;
+                }
+            }
+            return static_cast<std::size_t>(-1);
+        }
+
+    private:
+        template<typename CHAR_T>
+        static std::size_t dumb_cksum(CHAR_T const *s, size_t ss) {
+            std::size_t res{0};
+            for(size_t i{0}; i < ss; ++i) {
+                res += static_cast<std::make_unsigned_t<CHAR_T>>(s[i]);
+            }
+            return res;
+        }
+    };
+
+    // Rabin-Karp algorithm
+    class substr_finder_rk {
+    public:
+        template<typename STR_T>
+        static std::size_t find(STR_T const &s, STR_T const &sub, std::size_t starting_point = 0) {
+            size_t m{sub.size()};
+            size_t ss{s.size()};
+
+            if(ss == 0 || m == 0 || ss < m + starting_point) { return static_cast<std::size_t>(-1); }
+
+            std::size_t p_pow{1};
+            for(size_t i = 0; i + 1 < m; ++i) {
+                p_pow *= BASE;
+            }
+            std::size_t sub_hash{poly_hash(sub.data(), m)};
+            std::size_t curr_hash{poly_hash(s.data() + starting_point, m)};
+            for(std::size_t i{starting_point}; i <= ss - m; ++i) {
+                if(i > starting_point) {
+                    std::size_t old_char{static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i - 1])};
+                    std::size_t new_char{static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i + m - 1])};
+                    curr_hash = (curr_hash - old_char * p_pow) * BASE + new_char;
+                }
+                if(
+                    curr_hash == sub_hash &&
+                    std::memcmp(sub.data(), s.data() + i, m * sizeof(typename STR_T::value_type)) == 0
+                ) {
+                    return i;
+                }
+            }
+            return static_cast<std::size_t>(-1);
+        }
+
+    private:
+        static constexpr std::size_t BASE = 257;
+
+        template<typename CHAR_T>
+        static std::size_t poly_hash(CHAR_T const *s, size_t ss) {
+            std::size_t hash = 0;
+            for(std::size_t i{}; i < ss; ++i) {
+                hash = hash * BASE + static_cast<std::make_unsigned_t<CHAR_T>>(s[i]);
+            }
+            return hash;
+        }
+    };
+
+    // Knuth–Morris–Pratt algorithm
+    class substr_finder_kmp {
+    public:
+        template<typename STR_T>
+        static std::size_t find(STR_T const &s, STR_T const &sub, std::size_t starting_point = 0) {
+            size_t m{sub.size()};
+            size_t ss{s.size()};
+
+            if(ss == 0 || m == 0 || ss < m + starting_point) { return static_cast<std::size_t>(-1); }
+
+            std::vector<size_t> lps(m, 0);
+            size_t len = 0;
+            for(size_t i = 1; i < m; ) {
+                if(sub[i] == sub[len]) {
+                    lps[i++] = ++len;
+                } else {
+                    if(len != 0) len = lps[len - 1];
+                    else lps[i++] = 0;
+                }
+            }
+
+            size_t i = starting_point;
+            size_t j = 0;
+
+            while(i < ss) {
+                if(s[i] == sub[j]) {
+                    i++;
+                    j++;
+                }
+                if(j == m) {
+                    return i - j;
+                } else if(i < ss && s[i] != sub[j]) {
+                    if(j != 0) {
+                        j = lps[j - 1];
+                    } else {
+                        i++;
+                    }
+                }
+            }
+            return static_cast<std::size_t>(-1);
+        }
+    };
 
     template<typename T, std::size_t N, typename U>
 #if(__cplusplus >= 202000L)
@@ -329,8 +452,8 @@ namespace dfi::str_util {
         string_t res{where};
         std::size_t pos{0};
         while(true) {
-            pos = res.find(what, pos);
-            if(pos == string_t::npos) {
+            pos = substr_finder_rk{}.find<string_t>(res, what, pos);
+            if(pos == static_cast<size_t>(-1)) {
                 break;
             }
             res.replace(pos, what.size(), to);
@@ -972,19 +1095,33 @@ namespace dfi::str_util {
     template<typename string_class>
     std::vector<string_class> str_tok(string_class const &str, string_class const &separator, bool separator_entire_str = true) {
         std::vector<string_class> result{};
-        typename string_class::size_type begin_pos = 0;
-        typename string_class::size_type end_pos = 0;
-        while(begin_pos <= str.size()) {
-            end_pos = separator_entire_str ? str.find(separator, begin_pos) : str.find_first_of(separator, begin_pos);
-            if(end_pos != string_class::npos) {
-                result.push_back(str.substr(begin_pos, end_pos - begin_pos));
-            } else {
-                result.push_back(str.substr(begin_pos));
-                break;
+        if(separator_entire_str) {
+            std::size_t begin_pos{0};
+            std::size_t end_pos{0};
+            while(begin_pos <= str.size()) {
+                end_pos = substr_finder_rk{}.find(str, separator, begin_pos);
+                if(end_pos != static_cast<std::size_t>(-1)) {
+                    result.push_back(str.substr(begin_pos, end_pos - begin_pos));
+                } else {
+                    result.push_back(str.substr(begin_pos));
+                    break;
+                }
+                begin_pos = end_pos + separator.size();
             }
-            begin_pos = separator_entire_str ? (end_pos + separator.size()) : (end_pos + 1);
+        } else {
+            typename string_class::size_type begin_pos{0};
+            typename string_class::size_type end_pos{0};
+            while(begin_pos <= str.size()) {
+                end_pos = str.find_first_of(separator, begin_pos);
+                if(end_pos != string_class::npos) {
+                    result.push_back(str.substr(begin_pos, end_pos - begin_pos));
+                } else {
+                    result.push_back(str.substr(begin_pos));
+                    break;
+                }
+                begin_pos = end_pos + 1;
+            }
         }
-
         return result;
     }
 
@@ -1236,129 +1373,5 @@ namespace dfi::str_util {
         }
         return res;
     }
-
-    // Dumb yet faster than std::string::find() algorithm (in waste majority of cases)
-    class substr_finder_dumb {
-    public:
-        template<typename STR_T>
-        static int64_t find(STR_T const &s, STR_T const &sub, size_t starting_point = 0) {
-            size_t m{sub.size()};
-            size_t ss{s.size()};
-            if(ss == 0 || m == 0 || ss < m + starting_point) { return -1; }
-            uint64_t sub_cksum{dumb_cksum(sub.data(), m)};
-            uint64_t curr_cksum{dumb_cksum(s.data() + starting_point, m)};
-            for(size_t i{starting_point}; i <= ss - m; ++i) {
-                if(i > starting_point) {
-                    curr_cksum -= static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i - 1]);
-                    curr_cksum += static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i + m - 1]);
-                }
-                if(
-                    curr_cksum == sub_cksum &&
-                    std::memcmp(sub.data(), s.data() + i, m * sizeof(typename STR_T::value_type)) == 0
-                ) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-    private:
-        template<typename CHAR_T>
-        static uint64_t dumb_cksum(CHAR_T const *s, size_t ss) {
-            uint64_t res{0};
-            for(size_t i{0}; i < ss; ++i) {
-                res += static_cast<std::make_unsigned_t<CHAR_T>>(s[i]);
-            }
-            return res;
-        }
-    };
-
-    // Rabin-Karp algorithm
-    class substr_finder_rk {
-    public:
-        template<typename STR_T>
-        static int64_t find(STR_T const &s, STR_T const &sub, uint64_t starting_point = 0) {
-            size_t m{sub.size()};
-            size_t ss{s.size()};
-
-            if(ss == 0 || m == 0 || ss < m + starting_point) { return -1; }
-
-            uint64_t p_pow{1};
-            for(size_t i = 0; i + 1 < m; ++i) {
-                p_pow *= BASE;
-            }
-            uint64_t sub_hash{poly_hash(sub.data(), m)};
-            uint64_t curr_hash{poly_hash(s.data() + starting_point, m)};
-            for(uint64_t i{starting_point}; i <= ss - m; ++i) {
-                if(i > starting_point) {
-                    uint64_t old_char{static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i - 1])};
-                    uint64_t new_char{static_cast<std::make_unsigned_t<typename STR_T::value_type>>(s[i + m - 1])};
-                    curr_hash = (curr_hash - old_char * p_pow) * BASE + new_char;
-                }
-                if(
-                    curr_hash == sub_hash &&
-                    std::memcmp(sub.data(), s.data() + i, m * sizeof(typename STR_T::value_type)) == 0
-                ) {
-                    return static_cast<int64_t>(i);
-                }
-            }
-            return -1;
-        }
-
-    private:
-        static constexpr uint64_t BASE = 257;
-
-        template<typename CHAR_T>
-        static uint64_t poly_hash(CHAR_T const *s, size_t ss) {
-            uint64_t hash = 0;
-            for(size_t i{}; i < ss; ++i) {
-                hash = hash * BASE + static_cast<std::make_unsigned_t<CHAR_T>>(s[i]);
-            }
-            return hash;
-        }
-    };
-
-    // Knuth–Morris–Pratt algorithm
-    class substr_finder_kmp {
-    public:
-        template<typename STR_T>
-        static int64_t find(STR_T const &s, STR_T const &sub, uint64_t starting_point = 0) {
-            size_t m{sub.size()};
-            size_t ss{s.size()};
-
-            if(ss == 0 || m == 0 || ss < m + starting_point) { return -1; }
-
-            std::vector<size_t> lps(m, 0);
-            size_t len = 0;
-            for(size_t i = 1; i < m; ) {
-                if(sub[i] == sub[len]) {
-                    lps[i++] = ++len;
-                } else {
-                    if(len != 0) len = lps[len - 1];
-                    else lps[i++] = 0;
-                }
-            }
-
-            size_t i = starting_point;
-            size_t j = 0;
-
-            while(i < ss) {
-                if(s[i] == sub[j]) {
-                    i++;
-                    j++;
-                }
-                if(j == m) {
-                    return static_cast<int64_t>(i - j);
-                } else if(i < ss && s[i] != sub[j]) {
-                    if(j != 0) {
-                        j = lps[j - 1];
-                    } else {
-                        i++;
-                    }
-                }
-            }
-            return -1;
-        }
-    };
 
 }
