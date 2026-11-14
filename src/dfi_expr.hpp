@@ -2230,7 +2230,6 @@ namespace dfi {
                                 if(l.is_literal_placement()) {
                                     throw runtime_error{this_->line_, this_->col_, "lvalue required"};
                                 }
-                                // throw runtime_error{this_->line_, this_->col_, "lvalue required"};
                             }
                             if(l.is_undefined()) {
                                 if(valbox::is_numeric_type(rt)) {
@@ -2258,7 +2257,9 @@ namespace dfi {
                                 if(lt == valbox::type::ARRAY) {
                                     auto const &ar{l.as_array()};
                                     auto indx{r.cast_to_u64()};
-                                    if(indx < ar.size()) {
+                                    if(indx >= ar.size()) {
+                                        throw runtime_error{this_->line(), this_->col(), "index out of bounds"};
+                                    } else {
                                         res = ar.at(indx);
                                         res.set_placement(l.placement());
                                     }
